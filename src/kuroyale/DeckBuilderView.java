@@ -10,7 +10,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 public class DeckBuilderView {
-
+    // Work in progress will show the deck of the player
+    // Player can change the deck, create a new one etc
     private final VBox root;
 
     public DeckBuilderView(ScreenNavigator navigator) {
