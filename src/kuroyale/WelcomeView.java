@@ -13,7 +13,7 @@ import javafx.scene.text.FontWeight;
 public class WelcomeView {
 
     private final VBox root;
-
+    //Shows the welcome screen of the game.
     public WelcomeView(ScreenNavigator navigator) {
         root = new VBox(15);
         root.setAlignment(Pos.CENTER);

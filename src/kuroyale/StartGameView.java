@@ -10,7 +10,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 public class StartGameView {
-
+    // Shows the actual start match menu.
     private final VBox root;
 
     public StartGameView(ScreenNavigator navigator) {
