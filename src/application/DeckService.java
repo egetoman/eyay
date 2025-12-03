@@ -31,11 +31,8 @@ public class DeckService {
         //save the deck to the deck repository
         deckRepository.save(deck);
     }
-
-    public boolean isValid(Deck deck) {
-        return deck != null && deck.isValid();
-    }
 }
+
 
 
 
