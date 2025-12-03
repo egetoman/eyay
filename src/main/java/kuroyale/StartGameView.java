@@ -1,4 +1,4 @@
-package kuroyale;
+package main.java.kuroyale;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -9,16 +9,16 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-public class DeckBuilderView {
-
+public class StartGameView {
+    // Shows the actual start match menu.
     private final VBox root;
 
-    public DeckBuilderView(ScreenNavigator navigator) {
+    public StartGameView(ScreenNavigator navigator) {
         root = new VBox(15);
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(20));
 
-        Label title = new Label("Deck Builder (Work In Progress)");
+        Label title = new Label("Start Game Screen (Work In Progress)");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 32));
 
         Button backButton = new Button("Back to Main Menu");
@@ -29,12 +29,5 @@ public class DeckBuilderView {
 
     public Parent getRoot() {
         return root;
-        
     }
 }
-
-
-
-
-
-

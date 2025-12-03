@@ -1,8 +1,9 @@
 package application;
 
 import java.util.List;
-import kuroyale.domain.Card;
-import kuroyale.domain.Deck;
+
+import main.java.kuroyale.domain.Card;
+import main.java.kuroyale.domain.Deck;
 
 public class DeckController {
 

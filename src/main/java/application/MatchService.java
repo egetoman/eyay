@@ -1,9 +1,9 @@
 package application;
 
-import kuroyale.domain.Arena;
-import kuroyale.domain.Match;
-import kuroyale.domain.Player;
-import kuroyale.infrastructure.MatchRepository;
+import main.java.kuroyale.domain.Arena;
+import main.java.kuroyale.domain.Match;
+import main.java.kuroyale.domain.Player;
+import main.java.kuroyale.infrastructure.MatchRepository;
 
 public class MatchService {
 
