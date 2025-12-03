@@ -1,4 +1,4 @@
-package kuroyale;
+package main.java.kuroyale;
 
 import javafx.scene.Scene;
 import javafx.stage.Stage;
