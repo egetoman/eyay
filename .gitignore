@@ -2,3 +2,5 @@
 /shelf/
 /workspace.xml
 .vscode/settings.json
+.venv/
+pdf/
