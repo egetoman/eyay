@@ -2,10 +2,10 @@ package application;
 
 import java.util.List;
 
-import main.java.kuroyale.domain.Card;
-import main.java.kuroyale.domain.Deck;
-import main.java.kuroyale.infrastructure.CardCatalogRepository;
-import main.java.kuroyale.infrastructure.DeckRepository;
+import kuroyale.domain.Card;
+import kuroyale.domain.Deck;
+import kuroyale.infrastructure.CardCatalogRepository;
+import kuroyale.infrastructure.DeckRepository;
 
 public class DeckService {
 
