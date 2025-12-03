@@ -1,6 +1,7 @@
 package application;
 
 import java.util.List;
+
 import kuroyale.domain.Card;
 import kuroyale.domain.Deck;
 import kuroyale.infrastructure.CardCatalogRepository;
