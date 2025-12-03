@@ -20,23 +20,42 @@ public class Deck {
     }
 
     public void setCards(List<Card> cards) {
-        this.cards = cards;
+        this.cards = cards != null ? cards : new ArrayList<>();
     }
 
-    public void addCard(Card card) {
-        // TODO: implement card addition rules
+    public boolean addCard(Card card) {
+        if (card == null || cards == null) {
+            return false;
+        }
+        if (cards.size() >= 8) {
+            return false; // deck is full
+        }
+        // enforce uniqueness by card id
+        boolean alreadyPresent = cards.stream()
+                .anyMatch(existing -> existing.getId() != null && existing.getId().equals(card.getId()));
+        if (alreadyPresent) {
+            return false;
+        }
+        return cards.add(card);
     }
 
-    public void removeCard(Card card) {
-        // TODO: implement card removal rules
+    public boolean removeCard(Card card) {
+        if (card == null || cards == null) {
+            return false;
+        }
+        return cards.removeIf(existing -> existing.getId() != null && existing.getId().equals(card.getId()));
     }
 
     public boolean isValid() {
-        // TODO: implement deck validation rules
-        return false;
+        if (cards == null || cards.size() != 8) {
+            return false;
+        }
+        long uniqueCount = cards.stream()
+                .filter(c -> c != null && c.getId() != null)
+                .map(Card::getId)
+                .distinct()
+                .count();
+        return uniqueCount == 8;
     }
 }
-
-
-
 
