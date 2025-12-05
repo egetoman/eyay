@@ -7,16 +7,20 @@ public class Card {
     private int elixirCost;
     private CardType type;
     private CardStats stats;
+    private CardTarget target;
+    private String description;
 
     public Card() {
     }
 
-    public Card(String id, String name, int elixirCost, CardType type, CardStats stats) {
+    public Card(String id, String name, int elixirCost, CardType type, CardStats stats, CardTarget target, String description) {
         this.id = id;
         this.name = name;
         this.elixirCost = elixirCost;
         this.type = type;
         this.stats = stats;
+        this.target = target;
+        this.description = description;
     }
 
     public String getId() {
@@ -57,6 +61,22 @@ public class Card {
 
     public void setStats(CardStats stats) {
         this.stats = stats;
+    }
+
+    public CardTarget getTarget() {
+        return target;
+    }
+
+    public void setTarget(CardTarget target) {
+        this.target = target;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }
 

@@ -24,6 +24,10 @@ public class DeckController {
         return deckService.loadDeck();
     }
 
+    public Deck buildDefaultDeck() {
+        return deckService.buildDefaultDeck();
+    }
+
     public void saveDeck(Deck deck) {
         //save the deck to the deck service
         deckService.saveDeck(deck);
