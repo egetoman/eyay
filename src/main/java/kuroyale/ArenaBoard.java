@@ -11,6 +11,9 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextAlignment;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Bridge;
 import kuroyale.domain.Position;
@@ -135,8 +138,8 @@ public class ArenaBoard {
         double y = convertY(layout, position.getY());
 
         Color fillColor = tower.getOwner() == TowerOwner.PLAYER
-            ? Color.web("#3cb371")
-            : Color.web("#f05a5b");
+                ? Color.web("#3cb371")
+                : Color.web("#f05a5b");
         gc.setFill(fillColor);
 
         double size = TILE_SIZE * (tower.getType() == TowerType.KING ? 1.2 : 0.9);
@@ -148,9 +151,14 @@ public class ArenaBoard {
         gc.strokeOval(x + offset, y + offset, size, size);
 
         gc.setFill(Color.WHITE);
-        gc.setFont(javafx.scene.text.Font.font("Arial", javafx.scene.text.FontWeight.BOLD, TILE_SIZE * 0.45));
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, TILE_SIZE * 0.45));
         String label = tower.getType() == TowerType.KING ? "K" : "C";
-        gc.fillText(label, x + TILE_SIZE * 0.35, y + TILE_SIZE * 0.65);
+        gc.fillText(label, x + TILE_SIZE * 0.35, y + TILE_SIZE * 0.6);
+
+        gc.setFill(Color.web("#f4f4f4"));
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, TILE_SIZE * 0.35));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText(String.valueOf(tower.getHp()), x + TILE_SIZE / 2, y - 4);
     }
 
     private void drawUnits(GraphicsContext gc, ArenaLayout layout, List<Unit> units) {
@@ -165,13 +173,23 @@ public class ArenaBoard {
             double drawX = (unit.getPreciseX()) * TILE_SIZE;
             double drawY = convertY(layout, unit.getPreciseY());
             Color fill = unit.getOwner() == TowerOwner.PLAYER
-                ? Color.web("#8bed4a")
-                : Color.web("#ff8a80");
+                    ? Color.web("#8bed4a")
+                    : Color.web("#ff8a80");
             gc.setFill(fill);
             gc.fillOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
             gc.setStroke(Color.web("#000000"));
             gc.setLineWidth(0.8);
             gc.strokeOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+
+            gc.setFill(Color.WHITE);
+            gc.setFont(Font.font("Arial", FontWeight.BOLD, 10));
+            gc.setTextAlign(TextAlignment.CENTER);
+            String name = unit.getCard() != null ? unit.getCard().getName() : "Unit";
+            gc.fillText(name, drawX + TILE_SIZE / 2, drawY);
+
+            gc.setFont(Font.font("Arial", FontWeight.BOLD, 9));
+            gc.setFill(Color.web("#ffe082"));
+            gc.fillText(String.valueOf(unit.getCurrentHP()), drawX + TILE_SIZE / 2, drawY + TILE_SIZE + 10);
         }
     }
 
