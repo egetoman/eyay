@@ -5,35 +5,101 @@ import java.util.List;
 
 public class Deck {
 
-    private List<Card> cards;
+    public static final int MAX_CARDS = 8;
+
+    private final List<Card> cards;
 
     public Deck() {
         this.cards = new ArrayList<>();
     }
 
     public Deck(List<Card> cards) {
-        this.cards = cards != null ? cards : new ArrayList<>();
+        if (cards != null) {
+            this.cards = new ArrayList<>(cards);
+        } else {
+            this.cards = new ArrayList<>();
+        }
     }
 
     public List<Card> getCards() {
-        return cards;
+        return new ArrayList<>(cards);
     }
 
-    public void setCards(List<Card> cards) {
-        this.cards = cards;
+    public void setCards(List<Card> newCards) {
+        cards.clear();
+        if (newCards != null) {
+            for (Card card : newCards) {
+                if (cards.size() >= MAX_CARDS) {
+                    break;
+                }
+                cards.add(card);
+            }
+        }
     }
 
-    public void addCard(Card card) {
-        // TODO: implement card addition rules
+    public boolean addCard(Card card) {
+        if (card == null || cards.size() >= MAX_CARDS || containsCard(card)) {
+            return false;
+        }
+        cards.add(card);
+        return true;
     }
 
-    public void removeCard(Card card) {
-        // TODO: implement card removal rules
+    public boolean removeCard(Card card) {
+        if (card == null) {
+            return false;
+        }
+        String targetId = card.getId();
+        for (int i = 0; i < cards.size(); i++) {
+            Card existing = cards.get(i);
+            if (matches(existing, targetId)) {
+                cards.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void clear() {
+        cards.clear();
+    }
+
+    public int size() {
+        return cards.size();
+    }
+
+    public boolean isFull() {
+        return cards.size() >= MAX_CARDS;
     }
 
     public boolean isValid() {
-        // TODO: implement deck validation rules
+        return cards.size() == MAX_CARDS;
+    }
+
+    public boolean containsCard(Card card) {
+        if (card == null) {
+            return false;
+        }
+        return containsCardId(card.getId());
+    }
+
+    public boolean containsCardId(String cardId) {
+        for (Card existing : cards) {
+            if (matches(existing, cardId)) {
+                return true;
+            }
+        }
         return false;
+    }
+
+    private boolean matches(Card card, String id) {
+        if (card == null) {
+            return false;
+        }
+        if (id == null) {
+            return false;
+        }
+        return id.equals(card.getId());
     }
 }
 
