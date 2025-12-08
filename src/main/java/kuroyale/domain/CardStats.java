@@ -5,18 +5,18 @@ public class CardStats {
     private int hp;
     private int damage;
     private int range;
-    private int speed;
-    private int attackSpeed;
+    private int moveSpeed;
+    private int hitSpeedMillis;
 
     public CardStats() {
     }
 
-    public CardStats(int hp, int damage, int range, int speed, int attackSpeed) {
+    public CardStats(int hp, int damage, int range, int moveSpeed, int hitSpeedMillis) {
         this.hp = hp;
         this.damage = damage;
         this.range = range;
-        this.speed = speed;
-        this.attackSpeed = attackSpeed;
+        this.moveSpeed = moveSpeed;
+        this.hitSpeedMillis = hitSpeedMillis;
     }
 
     public int getHp() {
@@ -43,20 +43,20 @@ public class CardStats {
         this.range = range;
     }
 
-    public int getSpeed() {
-        return speed;
+    public int getMoveSpeed() {
+        return moveSpeed;
     }
 
-    public void setSpeed(int speed) {
-        this.speed = speed;
+    public void setMoveSpeed(int moveSpeed) {
+        this.moveSpeed = moveSpeed;
     }
 
-    public int getAttackSpeed() {
-        return attackSpeed;
+    public int getHitSpeedMillis() {
+        return hitSpeedMillis;
     }
 
-    public void setAttackSpeed(int attackSpeed) {
-        this.attackSpeed = attackSpeed;
+    public void setHitSpeedMillis(int hitSpeedMillis) {
+        this.hitSpeedMillis = hitSpeedMillis;
     }
 }
 

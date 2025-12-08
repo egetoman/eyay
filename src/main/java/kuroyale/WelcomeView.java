@@ -26,22 +26,27 @@ public class WelcomeView {
         subtitle.setFont(Font.font("Arial", 18));
 
         Button startGameButton = new Button("Start Game");
-        startGameButton.setOnAction(event -> navigator.showStartGameScreen());
+        startGameButton.setOnAction(event -> navigator.showArenaSelection());
 
         Button deckBuilderButton = new Button("Deck Builder");
         deckBuilderButton.setOnAction(event -> navigator.showDeckBuilderScreen());
 
+        Button designerButton = new Button("Design Arena");
+        designerButton.setOnAction(event -> navigator.showArenaDesignerScreen());
+
+        Button savedLayoutsButton = new Button("Saved Layouts");
+        savedLayoutsButton.setOnAction(event -> navigator.showLayoutLibrary());
+
+        Button arenaDemoButton = new Button("Arena Layout Preview");
+        arenaDemoButton.setOnAction(event -> navigator.showArenaDemoScreen());
+
         Button quitButton = new Button("Quit");
         quitButton.setOnAction(event -> Platform.exit());
 
-        root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, quitButton);
+        root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, savedLayoutsButton, arenaDemoButton, quitButton);
     }
 
     public Parent getRoot() {
         return root;
     }
 }
-
-
-
-
