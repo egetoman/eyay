@@ -57,10 +57,12 @@ public class Match {
 
     public void start() {
         // TODO: implement match starting behavior
+        // used for nothing at the moment, might be used in the future
     }
 
     public void end() {
         // TODO: implement match ending behavior
+        // used for nothing at the moment, might be used in the future
     }
 
     public Result<Unit> deployCard(Player actingPlayer, Card card, Position position) {
