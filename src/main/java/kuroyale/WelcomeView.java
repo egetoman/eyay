@@ -40,10 +40,24 @@ public class WelcomeView {
         Button arenaDemoButton = new Button("Arena Layout Preview");
         arenaDemoButton.setOnAction(event -> navigator.showArenaDemoScreen());
 
+        Button upgradeCardButton = new Button("Upgrade Card");
+        upgradeCardButton.setOnAction(event -> navigator.showUpgradeCardScreen());
+
+        Button dailyQuestButton = new Button("Daily Quests");
+        dailyQuestButton.setOnAction(event -> navigator.showDailyQuestScreen());
+
+        Button matchHistoryButton = new Button("Match History & Stats");
+        matchHistoryButton.setOnAction(event -> navigator.showMatchHistoryScreen());
+
+        Button achievementButton = new Button("Achievements");
+        achievementButton.setOnAction(event -> navigator.showAchievementScreen());
+
         Button quitButton = new Button("Quit");
         quitButton.setOnAction(event -> Platform.exit());
 
-        root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, savedLayoutsButton, arenaDemoButton, quitButton);
+        root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, 
+            savedLayoutsButton, arenaDemoButton, upgradeCardButton, dailyQuestButton, matchHistoryButton, 
+            achievementButton, quitButton);
     }
 
     public Parent getRoot() {
