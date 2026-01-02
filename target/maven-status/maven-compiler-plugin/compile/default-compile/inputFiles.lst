@@ -8,6 +8,7 @@
 /Users/ozanozak/eyay/src/main/java/application/DefaultQuestResetPolicy.java
 /Users/ozanozak/eyay/src/main/java/application/DefaultUpgradePolicy.java
 /Users/ozanozak/eyay/src/main/java/application/MapService.java
+/Users/ozanozak/eyay/src/main/java/application/MatchController.java
 /Users/ozanozak/eyay/src/main/java/application/MatchHistoryService.java
 /Users/ozanozak/eyay/src/main/java/application/MatchService.java
 /Users/ozanozak/eyay/src/main/java/application/QuestGenerator.java
@@ -19,12 +20,17 @@
 /Users/ozanozak/eyay/src/main/java/kuroyale/ArenaDesignerView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/ArenaSelectionView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/ArenaView.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/ChallengeModeView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/DailyQuestView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/DeckBuilderView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/LayoutLibraryView.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/LocalPvPGameView.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/LocalPvPSetupView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/MainApp.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/MatchHistoryView.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/NetworkMenuView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/ScreenNavigator.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/StartGameUiBits.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/StartGameView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/UpgradeCardView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/WelcomeView.java
@@ -43,6 +49,7 @@
 /Users/ozanozak/eyay/src/main/java/kuroyale/domain/Deck.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/domain/ElixirPhase.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/domain/Match.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/domain/MatchOutcome.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/domain/MatchRecord.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/domain/MatchStats.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/domain/Player.java
