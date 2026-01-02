@@ -5,6 +5,7 @@ import application.ArenaLayoutService;
 import application.CardUpgradeService;
 import application.DeckController;
 import application.DeckService;
+import application.MatchController;
 import application.MatchHistoryService;
 import application.MatchService;
 import application.QuestService;
@@ -57,9 +58,43 @@ public class ScreenNavigator {
         Player player = new Player("Challenger", playerDeck, 0);
         Player bot = new Player("Bot", opponentDeck, 0);
         Match match = matchService.createMatch(player, bot, activeLayout);
-        StartGameView view = new StartGameView(this, match, activeLayout);
+        MatchController controller = new MatchController(matchService, match);
+        StartGameView view = new StartGameView(this, controller, activeLayout);
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Match Preview");
+        primaryStage.setScene(scene);
+    }
+
+    public void showLocalPvPSetupScreen() {
+        LocalPvPSetupView view = new LocalPvPSetupView(this, arenaLayoutService, deckController, matchService);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Local PvP Setup");
+        primaryStage.setScene(scene);
+    }
+
+    public void showLocalPvPMatch(ArenaLayout layout, Player player1, Player player2) {
+        Match match = matchService.createMatch(player1, player2, layout);
+        match.setBotEnabled(false);
+        MatchController controller = new MatchController(matchService, match);
+        LocalPvPGameView view = new LocalPvPGameView(this, controller, layout);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Local PvP");
+        primaryStage.setScene(scene);
+    }
+
+    // Phase 2 Feature 2: Network Multiplayer (implemented next)
+    public void showNetworkMenuScreen() {
+        NetworkMenuView view = new NetworkMenuView(this);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Network Multiplayer");
+        primaryStage.setScene(scene);
+    }
+
+    // Phase 2 Feature 4: Challenge Mode (implemented next)
+    public void showChallengeModeScreen() {
+        ChallengeModeView view = new ChallengeModeView(this);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Challenge Mode");
         primaryStage.setScene(scene);
     }
 

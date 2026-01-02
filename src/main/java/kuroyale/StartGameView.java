@@ -24,6 +24,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
+import application.MatchController;
 import kuroyale.domain.Arena;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Card;
@@ -39,6 +40,7 @@ public class StartGameView {
     private static final double ELIXIR_BAR_HEIGHT = 18;
 
     private final BorderPane root;
+    private final MatchController controller;
     private final Match match;
     private final Player player;
     private final ArenaBoard arenaBoard;
@@ -58,10 +60,11 @@ public class StartGameView {
     private final StackPane overlayLayer = new StackPane();
     private final ScreenNavigator navigator;
 
-    public StartGameView(ScreenNavigator navigator, Match match, ArenaLayout selectedLayout) {
+    public StartGameView(ScreenNavigator navigator, MatchController controller, ArenaLayout selectedLayout) {
         this.navigator = navigator;
-        this.match = match;
-        this.player = match != null ? match.getPlayer() : null;
+        this.controller = controller;
+        this.match = controller != null ? controller.getMatch() : null;
+        this.player = controller != null ? controller.getPlayer() : null;
         initializeDeckState(resolveDeckCards());
 
         root = new BorderPane();
@@ -319,7 +322,7 @@ public class StartGameView {
             showStatus("Selected slot is empty.", true);
             return;
         }
-        Result<?> result = match.deployCard(player, card, tile);
+        Result<?> result = controller != null ? controller.deployCard(player, card, tile) : Result.fail("Match controller missing.");
         if (!result.isSuccess()) {
             showStatus(result.getMessage(), true);
             return;
@@ -371,7 +374,11 @@ public class StartGameView {
         }
         matchTicker = new Timeline(new KeyFrame(Duration.seconds(0.5), e -> {
             if (!paused) {
-                match.advanceTime(0.5);
+                if (controller != null) {
+                    controller.advanceTime(0.5);
+                } else {
+                    match.advanceTime(0.5);
+                }
                 updateElixirHud();
                 updateClockHud();
                 Arena arena = match.getArena();

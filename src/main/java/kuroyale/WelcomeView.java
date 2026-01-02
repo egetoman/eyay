@@ -52,12 +52,21 @@ public class WelcomeView {
         Button achievementButton = new Button("Achievements");
         achievementButton.setOnAction(event -> navigator.showAchievementScreen());
 
+        Button localPvpButton = new Button("Local PvP");
+        localPvpButton.setOnAction(event -> navigator.showLocalPvPSetupScreen());
+
+        Button networkButton = new Button("Network Multiplayer");
+        networkButton.setOnAction(event -> navigator.showNetworkMenuScreen());
+
+        Button challengeButton = new Button("Challenge Mode");
+        challengeButton.setOnAction(event -> navigator.showChallengeModeScreen());
+
         Button quitButton = new Button("Quit");
         quitButton.setOnAction(event -> Platform.exit());
 
         root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, 
             savedLayoutsButton, arenaDemoButton, upgradeCardButton, dailyQuestButton, matchHistoryButton, 
-            achievementButton, quitButton);
+            achievementButton, localPvpButton, networkButton, challengeButton, quitButton);
     }
 
     public Parent getRoot() {
