@@ -8,7 +8,12 @@ import application.DeckService;
 import application.MatchController;
 import application.MatchHistoryService;
 import application.MatchService;
+import application.NetworkService;
 import application.QuestService;
+import application.network.NetworkMatchController;
+import application.network.NetworkLobbyController;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import kuroyale.domain.ArenaLayout;
@@ -26,6 +31,7 @@ public class ScreenNavigator {
     private final QuestService questService;
     private final MatchHistoryService historyService;
     private final AchievementService achievementService;
+    private final NetworkService networkService;
 
     private static final double DEFAULT_WIDTH = 800;
     private static final double DEFAULT_HEIGHT = 600;
@@ -33,7 +39,8 @@ public class ScreenNavigator {
     public ScreenNavigator(Stage primaryStage, ArenaLayoutService arenaLayoutService, DeckService deckService, 
                           MatchService matchService, CardUpgradeService upgradeService, 
                           QuestService questService, MatchHistoryService historyService,
-                          AchievementService achievementService) {
+                          AchievementService achievementService,
+                          NetworkService networkService) {
         this.primaryStage = primaryStage;
         this.arenaLayoutService = arenaLayoutService;
         this.deckController = new DeckController(deckService);
@@ -42,6 +49,7 @@ public class ScreenNavigator {
         this.questService = questService;
         this.historyService = historyService;
         this.achievementService = achievementService;
+        this.networkService = networkService;
     }
 
     public void showWelcomeScreen() {
@@ -84,10 +92,116 @@ public class ScreenNavigator {
 
     // Phase 2 Feature 2: Network Multiplayer (implemented next)
     public void showNetworkMenuScreen() {
-        NetworkMenuView view = new NetworkMenuView(this);
+        NetworkMenuView view = new NetworkMenuView(this, deckController, networkService, arenaLayoutService.getActiveLayout());
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Network Multiplayer");
         primaryStage.setScene(scene);
+    }
+
+    public void showNetworkLobbyScreen(application.network.NetworkLobbyController lobbyController) {
+        NetworkLobbyView view = new NetworkLobbyView(this, lobbyController);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Network Lobby");
+        primaryStage.setScene(scene);
+    }
+
+    public void showNetworkMatchScreen(NetworkMatchController controller, ArenaLayout layout) {
+        NetworkMatchView view = new NetworkMatchView(this, controller, layout);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Network Match");
+        primaryStage.setScene(scene);
+    }
+
+    public void showNetworkMatchFromLobby(NetworkLobbyController lobbyController, boolean hostSide, String startPayload) {
+        if (lobbyController == null) {
+            showWelcomeScreen();
+            return;
+        }
+        Gson gson = new GsonBuilder().create();
+        ArenaLayout layout = null;
+        if (startPayload != null && !startPayload.isBlank()) {
+            try {
+                layout = gson.fromJson(startPayload, ArenaLayout.class);
+            } catch (Exception ignored) {
+            }
+        }
+        if (layout == null) {
+            layout = arenaLayoutService.getActiveLayout();
+        }
+
+        NetworkMatchController matchController = new NetworkMatchController(
+            lobbyController.getAdapter(),
+            lobbyController.getConfig(),
+            hostSide,
+            hostSide ? 1 : 2
+        );
+        matchController.attachLayoutForClient(layout);
+
+        // Deck enforcement: local side must map to local player id.
+        int localId = hostSide ? 1 : 2;
+        int remoteId = hostSide ? 2 : 1;
+        matchController.setAllowedDeckIds(localId, lobbyController.getState().getLocalDeckCardIds());
+        matchController.setAllowedDeckIds(remoteId, lobbyController.getState().getRemoteDeckCardIds());
+
+        if (!hostSide) {
+            // Client reconnect target
+            matchController.setReconnectTarget(lobbyController.getConnectHost(), lobbyController.getConnectPort());
+        }
+
+        if (hostSide) {
+            // Host creates authoritative match with both players; opponent deck is a default deck placeholder.
+            Deck hostDeck = deckController.loadDeck();
+            Deck opponentDeck = buildDeckFromIds(lobbyController.getState().getRemoteDeckCardIds(), deckController.buildDefaultDeck());
+            Player hostPlayer = new Player(lobbyController.getState().getLocalName(), hostDeck, 0);
+            Player clientPlayer = new Player(lobbyController.getState().getRemoteName(), opponentDeck, 0);
+            Match match = matchService.createMatch(hostPlayer, clientPlayer, layout);
+            match.setBotEnabled(false);
+            matchController.attachHostMatch(match, layout);
+
+            matchController.setLocalDeck(hostDeck);
+            matchController.setAllowedDeckIds(1, lobbyController.getState().getLocalDeckCardIds());
+            matchController.setAllowedDeckIds(2, lobbyController.getState().getRemoteDeckCardIds());
+        } else {
+            // Client uses its own local deck for UI selection
+            matchController.setLocalDeck(deckController.loadDeck());
+            // If the lobby already received a snapshot, transfer it so the match view renders immediately.
+            String snapshotJson = lobbyController.getLastReceivedSnapshotJson();
+            if (snapshotJson != null && !snapshotJson.isBlank()) {
+                matchController.onMessage(new application.network.NetworkMessage(
+                    application.network.NetworkMessageType.STATE_SNAPSHOT, 0, snapshotJson, ""
+                ));
+            }
+        }
+
+        lobbyController.getAdapter().setListener(matchController);
+        showNetworkMatchScreen(matchController, layout);
+    }
+
+    private Deck buildDeckFromIds(java.util.List<String> ids, Deck fallback) {
+        if (ids == null || ids.isEmpty()) {
+            return fallback;
+        }
+        java.util.Map<String, kuroyale.domain.Card> byId = new java.util.HashMap<>();
+        for (kuroyale.domain.Card c : new kuroyale.infrastructure.CardCatalogRepository().findAll()) {
+            if (c != null && c.getId() != null) {
+                byId.put(c.getId(), c);
+            }
+        }
+        java.util.List<kuroyale.domain.Card> cards = new java.util.ArrayList<>();
+        for (String id : ids) {
+            if (id == null || id.isBlank()) continue;
+            kuroyale.domain.Card c = byId.get(id.trim());
+            if (c != null) {
+                cards.add(c);
+            }
+            if (cards.size() >= kuroyale.domain.Deck.MAX_CARDS) {
+                break;
+            }
+        }
+        if (cards.size() != kuroyale.domain.Deck.MAX_CARDS) {
+            return fallback;
+        }
+        return new Deck(cards);
     }
 
     // Phase 2 Feature 4: Challenge Mode (implemented next)
