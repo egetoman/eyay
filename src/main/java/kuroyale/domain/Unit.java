@@ -86,6 +86,24 @@ public class Unit {
         return preciseY;
     }
 
+    /**
+     * Allows networking/replay systems to set exact positions from authoritative snapshots.
+     * <p>
+     * Domain note: this does not change any gameplay behavior; it only updates render-relevant state.
+     */
+    public void setPrecisePosition(double x, double y) {
+        this.preciseX = x;
+        this.preciseY = y;
+        int roundedX = (int) Math.round(x);
+        int roundedY = (int) Math.round(y);
+        if (position == null) {
+            position = new Position(roundedX, roundedY);
+        } else {
+            position.setX(roundedX);
+            position.setY(roundedY);
+        }
+    }
+
     public Tower getTargetTower() {
         return targetTower;
     }
