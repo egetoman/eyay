@@ -20,6 +20,7 @@ public class Match {
     private double opponentElixirFraction;
     private double botDecisionTimer;
     private final Random random = new Random();
+    private transient CardCostPolicy cardCostPolicy;
     private boolean botEnabled = true;
     private MatchOutcome outcome;
 
@@ -57,28 +58,6 @@ public class Match {
         this.arena = arena;
     }
 
-    /**
-     * Enables/disables built-in bot behavior (used for Local PvP, Network, and Replay).
-     * <p>
-     * Pattern note: keeping this as a simple flag avoids a big refactor while still allowing
-     * different "modes" to reuse the same domain simulation.
-     */
-    public boolean isBotEnabled() {
-        return botEnabled;
-    }
-
-    public void setBotEnabled(boolean botEnabled) {
-        this.botEnabled = botEnabled;
-    }
-
-    /**
-     * Used by network/replay synchronization to align local clock with authoritative clock.
-     * Avoid using this during a normal single-player match.
-     */
-    public void setElapsedSeconds(double elapsedSeconds) {
-        this.elapsedSeconds = Math.max(0, Math.min(TOTAL_DURATION_SECONDS, elapsedSeconds));
-    }
-
     public void start() {
         // TODO: implement match starting behavior
     }
@@ -94,7 +73,10 @@ public class Match {
         if (!isParticipant(actingPlayer)) {
             return Result.fail("Player is not part of this match.");
         }
-        if (!actingPlayer.hasEnoughElixir(card.getElixirCost())) {
+        int baseCost = card.getElixirCost();
+        int cost = cardCostPolicy != null ? cardCostPolicy.resolveCost(actingPlayer, card, baseCost) : baseCost;
+        cost = Math.max(0, cost);
+        if (!actingPlayer.hasEnoughElixir(cost)) {
             return Result.fail("Not enough elixir.");
         }
         if (!arena.isWithinBounds(position)) {
@@ -104,7 +86,7 @@ public class Match {
             return Result.fail("Target tile is occupied.");
         }
 
-        actingPlayer.spendElixir(card.getElixirCost());
+        actingPlayer.spendElixir(cost);
         int hp = card.getStats() != null ? card.getStats().getHp() : 0;
         TowerOwner unitOwner = resolveOwner(actingPlayer);
         Unit unit = new Unit(card, new Position(position.getX(), position.getY()), hp, unitOwner);
@@ -112,6 +94,18 @@ public class Match {
         unit.setTargetTower(initialTarget);
         arena.addUnit(unit);
         return Result.ok(unit);
+    }
+
+    /**
+     * Sets a cost policy to modify card elixir costs for special modes (e.g., challenges).
+     * If null, the match uses {@link Card#getElixirCost()}.
+     */
+    public void setCardCostPolicy(CardCostPolicy cardCostPolicy) {
+        this.cardCostPolicy = cardCostPolicy;
+    }
+
+    public CardCostPolicy getCardCostPolicy() {
+        return cardCostPolicy;
     }
 
     public void advanceTime(double deltaSeconds) {
@@ -162,13 +156,27 @@ public class Match {
         return outcome != null || elapsedSeconds >= TOTAL_DURATION_SECONDS;
     }
 
-    /**
-     * Returns the current outcome if the match is over (king destroyed OR time-out),
-     * otherwise returns null.
-     */
     public MatchOutcome getOutcome() {
         updateOutcomeIfNeeded(true);
         return outcome;
+    }
+
+    /**
+     * Enables/disables built-in bot behavior. Local PvP / Network / Replay should disable this.
+     */
+    public boolean isBotEnabled() {
+        return botEnabled;
+    }
+
+    public void setBotEnabled(boolean botEnabled) {
+        this.botEnabled = botEnabled;
+    }
+
+    /**
+     * Used by synchronization systems to align clocks.
+     */
+    public void setElapsedSeconds(double elapsedSeconds) {
+        this.elapsedSeconds = Math.max(0, Math.min(TOTAL_DURATION_SECONDS, elapsedSeconds));
     }
 
     public ElixirPhase getCurrentElixirPhase() {
