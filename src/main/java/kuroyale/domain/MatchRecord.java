@@ -11,6 +11,8 @@ public class MatchRecord {
     private int crowns;
     private int goldChange;
     private String arenaName;
+    private String arenaLayoutId;
+    private MatchReplay replay;
     
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     
@@ -97,6 +99,26 @@ public class MatchRecord {
     
     public void setArenaName(String arenaName) {
         this.arenaName = arenaName;
+    }
+
+    public String getArenaLayoutId() {
+        return arenaLayoutId;
+    }
+
+    public void setArenaLayoutId(String arenaLayoutId) {
+        this.arenaLayoutId = arenaLayoutId;
+    }
+
+    public MatchReplay getReplay() {
+        return replay;
+    }
+
+    public void setReplay(MatchReplay replay) {
+        this.replay = replay;
+    }
+
+    public boolean hasReplay() {
+        return replay != null && replay.getFrames() != null && !replay.getFrames().isEmpty();
     }
 }
 
