@@ -11,10 +11,21 @@
 /Users/ozanozak/eyay/src/main/java/application/MatchController.java
 /Users/ozanozak/eyay/src/main/java/application/MatchHistoryService.java
 /Users/ozanozak/eyay/src/main/java/application/MatchService.java
+/Users/ozanozak/eyay/src/main/java/application/NetworkService.java
 /Users/ozanozak/eyay/src/main/java/application/QuestGenerator.java
 /Users/ozanozak/eyay/src/main/java/application/QuestResetPolicy.java
 /Users/ozanozak/eyay/src/main/java/application/QuestService.java
 /Users/ozanozak/eyay/src/main/java/application/UpgradePolicy.java
+/Users/ozanozak/eyay/src/main/java/application/network/ConnectionStatus.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkAdapter.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkConfig.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkConfigService.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkLobbyController.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkLobbyState.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkMatchController.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkMessage.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkMessageType.java
+/Users/ozanozak/eyay/src/main/java/application/network/NetworkSnapshot.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/AchievementView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/ArenaBoard.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/ArenaDesignerView.java
@@ -28,6 +39,8 @@
 /Users/ozanozak/eyay/src/main/java/kuroyale/LocalPvPSetupView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/MainApp.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/MatchHistoryView.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/NetworkLobbyView.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/NetworkMatchView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/NetworkMenuView.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/ScreenNavigator.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/StartGameUiBits.java
@@ -73,4 +86,5 @@
 /Users/ozanozak/eyay/src/main/java/kuroyale/infrastructure/MatchRepository.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/infrastructure/PlayerProfileRepository.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/infrastructure/QuestRepository.java
+/Users/ozanozak/eyay/src/main/java/kuroyale/infrastructure/SocketNetworkAdapter.java
 /Users/ozanozak/eyay/src/main/java/kuroyale/support/Result.java
