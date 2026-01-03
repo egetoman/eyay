@@ -9,6 +9,7 @@ import application.DeckService;
 import application.MatchHistoryService;
 import application.MatchService;
 import application.NetworkService;
+import application.challenge.ChallengeService;
 import application.QuestGenerator;
 import application.QuestResetPolicy;
 import application.QuestService;
@@ -53,9 +54,12 @@ public class MainApp extends Application {
 
         // Phase 2 network service
         NetworkService networkService = new NetworkService(new NetworkConfigService());
+
+        // Phase 2 challenge service
+        ChallengeService challengeService = new ChallengeService(profileRepository, deckService, matchService, layoutService);
         
         ScreenNavigator navigator = new ScreenNavigator(primaryStage, layoutService, deckService, matchService,
-            upgradeService, questService, historyService, achievementService, networkService);
+            upgradeService, questService, historyService, achievementService, networkService, challengeService);
         navigator.showWelcomeScreen();
         primaryStage.show();
     }

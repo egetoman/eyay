@@ -10,6 +10,8 @@ import application.MatchHistoryService;
 import application.MatchService;
 import application.NetworkService;
 import application.QuestService;
+import application.challenge.ChallengeService;
+import application.replay.ReplayRecorder;
 import application.network.NetworkMatchController;
 import application.network.NetworkLobbyController;
 import com.google.gson.Gson;
@@ -20,6 +22,9 @@ import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Deck;
 import kuroyale.domain.Match;
 import kuroyale.domain.Player;
+import kuroyale.domain.MatchRecord;
+import kuroyale.domain.MatchReplay;
+import java.time.LocalDateTime;
 
 public class ScreenNavigator {
 
@@ -32,6 +37,7 @@ public class ScreenNavigator {
     private final MatchHistoryService historyService;
     private final AchievementService achievementService;
     private final NetworkService networkService;
+    private final ChallengeService challengeService;
 
     private static final double DEFAULT_WIDTH = 800;
     private static final double DEFAULT_HEIGHT = 600;
@@ -40,7 +46,8 @@ public class ScreenNavigator {
                           MatchService matchService, CardUpgradeService upgradeService, 
                           QuestService questService, MatchHistoryService historyService,
                           AchievementService achievementService,
-                          NetworkService networkService) {
+                          NetworkService networkService,
+                          ChallengeService challengeService) {
         this.primaryStage = primaryStage;
         this.arenaLayoutService = arenaLayoutService;
         this.deckController = new DeckController(deckService);
@@ -50,6 +57,7 @@ public class ScreenNavigator {
         this.historyService = historyService;
         this.achievementService = achievementService;
         this.networkService = networkService;
+        this.challengeService = challengeService;
     }
 
     public void showWelcomeScreen() {
@@ -204,11 +212,18 @@ public class ScreenNavigator {
         return new Deck(cards);
     }
 
-    // Phase 2 Feature 4: Challenge Mode (implemented next)
+    // Phase 2 Feature 4: Challenge Mode
     public void showChallengeModeScreen() {
-        ChallengeModeView view = new ChallengeModeView(this);
+        ChallengeModeView view = new ChallengeModeView(this, challengeService);
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Challenge Mode");
+        primaryStage.setScene(scene);
+    }
+
+    public void showChallengeMatchScreen(application.challenge.ChallengeSession session) {
+        ChallengeMatchView view = new ChallengeMatchView(this, challengeService, matchService, session, arenaLayoutService.getActiveLayout());
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Challenge Match");
         primaryStage.setScene(scene);
     }
 
@@ -277,6 +292,49 @@ public class ScreenNavigator {
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Match History & Stats");
         primaryStage.setScene(scene);
+    }
+
+    public void showReplayScreen(MatchRecord record) {
+        ReplayView view = new ReplayView(this, arenaLayoutService, record);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        primaryStage.setTitle("KU Royale - Replay");
+        primaryStage.setScene(scene);
+    }
+
+    public void recordMatchWithReplay(Match match, String opponentType, ArenaLayout layout, MatchReplay replay) {
+        if (historyService == null || match == null) {
+            return;
+        }
+        String result = "Unknown";
+        int crowns = 0;
+        var outcome = match.getOutcome();
+        if (outcome != null) {
+            if (outcome.getWinner() == null) {
+                result = "Draw";
+            } else if (outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER) {
+                result = "Win";
+            } else {
+                result = "Loss";
+            }
+            crowns = outcome.getPlayerCrowns();
+        } else if (match.isFinished()) {
+            result = "Draw";
+        }
+
+        MatchRecord record = new MatchRecord(
+            java.util.UUID.randomUUID().toString(),
+            LocalDateTime.now(),
+            opponentType,
+            result,
+            crowns,
+            0,
+            layout != null ? layout.getName() : "Unknown"
+        );
+        if (layout != null) {
+            record.setArenaLayoutId(layout.getId());
+        }
+        record.setReplay(replay);
+        historyService.recordMatch(record);
     }
 
     public void showAchievementScreen() {

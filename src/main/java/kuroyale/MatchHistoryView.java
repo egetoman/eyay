@@ -21,11 +21,13 @@ import kuroyale.domain.MatchStats;
 public class MatchHistoryView {
 
     private final BorderPane root;
+    private final ScreenNavigator navigator;
     private final MatchHistoryService historyService;
     private final VBox historyPane = new VBox(10);
     private final VBox statsPane = new VBox(15);
 
     public MatchHistoryView(ScreenNavigator navigator, MatchHistoryService historyService) {
+        this.navigator = navigator;
         this.historyService = historyService;
         
         root = new BorderPane();
@@ -104,8 +106,17 @@ public class MatchHistoryView {
         goldLabel.setTextFill(record.getGoldChange() >= 0 ? Color.GOLD : Color.RED);
         
         Label arenaLabel = new Label("Arena: " + (record.getArenaName() != null ? record.getArenaName() : "Unknown"));
-        
-        VBox tile = new VBox(5, dateLabel, opponentLabel, resultLabel, crownsLabel, goldLabel, arenaLabel);
+
+        Button replayButton = new Button("Watch Replay");
+        replayButton.setDisable(record == null || !record.hasReplay());
+        replayButton.setOnAction(e -> {
+            if (record == null || !record.hasReplay()) {
+                return;
+            }
+            navigator.showReplayScreen(record);
+        });
+
+        VBox tile = new VBox(5, dateLabel, opponentLabel, resultLabel, crownsLabel, goldLabel, arenaLabel, replayButton);
         tile.setPadding(new Insets(15));
         tile.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
         tile.setPrefWidth(600);
