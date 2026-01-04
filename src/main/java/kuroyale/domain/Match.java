@@ -20,6 +20,9 @@ public class Match {
     private double opponentElixirFraction;
     private double botDecisionTimer;
     private final Random random = new Random();
+    private transient CardCostPolicy cardCostPolicy;
+    private boolean botEnabled = true;
+    private MatchOutcome outcome;
 
     public Match() {
         this.arena = new Arena();
@@ -70,7 +73,10 @@ public class Match {
         if (!isParticipant(actingPlayer)) {
             return Result.fail("Player is not part of this match.");
         }
-        if (!actingPlayer.hasEnoughElixir(card.getElixirCost())) {
+        int baseCost = card.getElixirCost();
+        int cost = cardCostPolicy != null ? cardCostPolicy.resolveCost(actingPlayer, card, baseCost) : baseCost;
+        cost = Math.max(0, cost);
+        if (!actingPlayer.hasEnoughElixir(cost)) {
             return Result.fail("Not enough elixir.");
         }
         if (!arena.isWithinBounds(position)) {
@@ -80,7 +86,7 @@ public class Match {
             return Result.fail("Target tile is occupied.");
         }
 
-        actingPlayer.spendElixir(card.getElixirCost());
+        actingPlayer.spendElixir(cost);
         int hp = card.getStats() != null ? card.getStats().getHp() : 0;
         TowerOwner unitOwner = resolveOwner(actingPlayer);
         Unit unit = new Unit(card, new Position(position.getX(), position.getY()), hp, unitOwner);
@@ -90,8 +96,23 @@ public class Match {
         return Result.ok(unit);
     }
 
+    /**
+     * Sets a cost policy to modify card elixir costs for special modes (e.g., challenges).
+     * If null, the match uses {@link Card#getElixirCost()}.
+     */
+    public void setCardCostPolicy(CardCostPolicy cardCostPolicy) {
+        this.cardCostPolicy = cardCostPolicy;
+    }
+
+    public CardCostPolicy getCardCostPolicy() {
+        return cardCostPolicy;
+    }
+
     public void advanceTime(double deltaSeconds) {
         if (deltaSeconds <= 0) {
+            return;
+        }
+        if (isOver()) {
             return;
         }
         double targetTime = Math.min(TOTAL_DURATION_SECONDS, elapsedSeconds + deltaSeconds);
@@ -106,8 +127,13 @@ public class Match {
             arena.tickUnits(chunkDelta);
             handleBotBehavior(chunkDelta);
             cursor = chunkEnd;
+            updateOutcomeIfNeeded(false);
+            if (isOver()) {
+                break;
+            }
         }
         elapsedSeconds = targetTime;
+        updateOutcomeIfNeeded(true);
     }
 
     public double getElapsedSeconds() {
@@ -123,7 +149,34 @@ public class Match {
     }
 
     public boolean isFinished() {
-        return elapsedSeconds >= TOTAL_DURATION_SECONDS;
+        return isOver();
+    }
+
+    public boolean isOver() {
+        return outcome != null || elapsedSeconds >= TOTAL_DURATION_SECONDS;
+    }
+
+    public MatchOutcome getOutcome() {
+        updateOutcomeIfNeeded(true);
+        return outcome;
+    }
+
+    /**
+     * Enables/disables built-in bot behavior. Local PvP / Network / Replay should disable this.
+     */
+    public boolean isBotEnabled() {
+        return botEnabled;
+    }
+
+    public void setBotEnabled(boolean botEnabled) {
+        this.botEnabled = botEnabled;
+    }
+
+    /**
+     * Used by synchronization systems to align clocks.
+     */
+    public void setElapsedSeconds(double elapsedSeconds) {
+        this.elapsedSeconds = Math.max(0, Math.min(TOTAL_DURATION_SECONDS, elapsedSeconds));
     }
 
     public ElixirPhase getCurrentElixirPhase() {
@@ -174,6 +227,9 @@ public class Match {
     }
 
     private void handleBotBehavior(double deltaSeconds) {
+        if (!botEnabled) {
+            return;
+        }
         if (opponent == null || opponent.getDeck() == null || arena == null) {
             return;
         }
@@ -230,6 +286,64 @@ public class Match {
             }
         }
         return null;
+    }
+
+    private void updateOutcomeIfNeeded(boolean considerTimeOut) {
+        if (outcome != null || arena == null) {
+            return;
+        }
+
+        Tower playerKing = null;
+        Tower opponentKing = null;
+        int destroyedPlayerCrowns = 0;
+        int destroyedOpponentCrowns = 0;
+
+        for (Tower tower : arena.getTowers()) {
+            if (tower == null) {
+                continue;
+            }
+            if (tower.getType() == TowerType.KING) {
+                if (tower.getOwner() == TowerOwner.PLAYER) {
+                    playerKing = tower;
+                } else if (tower.getOwner() == TowerOwner.OPPONENT) {
+                    opponentKing = tower;
+                }
+            } else if (tower.getType() == TowerType.CROWN) {
+                if (tower.isDestroyed()) {
+                    if (tower.getOwner() == TowerOwner.PLAYER) {
+                        destroyedPlayerCrowns++;
+                    } else if (tower.getOwner() == TowerOwner.OPPONENT) {
+                        destroyedOpponentCrowns++;
+                    }
+                }
+            }
+        }
+
+        boolean playerKingDestroyed = playerKing != null && playerKing.isDestroyed();
+        boolean opponentKingDestroyed = opponentKing != null && opponentKing.isDestroyed();
+
+        if (playerKingDestroyed || opponentKingDestroyed) {
+            TowerOwner winner = null;
+            if (playerKingDestroyed && !opponentKingDestroyed) {
+                winner = TowerOwner.OPPONENT;
+            } else if (opponentKingDestroyed && !playerKingDestroyed) {
+                winner = TowerOwner.PLAYER;
+            }
+            int playerCrowns = opponentKingDestroyed ? 3 : destroyedOpponentCrowns;
+            int opponentCrowns = playerKingDestroyed ? 3 : destroyedPlayerCrowns;
+            outcome = new MatchOutcome(winner, playerCrowns, opponentCrowns, "KING_DESTROYED");
+            return;
+        }
+
+        if (considerTimeOut && elapsedSeconds >= TOTAL_DURATION_SECONDS) {
+            TowerOwner winner = null;
+            if (destroyedOpponentCrowns > destroyedPlayerCrowns) {
+                winner = TowerOwner.PLAYER;
+            } else if (destroyedPlayerCrowns > destroyedOpponentCrowns) {
+                winner = TowerOwner.OPPONENT;
+            }
+            outcome = new MatchOutcome(winner, destroyedOpponentCrowns, destroyedPlayerCrowns, "TIME_OUT");
+        }
     }
 }
 

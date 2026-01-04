@@ -1,0 +1,21 @@
+#####################################################################
+# KU Royale - Network Configuration (Phase 2)
+#
+# This file is user-editable. The game loads these values at startup.
+# If this file is missing, default values are used.
+#
+# Units:
+# - DEFAULT_PORT: integer port number (1..65535)
+# - CONNECTION_TIMEOUT: milliseconds
+# - RECONNECT_ATTEMPTS: integer retry count
+# - SYNC_INTERVAL: milliseconds between authoritative state snapshots
+# - MAX_MESSAGE_SIZE: bytes (approx. for one line message)
+#####################################################################
+
+DEFAULT_PORT=8080
+CONNECTION_TIMEOUT=5000
+RECONNECT_ATTEMPTS=3
+SYNC_INTERVAL=200
+MAX_MESSAGE_SIZE=1024
+
+
