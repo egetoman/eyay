@@ -30,9 +30,18 @@ public class ArenaBoard {
     private final Canvas canvas;
     private final ScrollPane root;
     private Consumer<Position> tileSelectionListener;
+    private final boolean flipVertical;
 
     public ArenaBoard(ArenaLayout layout) {
+        this(layout, false);
+    }
+
+    /**
+     * @param flipVertical If true, render the arena from the opposite vertical perspective (used for Network PvP player 2).
+     */
+    public ArenaBoard(ArenaLayout layout, boolean flipVertical) {
         this.layout = layout;
+        this.flipVertical = flipVertical;
         this.canvas = new Canvas(layout.getWidth() * TILE_SIZE, layout.getHeight() * TILE_SIZE);
         renderUnits(Collections.emptyList());
         this.canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
@@ -69,7 +78,14 @@ public class ArenaBoard {
         double x = event.getX();
         double y = event.getY();
         int gridX = (int) Math.floor(x / TILE_SIZE);
-        int gridY = layout.getHeight() - 1 - (int) Math.floor(y / TILE_SIZE);
+        int gridY;
+        if (flipVertical) {
+            // Opponent perspective: top of screen is global bottom
+            gridY = (int) Math.floor(y / TILE_SIZE);
+        } else {
+            // Normal: top of screen is global top
+            gridY = layout.getHeight() - 1 - (int) Math.floor(y / TILE_SIZE);
+        }
         if (gridX < 0 || gridX >= layout.getWidth() || gridY < 0 || gridY >= layout.getHeight()) {
             return;
         }
@@ -137,9 +153,9 @@ public class ArenaBoard {
         double x = position.getX() * TILE_SIZE;
         double y = convertY(layout, position.getY());
 
-        Color fillColor = tower.getOwner() == TowerOwner.PLAYER
-                ? Color.web("#3cb371")
-                : Color.web("#f05a5b");
+        boolean friendly = (!flipVertical && tower.getOwner() == TowerOwner.PLAYER)
+                || (flipVertical && tower.getOwner() == TowerOwner.OPPONENT);
+        Color fillColor = friendly ? Color.web("#3cb371") : Color.web("#f05a5b");
         gc.setFill(fillColor);
 
         double size = TILE_SIZE * (tower.getType() == TowerType.KING ? 1.2 : 0.9);
@@ -172,9 +188,9 @@ public class ArenaBoard {
             }
             double drawX = (unit.getPreciseX()) * TILE_SIZE;
             double drawY = convertY(layout, unit.getPreciseY());
-            Color fill = unit.getOwner() == TowerOwner.PLAYER
-                    ? Color.web("#8bed4a")
-                    : Color.web("#ff8a80");
+            boolean friendly = (!flipVertical && unit.getOwner() == TowerOwner.PLAYER)
+                    || (flipVertical && unit.getOwner() == TowerOwner.OPPONENT);
+            Color fill = friendly ? Color.web("#8bed4a") : Color.web("#ff8a80");
             gc.setFill(fill);
             gc.fillOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
             gc.setStroke(Color.web("#000000"));
@@ -194,10 +210,16 @@ public class ArenaBoard {
     }
 
     private double convertY(ArenaLayout layout, int gridY) {
+        if (flipVertical) {
+            return gridY * TILE_SIZE;
+        }
         return (layout.getHeight() - gridY - 1) * TILE_SIZE;
     }
 
     private double convertY(ArenaLayout layout, double gridY) {
+        if (flipVertical) {
+            return gridY * TILE_SIZE;
+        }
         return (layout.getHeight() - gridY - 1) * TILE_SIZE;
     }
 }
