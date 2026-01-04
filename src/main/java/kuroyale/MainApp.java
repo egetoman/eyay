@@ -8,10 +8,13 @@ import application.DefaultUpgradePolicy;
 import application.DeckService;
 import application.MatchHistoryService;
 import application.MatchService;
+import application.NetworkService;
+import application.challenge.ChallengeService;
 import application.QuestGenerator;
 import application.QuestResetPolicy;
 import application.QuestService;
 import application.UpgradePolicy;
+import application.network.NetworkConfigService;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import kuroyale.infrastructure.AchievementRepository;
@@ -48,9 +51,15 @@ public class MainApp extends Application {
         
         AchievementRepository achievementRepository = new AchievementRepository();
         AchievementService achievementService = new AchievementService(achievementRepository, profileRepository);
+
+        // Phase 2 network service
+        NetworkService networkService = new NetworkService(new NetworkConfigService());
+
+        // Phase 2 challenge service
+        ChallengeService challengeService = new ChallengeService(profileRepository, deckService, matchService, layoutService);
         
         ScreenNavigator navigator = new ScreenNavigator(primaryStage, layoutService, deckService, matchService,
-            upgradeService, questService, historyService, achievementService);
+            upgradeService, questService, historyService, achievementService, networkService, challengeService);
         navigator.showWelcomeScreen();
         primaryStage.show();
     }

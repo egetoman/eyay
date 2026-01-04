@@ -9,16 +9,19 @@ public class PlayerProfile {
     private String playerName;
     private int gold;
     private Map<String, CardProgression> cardProgressions;
+    private Map<String, ChallengeProgress> challengeProgress;
     
     public PlayerProfile() {
         this.gold = 0;
         this.cardProgressions = new HashMap<>();
+        this.challengeProgress = new HashMap<>();
     }
     
     public PlayerProfile(String playerName, int gold) {
         this.playerName = playerName;
         this.gold = gold;
         this.cardProgressions = new HashMap<>();
+        this.challengeProgress = new HashMap<>();
     }
     
     public String getPlayerName() {
@@ -69,6 +72,33 @@ public class PlayerProfile {
     
     public List<CardProgression> getAllProgressions() {
         return new ArrayList<>(cardProgressions.values());
+    }
+
+    public Map<String, ChallengeProgress> getChallengeProgress() {
+        if (challengeProgress == null) {
+            challengeProgress = new HashMap<>();
+        }
+        return new HashMap<>(challengeProgress);
+    }
+
+    public void setChallengeProgress(Map<String, ChallengeProgress> challengeProgress) {
+        this.challengeProgress = challengeProgress != null ? new HashMap<>(challengeProgress) : new HashMap<>();
+    }
+
+    public ChallengeProgress getChallengeProgress(String challengeId) {
+        if (challengeProgress == null) {
+            challengeProgress = new HashMap<>();
+        }
+        return challengeProgress.get(challengeId);
+    }
+
+    public void setChallengeProgress(String challengeId, ChallengeProgress progress) {
+        if (challengeProgress == null) {
+            challengeProgress = new HashMap<>();
+        }
+        if (challengeId != null && progress != null) {
+            challengeProgress.put(challengeId, progress);
+        }
     }
 }
 

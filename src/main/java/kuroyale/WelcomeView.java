@@ -55,15 +55,21 @@ public class WelcomeView {
         Button comboLibraryButton = new Button("Combo Library");
         comboLibraryButton.setOnAction(event -> navigator.showComboLibraryScreen());
 
-        Button deckComboButton = new Button("My Deck's Combos");
-        deckComboButton.setOnAction(event -> navigator.showDeckComboScreen());
+        Button localPvpButton = new Button("Local PvP");
+        localPvpButton.setOnAction(event -> navigator.showLocalPvPSetupScreen());
+
+        Button networkButton = new Button("Network Multiplayer");
+        networkButton.setOnAction(event -> navigator.showNetworkMenuScreen());
+
+        Button challengeButton = new Button("Challenge Mode");
+        challengeButton.setOnAction(event -> navigator.showChallengeModeScreen());
 
         Button quitButton = new Button("Quit");
         quitButton.setOnAction(event -> Platform.exit());
 
         root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, 
             savedLayoutsButton, arenaDemoButton, upgradeCardButton, dailyQuestButton, matchHistoryButton, 
-            achievementButton, comboLibraryButton, deckComboButton, quitButton);
+            achievementButton, comboLibraryButton, localPvpButton, networkButton, challengeButton, quitButton);
     }
 
     public Parent getRoot() {
