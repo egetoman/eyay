@@ -109,6 +109,40 @@ public class ChallengeService {
         return Result.ok(session);
     }
 
+    /**
+ * Completes a challenge session and calculates rewards based on match outcome.
+ * 
+ * Requires:
+ * - session != null
+ * - session.getMatch() != null
+ * - session.getChallengeId() is a valid challenge ID that exists in the challenge factory
+ * - match.getOutcome() != null (match must have a completed outcome)
+ * - match.isOver() == true (match must be finished)
+ * 
+ * Modifies:
+ * - PlayerProfile (loaded from profileRepository): 
+ *   - Updates challenge progress for the completed challenge
+ *   - Adds gold if player won
+ *   - Unlocks next challenge if player won
+ *   - Updates best stars and best time if player won
+ * - profileRepository: persists the modified PlayerProfile to disk
+ * 
+ * Effects:
+ * - Returns Result<ChallengeCompletion> containing:
+ *   - win: true if outcome.getWinner() == TowerOwner.PLAYER, false otherwise
+ *   - stars: 0 if loss, otherwise 1-3 based on:
+ *     * 1 star: base win
+ *     * 2 stars: win + completed within time limit (if time limit > 0)
+ *     * 3 stars: win + no tower damage taken
+ *   - goldAwarded: def.getRewardGold() if win, 0 otherwise
+ * - If win: increments completion count, updates best stars/time, awards gold, unlocks next challenge
+ * - If loss: no progress updates, no gold awarded
+ * - PlayerProfile is always saved to repository
+ * 
+ * @param session The challenge session to complete
+ * @return Result containing ChallengeCompletion with win status, stars, and gold, or error message
+ */
+
     public Result<ChallengeCompletion> completeChallenge(ChallengeSession session) {
         if (session == null || session.getMatch() == null) {
             return Result.fail("Challenge session is invalid.");

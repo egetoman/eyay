@@ -327,7 +327,42 @@ public class LocalPvPGameView {
         refreshDeckSection();
     }
 
-    private Result<?> validateDeploySide(Player acting, Position tile) {
+/**
+ * Validates that a deployment position is valid for the given player's side.
+ * 
+ * Requires:
+ * - acting != null
+ * - tile != null
+ * - match != null
+ * - match.getArena() != null
+ * - match.getArena().getHeight() > 0 (arena must have valid dimensions)
+ * - acting must be either bottomPlayer or topPlayer (player must be part of this match)
+ * 
+ * Modifies:
+ * - None (pure validation method)
+ * 
+ * Effects:
+ * - Returns Result.ok(null) if:
+ *   * All parameters are non-null
+ *   * Position is not on the river (riverTop or riverBottom rows)
+ *   * Bottom player (Player 1) deploys on bottom side (Y <= riverTop - 1)
+ *   * Top player (Player 2) deploys on top side (Y >= riverBottom + 1)
+ * - Returns Result.fail("Invalid deployment.") if:
+ *   * acting == null OR tile == null OR match == null OR match.getArena() == null
+ * - Returns Result.fail("Cannot deploy on the river.") if:
+ *   * tile.getY() == riverTop OR tile.getY() == riverBottom
+ *   * where riverTop = height / 2 - 1, riverBottom = riverTop + 1
+ * - Returns Result.fail("Player 1 can only deploy on the bottom side.") if:
+ *   * acting == bottomPlayer AND tile.getY() > riverTop - 1
+ * - Returns Result.fail("Player 2 can only deploy on the top side.") if:
+ *   * acting == topPlayer AND tile.getY() < riverBottom + 1
+ * 
+ * @param acting The player attempting to deploy
+ * @param tile The position where deployment is attempted
+ * @return Result indicating success or specific failure reason
+ */
+
+    public Result<?> validateDeploySide(Player acting, Position tile) {
         if (acting == null || tile == null || match == null || match.getArena() == null) {
             return Result.fail("Invalid deployment.");
         }
