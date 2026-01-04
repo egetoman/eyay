@@ -138,7 +138,7 @@ public class ScreenNavigator {
     }
 
     public void showComboLibraryScreen() {
-        ComboLibraryView view = new ComboLibraryView(this);
+        ComboLibraryView view = new ComboLibraryView(this, deckController);
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Combo Library");
         primaryStage.setScene(scene);
