@@ -52,6 +52,9 @@ public class WelcomeView {
         Button achievementButton = new Button("Achievements");
         achievementButton.setOnAction(event -> navigator.showAchievementScreen());
 
+        Button comboLibraryButton = new Button("Combo Library");
+        comboLibraryButton.setOnAction(event -> navigator.showComboLibraryScreen());
+
         Button localPvpButton = new Button("Local PvP");
         localPvpButton.setOnAction(event -> navigator.showLocalPvPSetupScreen());
 
@@ -66,7 +69,7 @@ public class WelcomeView {
 
         root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, 
             savedLayoutsButton, arenaDemoButton, upgradeCardButton, dailyQuestButton, matchHistoryButton, 
-            achievementButton, localPvpButton, networkButton, challengeButton, quitButton);
+            achievementButton, comboLibraryButton, localPvpButton, networkButton, challengeButton, quitButton);
     }
 
     public Parent getRoot() {
