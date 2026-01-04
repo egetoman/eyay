@@ -4,25 +4,28 @@ import application.MatchController;
 import application.MatchService;
 import kuroyale.domain.*;
 import kuroyale.support.Result;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import javafx.application.Platform;
+import java.awt.GraphicsEnvironment;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Tests for LocalPvPGameView.validateDeploySide() method.
- * 
- * Test cases cover:
- * - Null parameter validation (acting, tile, match, arena)
- * - River deployment validation (cannot deploy on river rows)
- * - Bottom player side validation (must deploy on bottom side)
- * - Top player side validation (must deploy on top side)
- * - Valid deployment scenarios for both players
- */
+
 public class LocalPvPGameViewTest {
+
+    private static boolean isHeadless() {
+        return GraphicsEnvironment.isHeadless();
+    }
+
+    static {
+        // Set JavaFX properties before any JavaFX classes are loaded
+        System.setProperty("java.awt.headless", "false");
+    }
 
     private LocalPvPGameView gameView;
     private Match match;
@@ -32,25 +35,45 @@ public class LocalPvPGameViewTest {
     private MatchController controller;
     private ArenaLayout layout;
 
+    @BeforeAll
+    static void initJavaFX() {
+        if (isHeadless()) {
+            return;
+        }
+
+        try {
+            Platform.startup(() -> {
+            });
+        } catch (IllegalStateException e) {
+            // Already initialized, which is fine
+        }
+    }
+
     @BeforeEach
     void setUp() {
         // Create arena with standard dimensions (height = 32)
         arena = new Arena(18, 32);
         layout = ArenaLayout.defaultLayout();
-        
+
         // Create players
         bottomPlayer = new Player("Player 1", new Deck(new ArrayList<>()), 0);
         topPlayer = new Player("Player 2", new Deck(new ArrayList<>()), 0);
-        
+
         // Create match
         match = new Match(bottomPlayer, topPlayer, arena);
-        
+
         // Create controller
         MatchService matchService = new MatchService(null);
         controller = new MatchController(matchService, match);
-        
-        // Create game view (using reflection or making validateDeploySide package-private)
-        gameView = new LocalPvPGameView(null, controller, layout);
+
+        // Create game view - wrap in try-catch to handle JavaFX initialization failures
+        // This will attempt to initialize JavaFX when the first JavaFX class is loaded
+        try {
+            gameView = new LocalPvPGameView(null, controller, layout);
+        } catch (ExceptionInInitializerError | NoClassDefFoundError | RuntimeException e) {
+            System.err.println("Failed to create LocalPvPGameView - JavaFX not available: " + e.getMessage());
+            gameView = null;
+        }
     }
 
     @Test
@@ -123,12 +146,9 @@ public class LocalPvPGameViewTest {
 
     @Test
     void validateDeploySide_bottomPlayerOnTopSide_returnsFailure() throws Exception {
-        // Setup: Bottom player trying to deploy on top side (Y = 5, which is < riverTop)
-        // River top = 15, so top side is Y < 15, but bottom player can only deploy on Y <= 14
-        // Actually, let's deploy at Y = 10 which is on the top side
-        int riverTop = arena.getHeight() / 2 - 1; // 15
-        Position topSideTile = new Position(5, riverTop - 1); // Y = 14, which is valid for bottom
-        // Let's try Y = 5 which is clearly on top side
+        // Setup: Bottom player trying to deploy on top side
+        // River top = 15, so bottom player can only deploy on Y <= 14
+        // Y = 5 is clearly on top side (above river)
         Position invalidTile = new Position(5, 5);
 
         // Execute
@@ -142,9 +162,8 @@ public class LocalPvPGameViewTest {
     @Test
     void validateDeploySide_topPlayerOnBottomSide_returnsFailure() throws Exception {
         // Setup: Top player trying to deploy on bottom side
-        int riverBottom = arena.getHeight() / 2; // 16
-        Position bottomSideTile = new Position(5, riverBottom + 1); // Y = 17, which is valid for top
-        // Let's try Y = 20 which is on bottom side
+        // River bottom = 16, so top player can only deploy on Y >= 17
+        // Y = 20 is clearly on bottom side (below river)
         Position invalidTile = new Position(5, 20);
 
         // Execute
@@ -158,9 +177,9 @@ public class LocalPvPGameViewTest {
     @Test
     void validateDeploySide_bottomPlayerOnBottomSide_returnsSuccess() throws Exception {
         // Setup: Bottom player deploying on valid bottom side
-        // Bottom side: Y <= riverTop - 1 = 14
-        int riverTop = arena.getHeight() / 2 - 1; // 15
-        Position validTile = new Position(5, riverTop - 1); // Y = 14, valid for bottom player
+        // Bottom side: Y >= riverBottom + 1 = 17
+        int riverBottom = arena.getHeight() / 2; // 16
+        Position validTile = new Position(5, riverBottom + 1); // Y = 17, valid for bottom player
 
         // Execute
         Result<?> result = invokeValidateDeploySide(bottomPlayer, validTile);
@@ -172,9 +191,9 @@ public class LocalPvPGameViewTest {
     @Test
     void validateDeploySide_topPlayerOnTopSide_returnsSuccess() throws Exception {
         // Setup: Top player deploying on valid top side
-        // Top side: Y >= riverBottom + 1 = 17
-        int riverBottom = arena.getHeight() / 2; // 16
-        Position validTile = new Position(5, riverBottom + 1); // Y = 17, valid for top player
+        // Top side: Y <= riverTop - 1 = 14
+        int riverTop = arena.getHeight() / 2 - 1; // 15
+        Position validTile = new Position(5, riverTop - 1); // Y = 14, valid for top player
 
         // Execute
         Result<?> result = invokeValidateDeploySide(topPlayer, validTile);
@@ -185,9 +204,9 @@ public class LocalPvPGameViewTest {
 
     @Test
     void validateDeploySide_bottomPlayerAtBoundary_returnsSuccess() throws Exception {
-        // Setup: Bottom player at the boundary (Y = riverTop - 1 = 14)
-        int riverTop = arena.getHeight() / 2 - 1; // 15
-        Position boundaryTile = new Position(5, riverTop - 1); // Y = 14
+        // Setup: Bottom player at the boundary (Y = riverBottom + 1 = 17)
+        int riverBottom = arena.getHeight() / 2; // 16
+        Position boundaryTile = new Position(5, riverBottom + 1); // Y = 17
 
         // Execute
         Result<?> result = invokeValidateDeploySide(bottomPlayer, boundaryTile);
@@ -198,9 +217,9 @@ public class LocalPvPGameViewTest {
 
     @Test
     void validateDeploySide_topPlayerAtBoundary_returnsSuccess() throws Exception {
-        // Setup: Top player at the boundary (Y = riverBottom + 1 = 17)
-        int riverBottom = arena.getHeight() / 2; // 16
-        Position boundaryTile = new Position(5, riverBottom + 1); // Y = 17
+        // Setup: Top player at the boundary (Y = riverTop - 1 = 14)
+        int riverTop = arena.getHeight() / 2 - 1; // 15
+        Position boundaryTile = new Position(5, riverTop - 1); // Y = 14
 
         // Execute
         Result<?> result = invokeValidateDeploySide(topPlayer, boundaryTile);
@@ -211,10 +230,16 @@ public class LocalPvPGameViewTest {
 
     // Helper method to invoke private validateDeploySide using reflection
     private Result<?> invokeValidateDeploySide(Player acting, Position tile) throws Exception {
+        if (gameView == null) {
+            throw new IllegalStateException("LocalPvPGameView not initialized - JavaFX may not be available");
+        }
         return invokeValidateDeploySide(gameView, acting, tile);
     }
 
     private Result<?> invokeValidateDeploySide(LocalPvPGameView view, Player acting, Position tile) throws Exception {
+        if (view == null) {
+            throw new IllegalStateException("LocalPvPGameView is null - JavaFX may not be available");
+        }
         Method method = LocalPvPGameView.class.getDeclaredMethod("validateDeploySide", Player.class, Position.class);
         method.setAccessible(true);
         return (Result<?>) method.invoke(view, acting, tile);

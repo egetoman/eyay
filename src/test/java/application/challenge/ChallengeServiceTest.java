@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import application.challenge.ChallengeService.ChallengeCompletion;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -117,9 +116,10 @@ public class ChallengeServiceTest {
 
     @Test
     void completeChallenge_playerWin_baseWin_returnsOneStar() {
-        // Setup: Player wins, no time limit, took damage
+        // Setup: Player wins, over time limit, took damage
+        // Challenge 1 has time limit of 180 seconds, so we need > 180 to get only 1 star
         Match match = createMatch(true, true); // Finished, player won
-        match.setElapsedSeconds(100.0); // Any time
+        match.setElapsedSeconds(200.0); // Over time limit (180 seconds)
         ChallengeSession session = new ChallengeSession("1", match);
         setupInitialProfile("1", true);
         setupTowerDamage(session, true); // Player took damage
@@ -131,7 +131,7 @@ public class ChallengeServiceTest {
         assertTrue(result.isSuccess());
         ChallengeCompletion completion = result.getData();
         assertTrue(completion.isWin());
-        assertEquals(1, completion.getStars(), "Base win should give 1 star");
+        assertEquals(1, completion.getStars(), "Base win over time limit should give 1 star");
         assertTrue(completion.getGoldAwarded() > 0, "Win should award gold");
         
         // Verify progress updated
@@ -244,10 +244,16 @@ public class ChallengeServiceTest {
         
         if (finished) {
             match.setElapsedSeconds(360.0); // Match duration
-            TowerOwner winner = playerWins ? TowerOwner.PLAYER : TowerOwner.OPPONENT;
-            MatchOutcome outcome = new MatchOutcome(winner, playerWins ? 3 : 0, playerWins ? 0 : 3, "TEST");
-            // Use reflection or add a setter to set outcome
-            // For now, we'll need to work around this
+            // Set outcome using reflection for testing
+            try {
+                java.lang.reflect.Field outcomeField = Match.class.getDeclaredField("outcome");
+                outcomeField.setAccessible(true);
+                TowerOwner winner = playerWins ? TowerOwner.PLAYER : TowerOwner.OPPONENT;
+                MatchOutcome outcome = new MatchOutcome(winner, playerWins ? 3 : 0, playerWins ? 0 : 3, "TEST");
+                outcomeField.set(match, outcome);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to set match outcome for testing", e);
+            }
         }
         
         return match;
@@ -342,14 +348,25 @@ public class ChallengeServiceTest {
     }
 
     private static class FakeArenaLayoutService extends ArenaLayoutService {
-        
         public FakeArenaLayoutService() {
-            super(null);
+            super(new FakeArenaRepository());
         }
 
         @Override
         public ArenaLayout getActiveLayout() {
             return ArenaLayout.defaultLayout();
+        }
+    }
+
+    private static class FakeArenaRepository extends kuroyale.infrastructure.ArenaRepository {
+        @Override
+        public java.util.List<kuroyale.domain.ArenaLayout> loadAll() {
+            return new java.util.ArrayList<>();
+        }
+
+        @Override
+        public void saveAll(java.util.List<kuroyale.domain.ArenaLayout> layouts) {
+            // No-op for testing
         }
     }
 }

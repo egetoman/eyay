@@ -38,6 +38,13 @@
             <version>5.10.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- JavaFX headless testing support (Monocle) -->
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>openjfx-monocle</artifactId>
+            <version>8u76-b04</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -49,6 +56,12 @@
                 <version>3.3.1</version>
                 <configuration>
                     <useModulePath>false</useModulePath>
+                    <argLine>
+                        -Djava.awt.headless=false
+                        -Dtestfx.headless=true
+                        -Dprism.order=sw
+                        -Dprism.text=t2k
+                    </argLine>
                 </configuration>
             </plugin>
             <!-- JavaFX'i çalıştırmak için plugin -->
