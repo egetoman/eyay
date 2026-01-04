@@ -17,7 +17,24 @@ public class QuestGenerator {
     public QuestGenerator(long seed) {
         this.random = new Random(seed);
     }
-    
+    /**
+     * REQUIRES:
+     *  - seed can be any long value.
+     *
+     * MODIFIES:
+     *  - nothing.
+     *
+     * EFFECTS:
+     *  - Generates and returns exactly 3 Quest objects.
+     *  - Quest generation is deterministic with respect to the given seed.
+     *  - All generated quests have distinct QuestType values.
+     *  - Each generated Quest has:
+     *      - a non-null id, description, and type,
+     *      - a positive target value,
+     *      - a positive reward gold value.
+     *  - Different seed values may result in different quest sets.
+     */
+
     public List<Quest> generateDailyQuests(long seed) {
         Random rng = new Random(seed);
         List<Quest> quests = new ArrayList<>();
