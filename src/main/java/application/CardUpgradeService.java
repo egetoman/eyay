@@ -26,6 +26,27 @@ public class CardUpgradeService {
         return profileRepository.load();
     }
     
+    /**
+     * Upgrades a card to the next level if all validations pass.
+     * 
+     * Requires:
+     *   - cardId is not null
+     *   - PlayerProfile exists and can be loaded
+     *   - CardCatalogRepository can be accessed
+     * 
+     * Modifies:
+     *   - PlayerProfile: decreases gold balance by upgrade cost
+     *   - CardProgression: increases level by 1 (if upgrade succeeds)
+     *   - PlayerProfile.cardProgressions map: adds/updates card progression entry
+     *   - Persistent storage: saves updated PlayerProfile (if save succeeds)
+     * 
+     * Effects:
+     *   - If card is not found: returns Result.fail("Card not found")
+     *   - If card is at max level: returns Result.fail("Card is already at max level")
+     *   - If insufficient gold: returns Result.fail("Insufficient gold")
+     *   - If save fails: reverts gold and level changes, returns Result.fail with error message
+     *   - If all validations pass: upgrades card, deducts gold, saves profile, returns Result.ok with updated CardProgression
+     */
     public Result<CardProgression> upgradeCard(String cardId) {
         PlayerProfile profile = profileRepository.load();
         Card card = findCard(cardId);
