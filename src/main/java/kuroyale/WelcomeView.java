@@ -52,12 +52,18 @@ public class WelcomeView {
         Button achievementButton = new Button("Achievements");
         achievementButton.setOnAction(event -> navigator.showAchievementScreen());
 
+        Button comboLibraryButton = new Button("Combo Library");
+        comboLibraryButton.setOnAction(event -> navigator.showComboLibraryScreen());
+
+        Button deckComboButton = new Button("My Deck's Combos");
+        deckComboButton.setOnAction(event -> navigator.showDeckComboScreen());
+
         Button quitButton = new Button("Quit");
         quitButton.setOnAction(event -> Platform.exit());
 
         root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, 
             savedLayoutsButton, arenaDemoButton, upgradeCardButton, dailyQuestButton, matchHistoryButton, 
-            achievementButton, quitButton);
+            achievementButton, comboLibraryButton, deckComboButton, quitButton);
     }
 
     public Parent getRoot() {

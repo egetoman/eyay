@@ -136,6 +136,20 @@ public class ScreenNavigator {
         primaryStage.setTitle("KU Royale - Achievements");
         primaryStage.setScene(scene);
     }
+
+    public void showComboLibraryScreen() {
+        ComboLibraryView view = new ComboLibraryView(this);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        primaryStage.setTitle("KU Royale - Combo Library");
+        primaryStage.setScene(scene);
+    }
+
+    public void showDeckComboScreen() {
+        DeckComboView view = new DeckComboView(this, deckController);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        primaryStage.setTitle("KU Royale - Deck Combos");
+        primaryStage.setScene(scene);
+    }
 }
 
 
