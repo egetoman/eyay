@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 
+import application.ComboDetector;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
@@ -57,11 +58,18 @@ public class StartGameView {
     private boolean paused = false;
     private final StackPane overlayLayer = new StackPane();
     private final ScreenNavigator navigator;
+    private final ComboDetector comboDetector;
+    private Label comboCountLabel;
+    private Timeline comboMessageTimer;
 
     public StartGameView(ScreenNavigator navigator, Match match, ArenaLayout selectedLayout) {
         this.navigator = navigator;
         this.match = match;
         this.player = match != null ? match.getPlayer() : null;
+        this.comboDetector = new ComboDetector();
+        this.comboDetector.setListener((comboType, comboName, effectDescription) -> {
+            showComboMessage(comboName, effectDescription);
+        });
         initializeDeckState(resolveDeckCards());
 
         root = new BorderPane();
@@ -78,9 +86,12 @@ public class StartGameView {
         timerLabel = createMetricLabel(formatTime(match != null ? match.getRemainingSeconds() : 0));
         phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.DOUBLE));
 
+        comboCountLabel = createMetricLabel("Combos: 0");
+        
         HBox metricsRow = new HBox(20,
             buildMetricPill("Phase", phaseLabel),
-            buildMetricPill("Time", timerLabel)
+            buildMetricPill("Time", timerLabel),
+            buildMetricPill("Combos", comboCountLabel)
         );
         metricsRow.setAlignment(Pos.CENTER_RIGHT);
 
@@ -324,6 +335,12 @@ public class StartGameView {
             showStatus(result.getMessage(), true);
             return;
         }
+        
+        // Record card play for combo detection
+        double currentTime = match != null ? match.getElapsedSeconds() : 0.0;
+        comboDetector.recordCardPlay(card, currentTime);
+        updateComboCounter();
+        
         cycleCard(selectedHandIndex);
         showStatus(card.getName() + " deployed at (" + tile.getX() + ", " + tile.getY() + ").", false);
         selectedHandIndex = -1;
@@ -372,6 +389,7 @@ public class StartGameView {
         matchTicker = new Timeline(new KeyFrame(Duration.seconds(0.5), e -> {
             if (!paused) {
                 match.advanceTime(0.5);
+                comboDetector.updateTime(match != null ? match.getElapsedSeconds() : 0.0);
                 updateElixirHud();
                 updateClockHud();
                 Arena arena = match.getArena();
@@ -473,5 +491,64 @@ public class StartGameView {
 
         overlayLayer.getChildren().addAll(dim, overlay);
         StackPane.setAlignment(overlay, Pos.CENTER);
+    }
+
+    private void showComboMessage(String comboName, String effectDescription) {
+        // Stop any existing combo message timer
+        if (comboMessageTimer != null) {
+            comboMessageTimer.stop();
+        }
+
+        // Don't show combo message if paused (pause overlay takes priority)
+        if (paused) {
+            return;
+        }
+
+        // Create combo message overlay
+        StackPane comboOverlay = new StackPane();
+        comboOverlay.setMouseTransparent(true);
+        
+        VBox comboBox = new VBox(8);
+        comboBox.setAlignment(Pos.CENTER);
+        comboBox.setPadding(new Insets(20));
+        
+        Label comboLabel = new Label("COMBO!");
+        comboLabel.setFont(Font.font("Arial", FontWeight.BOLD, 48));
+        comboLabel.setTextFill(Color.web("#ffd54f"));
+        
+        Label nameLabel = new Label(comboName);
+        nameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        nameLabel.setTextFill(Color.web("#9be564"));
+        
+        Label effectLabel = new Label(effectDescription);
+        effectLabel.setFont(Font.font("Arial", 16));
+        effectLabel.setTextFill(Color.web("#cbd0d6"));
+        
+        comboBox.getChildren().addAll(comboLabel, nameLabel, effectLabel);
+        comboOverlay.getChildren().add(comboBox);
+        StackPane.setAlignment(comboBox, Pos.CENTER);
+        
+        // Add to overlay layer (temporarily)
+        overlayLayer.getChildren().add(comboOverlay);
+        if (!paused) {
+            overlayLayer.setVisible(true);
+        }
+        
+        // Remove after 2 seconds
+        comboMessageTimer = new Timeline(new KeyFrame(Duration.seconds(2), e -> {
+            overlayLayer.getChildren().remove(comboOverlay);
+            // Only hide overlay if there are no other overlays and not paused
+            if (overlayLayer.getChildren().isEmpty() && !paused) {
+                overlayLayer.setVisible(false);
+            }
+        }));
+        comboMessageTimer.play();
+    }
+
+    private void updateComboCounter() {
+        if (comboCountLabel != null) {
+            int count = comboDetector.getTriggeredComboCount();
+            comboCountLabel.setText("Combos: " + count);
+        }
     }
 }
