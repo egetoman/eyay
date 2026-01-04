@@ -37,8 +37,10 @@ import kuroyale.support.Result;
 /**
  * Phase 2 Feature 1: Local Player vs Player - Turn-based match screen.
  * <p>
- * Simplest implementation: each successful deploy ends the current player's turn.
- * Both players' hands are shown side-by-side; only the active player can select/deploy.
+ * Simplest implementation: each successful deploy ends the current player's
+ * turn.
+ * Both players' hands are shown side-by-side; only the active player can
+ * select/deploy.
  */
 public class LocalPvPGameView {
 
@@ -99,10 +101,9 @@ public class LocalPvPGameView {
         phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.DOUBLE));
 
         HBox metricsRow = new HBox(16,
-            buildMetricPill("Turn", turnLabel),
-            buildMetricPill("Phase", phaseLabel),
-            buildMetricPill("Time", timerLabel)
-        );
+                buildMetricPill("Turn", turnLabel),
+                buildMetricPill("Phase", phaseLabel),
+                buildMetricPill("Time", timerLabel));
         metricsRow.setAlignment(Pos.CENTER_RIGHT);
 
         VBox header = new VBox(6, title, metricsRow);
@@ -161,7 +162,8 @@ public class LocalPvPGameView {
 
         Region track = new Region();
         track.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
-        track.setStyle("-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
+        track.setStyle(
+                "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
 
         StackPane bar = new StackPane(track, fill);
         StackPane.setAlignment(fill, Pos.CENTER_LEFT);
@@ -189,7 +191,8 @@ public class LocalPvPGameView {
 
     private void refreshDeckSection() {
         deckSectionContainer.getChildren().clear();
-        VBox bottomPanel = buildDeckPanel(bottomPlayer, bottomHand, true, activePlayer == bottomPlayer, selectedBottomIndex);
+        VBox bottomPanel = buildDeckPanel(bottomPlayer, bottomHand, true, activePlayer == bottomPlayer,
+                selectedBottomIndex);
         VBox topPanel = buildDeckPanel(topPlayer, topHand, false, activePlayer == topPlayer, selectedTopIndex);
         HBox row = new HBox(18, bottomPanel, topPanel);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -197,17 +200,17 @@ public class LocalPvPGameView {
     }
 
     private VBox buildDeckPanel(Player player,
-                                HandState hand,
-                                boolean bottomSide,
-                                boolean isActive,
-                                int selectedIndex) {
+            HandState hand,
+            boolean bottomSide,
+            boolean isActive,
+            int selectedIndex) {
         VBox panel = new VBox(8);
         panel.setAlignment(Pos.TOP_LEFT);
         panel.setPadding(new Insets(10));
         panel.setPrefWidth(360);
         panel.setStyle(isActive
-            ? "-fx-background-color: #1c1f2a; -fx-background-radius: 10; -fx-border-color: #ffd54f; -fx-border-radius: 10; -fx-border-width: 2;"
-            : "-fx-background-color: #1c1f2a; -fx-background-radius: 10; -fx-border-color: #2d2f36; -fx-border-radius: 10; -fx-border-width: 1;");
+                ? "-fx-background-color: #1c1f2a; -fx-background-radius: 10; -fx-border-color: #ffd54f; -fx-border-radius: 10; -fx-border-width: 2;"
+                : "-fx-background-color: #1c1f2a; -fx-background-radius: 10; -fx-border-color: #2d2f36; -fx-border-radius: 10; -fx-border-width: 1;");
 
         String displayName = player != null ? player.getName() : (bottomSide ? "Player 1" : "Player 2");
         Label name = new Label(displayName);
@@ -301,7 +304,8 @@ public class LocalPvPGameView {
             return;
         }
 
-        Result<?> result = controller != null ? controller.deployCard(activePlayer, card, tile) : Result.fail("Match controller missing.");
+        Result<?> result = controller != null ? controller.deployCard(activePlayer, card, tile)
+                : Result.fail("Match controller missing.");
         if (!result.isSuccess()) {
             showStatus(result.getMessage(), true);
             return;
@@ -313,7 +317,8 @@ public class LocalPvPGameView {
         refreshDeckSection();
         refreshTurnHud();
 
-        showStatus(activePlayer.getName() + " deployed " + card.getName() + " at (" + tile.getX() + ", " + tile.getY() + ").", false);
+        showStatus(activePlayer.getName() + " deployed " + card.getName() + " at (" + tile.getX() + ", " + tile.getY()
+                + ").", false);
 
         Arena arena = match.getArena();
         if (arena != null) {
@@ -327,40 +332,41 @@ public class LocalPvPGameView {
         refreshDeckSection();
     }
 
-/**
- * Validates that a deployment position is valid for the given player's side.
- * 
- * Requires:
- * - acting != null
- * - tile != null
- * - match != null
- * - match.getArena() != null
- * - match.getArena().getHeight() > 0 (arena must have valid dimensions)
- * - acting must be either bottomPlayer or topPlayer (player must be part of this match)
- * 
- * Modifies:
- * - None (pure validation method)
- * 
- * Effects:
- * - Returns Result.ok(null) if:
- *   * All parameters are non-null
- *   * Position is not on the river (riverTop or riverBottom rows)
- *   * Bottom player (Player 1) deploys on bottom side (Y <= riverTop - 1)
- *   * Top player (Player 2) deploys on top side (Y >= riverBottom + 1)
- * - Returns Result.fail("Invalid deployment.") if:
- *   * acting == null OR tile == null OR match == null OR match.getArena() == null
- * - Returns Result.fail("Cannot deploy on the river.") if:
- *   * tile.getY() == riverTop OR tile.getY() == riverBottom
- *   * where riverTop = height / 2 - 1, riverBottom = riverTop + 1
- * - Returns Result.fail("Player 1 can only deploy on the bottom side.") if:
- *   * acting == bottomPlayer AND tile.getY() > riverTop - 1
- * - Returns Result.fail("Player 2 can only deploy on the top side.") if:
- *   * acting == topPlayer AND tile.getY() < riverBottom + 1
- * 
- * @param acting The player attempting to deploy
- * @param tile The position where deployment is attempted
- * @return Result indicating success or specific failure reason
- */
+    /**
+     * Validates that a deployment position is valid for the given player's side.
+     * 
+     * Requires:
+     * - acting != null
+     * - tile != null
+     * - match != null
+     * - match.getArena() != null
+     * - match.getArena().getHeight() > 0 (arena must have valid dimensions)
+     * - acting must be either bottomPlayer or topPlayer (player must be part of
+     * this match)
+     * 
+     * Modifies:
+     * - None (pure validation method)
+     * 
+     * Effects:
+     * - Returns Result.ok(null) if:
+     * * All parameters are non-null
+     * * Position is not on the river (riverTop or riverBottom rows)
+     * * Bottom player (Player 1) deploys on bottom side (Y <= riverTop - 1)
+     * * Top player (Player 2) deploys on top side (Y >= riverBottom + 1)
+     * - Returns Result.fail("Invalid deployment.") if:
+     * * acting == null OR tile == null OR match == null OR match.getArena() == null
+     * - Returns Result.fail("Cannot deploy on the river.") if:
+     * * tile.getY() == riverTop OR tile.getY() == riverBottom
+     * * where riverTop = height / 2 - 1, riverBottom = riverTop + 1
+     * - Returns Result.fail("Player 1 can only deploy on the bottom side.") if:
+     * * acting == bottomPlayer AND tile.getY() > riverTop - 1
+     * - Returns Result.fail("Player 2 can only deploy on the top side.") if:
+     * * acting == topPlayer AND tile.getY() < riverBottom + 1
+     * 
+     * @param acting The player attempting to deploy
+     * @param tile   The position where deployment is attempted
+     * @return Result indicating success or specific failure reason
+     */
 
     public Result<?> validateDeploySide(Player acting, Position tile) {
         if (acting == null || tile == null || match == null || match.getArena() == null) {
@@ -373,10 +379,10 @@ public class LocalPvPGameView {
             return Result.fail("Cannot deploy on the river.");
         }
         boolean isBottom = acting == bottomPlayer;
-        if (isBottom && tile.getY() > riverTop - 1) {
+        if (isBottom && tile.getY() < riverBottom + 1) {
             return Result.fail("Player 1 can only deploy on the bottom side.");
         }
-        if (!isBottom && tile.getY() < riverBottom + 1) {
+        if (!isBottom && tile.getY() > riverTop - 1) {
             return Result.fail("Player 2 can only deploy on the top side.");
         }
         return Result.ok(null);
@@ -418,12 +424,14 @@ public class LocalPvPGameView {
     private void updateElixirHud() {
         if (bottomPlayer != null && bottomElixirLabel != null && bottomElixirFill != null) {
             bottomElixirLabel.setText("Elixir: " + bottomPlayer.getCurrentElixir());
-            double ratio = bottomPlayer.getMaxElixir() == 0 ? 0 : (double) bottomPlayer.getCurrentElixir() / bottomPlayer.getMaxElixir();
+            double ratio = bottomPlayer.getMaxElixir() == 0 ? 0
+                    : (double) bottomPlayer.getCurrentElixir() / bottomPlayer.getMaxElixir();
             bottomElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * clamp01(ratio));
         }
         if (topPlayer != null && topElixirLabel != null && topElixirFill != null) {
             topElixirLabel.setText("Elixir: " + topPlayer.getCurrentElixir());
-            double ratio = topPlayer.getMaxElixir() == 0 ? 0 : (double) topPlayer.getCurrentElixir() / topPlayer.getMaxElixir();
+            double ratio = topPlayer.getMaxElixir() == 0 ? 0
+                    : (double) topPlayer.getCurrentElixir() / topPlayer.getMaxElixir();
             topElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * clamp01(ratio));
         }
     }
@@ -548,8 +556,8 @@ public class LocalPvPGameView {
         String winnerText = "Draw";
         if (outcome != null && outcome.getWinner() != null) {
             winnerText = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER
-                ? (bottomPlayer != null ? bottomPlayer.getName() : "Player 1")
-                : (topPlayer != null ? topPlayer.getName() : "Player 2");
+                    ? (bottomPlayer != null ? bottomPlayer.getName() : "Player 1")
+                    : (topPlayer != null ? topPlayer.getName() : "Player 2");
         }
 
         Label over = new Label("Game Over");
@@ -611,5 +619,3 @@ public class LocalPvPGameView {
         }
     }
 }
-
-
