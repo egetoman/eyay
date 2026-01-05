@@ -15,9 +15,16 @@ import kuroyale.domain.TowerOwner;
 import kuroyale.domain.Unit;
 
 /**
- * Records a match as a snapshot timeline (Bonus: Watch Match Replay).
- * <p>
- * Recording snapshots is robust against non-determinism (bot randomness, timing drift).
+ * OVERVIEW:
+ *   Records a match as a timeline of snapshots.
+ *
+ * ABSTRACT FUNCTION:
+ *   AF(this) = list(frames) where each element is the observable match state when capture() was called.
+ *
+ * REPRESENTATION INVARIANT:
+ *   arenaLayoutId != null && !arenaLayoutId.isBlank()
+ *   tickMillis > 0
+ *   frames != null && for all f in frames: f != null
  */
 public class ReplayRecorder {
     private final String arenaLayoutId;
@@ -29,6 +36,37 @@ public class ReplayRecorder {
         this.tickMillis = tickMillis;
     }
 
+    /** RI checker */
+    public boolean repOk() {
+        if (arenaLayoutId == null || arenaLayoutId.isBlank()) return false;
+        if (tickMillis <= 0) return false;
+        if (frames == null) return false;
+        for (ReplayFrame f : frames) if (f == null) return false;
+        return true;
+    }
+
+    /**
+     * REQUIRES:
+     *   none (match may be null)
+     *
+     * MODIFIES:
+     *   this.frames
+     *
+     * EFFECTS:
+     *   if match == null: no effect;
+     *   else: appends a ReplayFrame with:
+     *     elapsedSeconds := match.getElapsedSeconds()
+     *     remainingSeconds := match.getRemainingSeconds()
+     *     phase := (match.getCurrentElixirPhase()==TRIPLE ? "TRIPLE" : "DOUBLE")
+     *     playerElixir := (match.getPlayer()!=null ? match.getPlayer().getCurrentElixir() : 0)
+     *     opponentElixir := (match.getOpponent()!=null ? match.getOpponent().getCurrentElixir() : 0)
+     *     towers := from match.getArena().getTowers(); skip if tower==null or owner/type/position==null;
+     *               map owner PLAYER→1, OPPONENT→2; copy type.name(), position.x, position.y, hp
+     *     units  := from match.getArena().getUnits(); skip if unit==null or unit.getCard()==null;
+     *               map owner PLAYER→1, OPPONENT→2; copy cardId, cardName, x, y, hp
+     *     finished := match.isOver()
+     *     winnerPlayerId := set only if match.getOutcome()!=null and getWinner()!=null; map PLAYER→1, OPPONENT→2
+     */
     public void capture(Match match) {
         if (match == null) {
             return;
@@ -91,5 +129,4 @@ public class ReplayRecorder {
         return new MatchReplay(arenaLayoutId, tickMillis, frames);
     }
 }
-
 
