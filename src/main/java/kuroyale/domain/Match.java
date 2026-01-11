@@ -86,6 +86,29 @@ public class Match {
             return Result.fail("Target tile is occupied.");
         }
 
+        // Territory restriction: Only apply in single-player mode (botEnabled=true)
+        // In Local PvP/Network modes, the view handles territory validation
+        // Troops and buildings can only be placed on player's side
+        // Spells can be cast anywhere (including on enemy towers)
+        if (botEnabled) {
+            TowerOwner unitOwner = resolveOwner(actingPlayer);
+            CardType cardType = card.getType();
+
+            if (cardType == CardType.TROOP || cardType == CardType.BUILDING) {
+                boolean isPlayerUnit = (unitOwner == TowerOwner.PLAYER);
+                boolean isOnPlayerSide = arena.isPlayerSide(position);
+                boolean isOnOpponentSide = arena.isOpponentSide(position);
+
+                if (isPlayerUnit && !isOnPlayerSide) {
+                    return Result.fail("You can only deploy units on your side of the arena.");
+                }
+                if (!isPlayerUnit && !isOnOpponentSide) {
+                    return Result.fail("Opponent can only deploy on their side.");
+                }
+            }
+        }
+        // Spells (CardType.SPELL) have no territory restriction
+
         actingPlayer.spendElixir(cost);
         int hp = card.getStats() != null ? card.getStats().getHp() : 0;
         TowerOwner unitOwner = resolveOwner(actingPlayer);
@@ -97,7 +120,8 @@ public class Match {
     }
 
     /**
-     * Sets a cost policy to modify card elixir costs for special modes (e.g., challenges).
+     * Sets a cost policy to modify card elixir costs for special modes (e.g.,
+     * challenges).
      * If null, the match uses {@link Card#getElixirCost()}.
      */
     public void setCardCostPolicy(CardCostPolicy cardCostPolicy) {
@@ -162,7 +186,8 @@ public class Match {
     }
 
     /**
-     * Enables/disables built-in bot behavior. Local PvP / Network / Replay should disable this.
+     * Enables/disables built-in bot behavior. Local PvP / Network / Replay should
+     * disable this.
      */
     public boolean isBotEnabled() {
         return botEnabled;
@@ -346,7 +371,3 @@ public class Match {
         }
     }
 }
-
-
-
-
