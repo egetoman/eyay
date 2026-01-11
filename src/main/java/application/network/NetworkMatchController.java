@@ -451,6 +451,11 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
         } else if (outcome != null && outcome.getWinner() != null) {
             snap.winnerPlayerId = outcome.getWinner() == TowerOwner.PLAYER ? 1 : 2;
         }
+        if (outcome != null) {
+            snap.player1Crowns = outcome.getPlayerCrowns();
+            snap.player2Crowns = outcome.getOpponentCrowns();
+            snap.endReason = outcome.getReason();
+        }
         return snap;
     }
 

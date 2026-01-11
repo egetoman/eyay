@@ -32,6 +32,7 @@ import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Card;
 import kuroyale.domain.ElixirPhase;
 import kuroyale.domain.Match;
+import kuroyale.domain.MatchOutcome;
 import kuroyale.domain.Player;
 import kuroyale.domain.Position;
 import kuroyale.support.Result;
@@ -415,6 +416,7 @@ public class StartGameView {
             }
             if (match.isFinished()) {
                 stopTicker();
+                showGameOverOverlay();
                 recordMatchOnce();
             }
         }));
@@ -428,8 +430,51 @@ public class StartGameView {
         }
         matchRecorded = true;
         if (navigator != null && match != null) {
-            navigator.recordMatchWithReplay(match, "AI", selectedLayout, replayRecorder.build());
+            try {
+                navigator.recordMatchWithReplay(match, "AI", selectedLayout, replayRecorder.build());
+            } catch (Exception e) {
+                // Never let persistence failures break the match end UI.
+                System.err.println("Failed to record match: " + e.getMessage());
+            }
         }
+    }
+
+    private void showGameOverOverlay() {
+        if (match == null) {
+            return;
+        }
+        MatchOutcome outcome = match.getOutcome();
+        int playerCrowns = outcome != null ? outcome.getPlayerCrowns() : 0;
+        int opponentCrowns = outcome != null ? outcome.getOpponentCrowns() : 0;
+
+        String headline = "Draw";
+        if (outcome != null && outcome.getWinner() != null) {
+            headline = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER ? "Victory" : "Defeat";
+        }
+
+        String topName = (match.getOpponent() != null && match.getOpponent().getName() != null)
+                ? match.getOpponent().getName()
+                : "Opponent";
+        String bottomName = (player != null && player.getName() != null) ? player.getName() : "You";
+
+        MatchEndOverlay.show(
+                overlayLayer,
+                topName,
+                opponentCrowns,
+                bottomName,
+                playerCrowns,
+                headline,
+                () -> {
+                    // Play Again -> go back to match preview so user can start another match quickly.
+                    if (navigator != null) {
+                        navigator.showStartGameScreen();
+                    }
+                },
+                () -> {
+                    if (navigator != null) {
+                        navigator.showWelcomeScreen();
+                    }
+                });
     }
 
     private void stopTicker() {
