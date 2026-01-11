@@ -38,7 +38,8 @@ import kuroyale.infrastructure.CardCatalogRepository;
 /**
  * Phase 2 Feature 2: Network Multiplayer - Match screen.
  * <p>
- * Host runs simulation and broadcasts snapshots; client renders snapshots and sends deploy requests.
+ * Host runs simulation and broadcasts snapshots; client renders snapshots and
+ * sends deploy requests.
  */
 public class NetworkMatchView {
 
@@ -72,7 +73,8 @@ public class NetworkMatchView {
         root.setPadding(new Insets(10));
         root.setStyle("-fx-background-color: #0f1216;");
 
-        // Ensure we always close sockets when leaving this screen (navigate back to main menu, window closed, etc.)
+        // Ensure we always close sockets when leaving this screen (navigate back to
+        // main menu, window closed, etc.)
         root.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (oldScene != null && newScene == null) {
                 // Screen removed from stage
@@ -101,10 +103,10 @@ public class NetworkMatchView {
         connectionLabel.setFont(Font.font("Arial", FontWeight.BOLD, 12));
 
         HBox meta = new HBox(12,
-            metric("Conn", connectionLabel),
-            metric("Phase", phaseLabel),
-            metric("Time", timeLabel),
-            metric("Elixir", new Label()) // placeholder; updated below
+                metric("Conn", connectionLabel),
+                metric("Phase", phaseLabel),
+                metric("Time", timeLabel),
+                metric("Elixir", new Label()) // placeholder; updated below
         );
         meta.setAlignment(Pos.CENTER_RIGHT);
 
@@ -122,8 +124,8 @@ public class NetworkMatchView {
         // Local deck (client/host sees own deck only)
         List<Card> provided = controller != null ? controller.getLocalDeckCards() : null;
         localDeckCards = (provided != null && !provided.isEmpty())
-            ? provided
-            : new CardCatalogRepository().findAll();
+                ? provided
+                : new CardCatalogRepository().findAll();
         initializeHand();
         refreshDeckUI();
 
@@ -157,12 +159,14 @@ public class NetworkMatchView {
         controller.setOnConnectionInfo(text -> Platform.runLater(() -> connectionLabel.setText(text)));
         controller.setOnSnapshot(snap -> Platform.runLater(() -> applySnapshot(snap)));
 
-        // Reconnect scenario: we may already have a snapshot cached before callbacks were attached.
+        // Reconnect scenario: we may already have a snapshot cached before callbacks
+        // were attached.
         NetworkSnapshot cached = controller.getLastSnapshot();
         if (cached != null) {
             applySnapshot(cached);
         }
-        // Proactively request snapshots for a short period (fixes cases where the first request happens before socket is ready).
+        // Proactively request snapshots for a short period (fixes cases where the first
+        // request happens before socket is ready).
         startBootstrapSnapshotRequests();
 
         // Host ticks simulation
@@ -209,7 +213,8 @@ public class NetworkMatchView {
         // Simplified: just take first 8 from catalog
         List<Card> picked = new ArrayList<>();
         for (Card c : localDeckCards) {
-            if (picked.size() >= 8) break;
+            if (picked.size() >= 8)
+                break;
             picked.add(c);
         }
         for (int i = 0; i < 4; i++) {
@@ -268,7 +273,8 @@ public class NetworkMatchView {
     }
 
     private boolean isValidSide(Position tile) {
-        if (tile == null) return false;
+        if (tile == null)
+            return false;
         int height = layout.getHeight();
         int riverTop = height / 2 - 1;
         int riverBottom = riverTop + 1;
@@ -284,19 +290,22 @@ public class NetworkMatchView {
     }
 
     private void applySnapshot(NetworkSnapshot snap) {
-        if (snap == null) return;
+        if (snap == null)
+            return;
         phaseLabel.setText(snap.phase != null ? snap.phase : "—");
         timeLabel.setText(formatTime(snap.remainingSeconds));
         p1ElixirLabel.setText("P1 Elixir: " + snap.player1Elixir);
         p2ElixirLabel.setText("P2 Elixir: " + snap.player2Elixir);
 
-        // Update tower HP on the layout's tower objects (mutable objects, list is unmodifiable)
+        // Update tower HP on the layout's tower objects (mutable objects, list is
+        // unmodifiable)
         for (NetworkSnapshot.TowerHp th : snap.towers) {
             for (Tower t : layout.getTowers()) {
-                if (t == null || t.getPosition() == null || t.getType() == null || t.getOwner() == null) continue;
+                if (t == null || t.getPosition() == null || t.getType() == null || t.getOwner() == null)
+                    continue;
                 if (t.getPosition().getX() == th.x && t.getPosition().getY() == th.y
-                    && t.getType().name().equals(th.type)
-                    && ((t.getOwner() == TowerOwner.PLAYER ? 1 : 2) == th.owner)) {
+                        && t.getType().name().equals(th.type)
+                        && ((t.getOwner() == TowerOwner.PLAYER ? 1 : 2) == th.owner)) {
                     t.setHp(th.hp);
                 }
             }
@@ -306,9 +315,10 @@ public class NetworkMatchView {
         List<Unit> units = new ArrayList<>();
         for (NetworkSnapshot.UnitState us : snap.units) {
             Card card = new CardCatalogRepository().findAll().stream()
-                .filter(c -> c != null && c.getId().equals(us.cardId))
-                .findFirst().orElse(null);
-            if (card == null) continue;
+                    .filter(c -> c != null && c.getId().equals(us.cardId))
+                    .findFirst().orElse(null);
+            if (card == null)
+                continue;
             TowerOwner owner = us.owner == 1 ? TowerOwner.PLAYER : TowerOwner.OPPONENT;
             Unit u = new Unit(card, new Position((int) Math.round(us.x), (int) Math.round(us.y)), us.hp, owner);
             u.setPrecisePosition(us.x, us.y);
@@ -383,5 +393,3 @@ public class NetworkMatchView {
         return root;
     }
 }
-
-

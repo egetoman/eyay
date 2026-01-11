@@ -87,9 +87,11 @@ public class Unit {
     }
 
     /**
-     * Allows networking/replay systems to set exact positions from authoritative snapshots.
+     * Allows networking/replay systems to set exact positions from authoritative
+     * snapshots.
      * <p>
-     * Domain note: this does not change any gameplay behavior; it only updates render-relevant state.
+     * Domain note: this does not change any gameplay behavior; it only updates
+     * render-relevant state.
      */
     public void setPrecisePosition(double x, double y) {
         this.preciseX = x;
@@ -129,14 +131,46 @@ public class Unit {
     }
 
     public void tick(Arena arena, double deltaSeconds) {
+        // Buildings should never move or acquire targets - they are stationary
+        if (card != null && card.getType() == CardType.BUILDING) {
+            // Buildings can still attack if they have attack capabilities
+            attackCooldownSeconds = Math.max(0, attackCooldownSeconds - deltaSeconds);
+
+            // Buildings attack nearby enemies if they have damage
+            if (attackDamage > 0 && attackCooldownSeconds <= 0 && attackRangeTiles > 0) {
+                // Find nearest enemy in range
+                Unit nearestEnemy = arena.findNearestEnemyUnit(owner, position, attackRangeTiles);
+                if (nearestEnemy != null) {
+                    nearestEnemy.takeDamage(attackDamage);
+                    attackCooldownSeconds = attackIntervalSeconds;
+                }
+            }
+            return; // Buildings don't move, so exit early
+        }
+
         if (arena == null || deltaSeconds <= 0 || speedTilesPerSecond <= 0 || isDefeated()) {
             return;
         }
         attackCooldownSeconds = Math.max(0, attackCooldownSeconds - deltaSeconds);
 
-        acquireTargets(arena);
+        // Check if we're currently locked onto a tower (in range and attacking it)
+        boolean lockedOntoTower = false;
+        if (targetTower != null && !targetTower.isDestroyed() && targetTower.getPosition() != null) {
+            double dx = targetTower.getPosition().getX() - preciseX;
+            double dy = targetTower.getPosition().getY() - preciseY;
+            double distanceToTower = Math.sqrt(dx * dx + dy * dy);
+            lockedOntoTower = (distanceToTower <= attackRangeTiles);
+        }
+
+        // Only acquire new targets if NOT locked onto a tower
+        if (!lockedOntoTower) {
+            acquireTargets(arena);
+        }
+
         Position targetPosition = null;
         boolean attackingTower = false;
+
+        // Determine target (enemy unit or tower)
         if (targetEnemyUnit != null && !targetEnemyUnit.isDefeated()) {
             targetPosition = targetEnemyUnit.getPosition();
         }
@@ -152,6 +186,7 @@ public class Unit {
             attackingTower = true;
         }
 
+        // Calculate path and distance
         Position travelTarget = arena.resolvePathTarget(position, targetPosition);
         double dx = travelTarget.getX() - preciseX;
         double dy = travelTarget.getY() - preciseY;
@@ -159,27 +194,41 @@ public class Unit {
         boolean headingToFinalTarget = travelTarget == targetPosition;
         boolean inRange = headingToFinalTarget && distance <= attackRangeTiles;
 
+        // MOVEMENT: Move if not in attack range
         if (!inRange) {
             double step = speedTilesPerSecond * deltaSeconds;
-            if (distance <= step || distance == 0) {
+            if (distance <= step) {
+                // Smoothly arrive at target
                 preciseX = travelTarget.getX();
                 preciseY = travelTarget.getY();
             } else {
+                // Move toward target
                 preciseX += (dx / distance) * step;
                 preciseY += (dy / distance) * step;
             }
-        } else if (attackCooldownSeconds <= 0 && attackDamage > 0) {
+        }
+
+        // ATTACK: Attack if in range and cooldown ready (independent of movement)
+        if (inRange && attackCooldownSeconds <= 0 && attackDamage > 0) {
             if (attackingTower) {
                 targetTower.takeDamage(attackDamage);
             } else if (targetEnemyUnit != null) {
                 targetEnemyUnit.takeDamage(attackDamage);
+                // Immediately check if target was defeated and try to find new one
                 if (targetEnemyUnit.isDefeated()) {
                     targetEnemyUnit = null;
+                    // Try to immediately acquire a new enemy unit
+                    double detectionRadius = Math.max(attackRangeTiles * 1.5, 2.5);
+                    Unit newTarget = arena.findNearestEnemyUnit(owner, position, detectionRadius);
+                    if (newTarget != null) {
+                        targetEnemyUnit = newTarget;
+                    }
                 }
             }
             attackCooldownSeconds = attackIntervalSeconds;
         }
 
+        // Update position
         int roundedX = (int) Math.round(preciseX);
         int roundedY = (int) Math.round(preciseY);
         if (position == null) {
@@ -195,7 +244,15 @@ public class Unit {
     }
 
     private void acquireTargets(Arena arena) {
-        double detectionRadius = Math.max(attackRangeTiles * 2, 3.0);
+        // Building-only units (Giant, Hog Rider) should never target enemy troops
+        if (card != null && card.getTarget() == CardTarget.BUILDINGS) {
+            targetEnemyUnit = null; // Always null for building-only units
+            return;
+        }
+
+        // Normal targeting logic for units that can attack troops
+        // Reduced detection radius for more natural engagement (1.5x instead of 2x)
+        double detectionRadius = Math.max(attackRangeTiles * 1.5, 2.5);
         if (targetEnemyUnit == null || targetEnemyUnit.isDefeated()) {
             Unit candidate = arena.findNearestEnemyUnit(owner, position, detectionRadius);
             if (candidate != null) {
@@ -260,7 +317,3 @@ public class Unit {
         return hitSpeedMillis / 1000.0;
     }
 }
-
-
-
-

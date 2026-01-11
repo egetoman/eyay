@@ -12,7 +12,8 @@ import kuroyale.domain.Card;
 /**
  * Small UI helpers shared across match-related screens.
  * <p>
- * This avoids copy/pasting the card-slot rendering logic across Local PvP / Network / Replay screens.
+ * This avoids copy/pasting the card-slot rendering logic across Local PvP /
+ * Network / Replay screens.
  */
 final class StartGameUiBits {
     private StartGameUiBits() {
@@ -77,5 +78,3 @@ final class StartGameUiBits {
         return chip;
     }
 }
-
-
