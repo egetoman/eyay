@@ -6,6 +6,7 @@ import kuroyale.domain.Card;
 import kuroyale.domain.CardStats;
 import kuroyale.domain.CardTarget;
 import kuroyale.domain.CardType;
+import kuroyale.domain.UnitMovementType;
 
 public class CardCatalogRepository {
 
@@ -42,9 +43,9 @@ public class CardCatalogRepository {
                 cards.add(troop("card_archers", "Archers", 3, 125, 40, 5.5, "Medium", 1.1, CardTarget.AIR_AND_GROUND,
                                 "Spawns 2 ranged soldiers."));
                 cards.add(troop("card_minions", "Minions", 3, 90, 40, 2.5, "Very Fast", 1.0, CardTarget.AIR_AND_GROUND,
-                                "Spawns 3 flying attackers."));
+                                UnitMovementType.FLYING, "Spawns 3 flying attackers."));
                 cards.add(troop("card_minion_horde", "Minion Horde", 5, 90, 40, 2.5, "Very Fast", 1.0,
-                                CardTarget.AIR_AND_GROUND, "Spawns 6 flying attackers."));
+                                CardTarget.AIR_AND_GROUND, UnitMovementType.FLYING, "Spawns 6 flying attackers."));
                 cards.add(troop("card_barbarians", "Barbarians", 5, 300, 75, 1.0, "Fast", 1.5, CardTarget.GROUND,
                                 "Spawns 4 tough melee fighters."));
 
@@ -81,8 +82,15 @@ public class CardCatalogRepository {
 
         private Card troop(String id, String name, int cost, int hp, int damage, double rangeTiles, String moveSpeed,
                         double hitSpeedSeconds, CardTarget target, String description) {
+                return troop(id, name, cost, hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds, target,
+                                UnitMovementType.GROUND, description);
+        }
+
+        private Card troop(String id, String name, int cost, int hp, int damage, double rangeTiles, String moveSpeed,
+                        double hitSpeedSeconds, CardTarget target, UnitMovementType movementType, String description) {
                 return new Card(id, name, cost, CardType.TROOP,
-                                stats(hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds), target, description);
+                                stats(hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds), target, movementType,
+                                description);
         }
 
         private Card building(String id, String name, int cost, int hp, int damage, double rangeTiles,
