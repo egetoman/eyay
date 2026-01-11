@@ -73,7 +73,10 @@ public class ArenaLayout {
 
     private static Tower createTower(TowerOwner owner, TowerType type, Position position) {
         int baseHp = type == TowerType.KING ? 4000 : 2500;
-        int baseDamage = type == TowerType.KING ? 250 : 140;
+        // Balance tuning:
+        // - King Tower: 90 damage per hit (interval 1.0s => 90 DPS)
+        // - Crown Tower: 60 DPS at 0.8s interval => 48 damage per hit
+        int baseDamage = type == TowerType.KING ? 90 : 48;
         double attackSpeed = type == TowerType.KING ? 1.0 : 0.8;
         return new Tower(baseHp, position, baseDamage, attackSpeed, type, owner);
     }

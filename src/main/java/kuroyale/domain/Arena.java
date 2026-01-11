@@ -137,6 +137,43 @@ public class Arena {
         return ArenaLayout.of(width, height, towerCopies, bridgeCopies);
     }
 
+    /**
+     * Advances simulation for both units and towers.
+     */
+    public void tick(double deltaSeconds) {
+        if (deltaSeconds <= 0) {
+            return;
+        }
+        // 1) Move/attack units
+        if (!units.isEmpty()) {
+            for (Unit unit : units) {
+                if (unit == null || unit.isDefeated()) {
+                    continue;
+                }
+                unit.tick(this, deltaSeconds);
+            }
+        }
+        // 2) Towers auto-attack
+        if (!towers.isEmpty()) {
+            for (Tower tower : towers) {
+                if (tower == null) {
+                    continue;
+                }
+                tower.tick(this, deltaSeconds);
+            }
+        }
+        // 3) Cleanup defeated units
+        if (!units.isEmpty()) {
+            List<Unit> livingUnits = new ArrayList<>();
+            for (Unit unit : units) {
+                if (unit != null && !unit.isDefeated()) {
+                    livingUnits.add(unit);
+                }
+            }
+            units = livingUnits;
+        }
+    }
+
     public void tickUnits(double deltaSeconds) {
         if (deltaSeconds <= 0 || units.isEmpty()) {
             return;

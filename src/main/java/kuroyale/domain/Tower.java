@@ -6,9 +6,13 @@ public class Tower {
     private int maxHp;
     private Position position;
     private int damage;
+    /**
+     * Attack interval in seconds (e.g., 0.8 means fires every 0.8s).
+     */
     private double attackSpeed;
     private TowerType type;
     private TowerOwner owner;
+    private double attackCooldownSeconds;
 
     public Tower() {
     }
@@ -21,6 +25,7 @@ public class Tower {
         this.attackSpeed = attackSpeed;
         this.type = type;
         this.owner = owner;
+        this.attackCooldownSeconds = 0;
     }
 
     public Tower(Tower other) {
@@ -32,6 +37,7 @@ public class Tower {
                 other.type,
                 other.owner);
         this.maxHp = other.maxHp;
+        this.attackCooldownSeconds = other.attackCooldownSeconds;
     }
 
     public int getHp() {
@@ -99,5 +105,44 @@ public class Tower {
             return;
         }
         hp = Math.max(0, hp - amount);
+    }
+
+    /**
+     * Tower auto-attack tick.
+     * Towers automatically fire at the nearest enemy unit in range when their cooldown is ready.
+     */
+    public void tick(Arena arena, double deltaSeconds) {
+        if (arena == null || deltaSeconds <= 0) {
+            return;
+        }
+        if (isDestroyed() || owner == null || position == null) {
+            return;
+        }
+        if (damage <= 0) {
+            return;
+        }
+        double interval = attackSpeed > 0 ? attackSpeed : 1.0;
+        attackCooldownSeconds = Math.max(0, attackCooldownSeconds - deltaSeconds);
+        if (attackCooldownSeconds > 0) {
+            return;
+        }
+        double range = resolveAttackRangeTiles();
+        Unit target = arena.findNearestEnemyUnit(owner, position, range);
+        if (target != null) {
+            target.takeDamage(damage);
+            attackCooldownSeconds = interval;
+        }
+    }
+
+    private double resolveAttackRangeTiles() {
+        // Reasonable defaults for this grid-based arena.
+        // (Princess/Crown towers typically have slightly longer range than king.)
+        if (type == TowerType.CROWN) {
+            return 7.5;
+        }
+        if (type == TowerType.KING) {
+            return 7.0;
+        }
+        return 7.0;
     }
 }
