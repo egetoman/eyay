@@ -3,6 +3,7 @@ package kuroyale.domain;
 public class Tower {
 
     private int hp;
+    private int maxHp;
     private Position position;
     private int damage;
     private double attackSpeed;
@@ -14,6 +15,7 @@ public class Tower {
 
     public Tower(int hp, Position position, int damage, double attackSpeed, TowerType type, TowerOwner owner) {
         this.hp = hp;
+        this.maxHp = hp;
         this.position = position;
         this.damage = damage;
         this.attackSpeed = attackSpeed;
@@ -23,13 +25,13 @@ public class Tower {
 
     public Tower(Tower other) {
         this(
-            other.hp,
-            other.position != null ? new Position(other.position.getX(), other.position.getY()) : null,
-            other.damage,
-            other.attackSpeed,
-            other.type,
-            other.owner
-        );
+                other.hp,
+                other.position != null ? new Position(other.position.getX(), other.position.getY()) : null,
+                other.damage,
+                other.attackSpeed,
+                other.type,
+                other.owner);
+        this.maxHp = other.maxHp;
     }
 
     public int getHp() {
@@ -38,6 +40,14 @@ public class Tower {
 
     public void setHp(int hp) {
         this.hp = hp;
+    }
+
+    public int getMaxHp() {
+        return maxHp;
+    }
+
+    public void setMaxHp(int maxHp) {
+        this.maxHp = maxHp;
     }
 
     public Position getPosition() {
@@ -91,7 +101,3 @@ public class Tower {
         hp = Math.max(0, hp - amount);
     }
 }
-
-
-
-

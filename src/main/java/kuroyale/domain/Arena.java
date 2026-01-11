@@ -77,7 +77,7 @@ public class Arena {
             return false;
         }
         return position.getX() >= 0 && position.getX() < width
-            && position.getY() >= 0 && position.getY() < height;
+                && position.getY() >= 0 && position.getY() < height;
     }
 
     public boolean isTileFree(Position position) {
@@ -85,8 +85,8 @@ public class Arena {
             return false;
         }
         return findUnitAt(position) == null && towers.stream()
-            .map(Tower::getPosition)
-            .noneMatch(pos -> pos != null && pos.sameTile(position));
+                .map(Tower::getPosition)
+                .noneMatch(pos -> pos != null && pos.sameTile(position));
     }
 
     public Unit findUnitAt(Position position) {
@@ -94,9 +94,9 @@ public class Arena {
             return null;
         }
         return units.stream()
-            .filter(unit -> unit.getPosition() != null && unit.getPosition().sameTile(position))
-            .findFirst()
-            .orElse(null);
+                .filter(unit -> unit.getPosition() != null && unit.getPosition().sameTile(position))
+                .findFirst()
+                .orElse(null);
     }
 
     public void addUnit(Unit unit) {
@@ -157,9 +157,9 @@ public class Arena {
             return null;
         }
         return towers.stream()
-            .filter(tower -> tower != null && tower.getOwner() != requester && !tower.isDestroyed())
-            .min(Comparator.comparingDouble(tower -> distance(tower.getPosition(), fromPosition)))
-            .orElse(null);
+                .filter(tower -> tower != null && tower.getOwner() != requester && !tower.isDestroyed())
+                .min(Comparator.comparingDouble(tower -> distance(tower.getPosition(), fromPosition)))
+                .orElse(null);
     }
 
     private double distance(Position one, Position two) {
@@ -234,9 +234,9 @@ public class Arena {
             return null;
         }
         return bridges.stream()
-            .filter(bridge -> bridge.getStart() != null && bridge.getEnd() != null)
-            .min(Comparator.comparingDouble(bridge -> distanceToBridge(bridge, from)))
-            .orElse(null);
+                .filter(bridge -> bridge.getStart() != null && bridge.getEnd() != null)
+                .min(Comparator.comparingDouble(bridge -> distanceToBridge(bridge, from)))
+                .orElse(null);
     }
 
     private double distanceToBridge(Bridge bridge, Position from) {
@@ -254,8 +254,20 @@ public class Arena {
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
+
+    public boolean isPlayerSide(Position position) {
+        if (position == null) {
+            return false;
+        }
+        // Player towers are at the TOP (north) with LOW Y values (Y=2, Y=7)
+        return position.getY() <= getRiverTopRow();
+    }
+
+    public boolean isOpponentSide(Position position) {
+        if (position == null) {
+            return false;
+        }
+        // Opponent towers are at the BOTTOM (south) with HIGH Y values (Y=24, Y=29)
+        return position.getY() > getRiverBottomRow();
+    }
 }
-
-
-
-
