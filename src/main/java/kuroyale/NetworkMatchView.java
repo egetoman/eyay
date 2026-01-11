@@ -63,6 +63,7 @@ public class NetworkMatchView {
     private Timeline hostTicker;
     private Timeline bootstrapTicker;
     private final StackPane overlayLayer = new StackPane();
+    private boolean finishedOverlayShown = false;
 
     public NetworkMatchView(ScreenNavigator navigator, NetworkMatchController controller, ArenaLayout layout) {
         this.navigator = navigator;
@@ -326,46 +327,70 @@ public class NetworkMatchView {
         }
         arenaBoard.renderUnits(units);
 
-        if (snap.finished) {
+        if (snap.finished && !finishedOverlayShown) {
+            finishedOverlayShown = true;
             showFinishedOverlay(snap);
         }
     }
 
     private void showFinishedOverlay(NetworkSnapshot snap) {
-        overlayLayer.setVisible(true);
-        overlayLayer.setMouseTransparent(false);
-        overlayLayer.getChildren().clear();
-        javafx.scene.shape.Rectangle dim = new javafx.scene.shape.Rectangle();
-        dim.widthProperty().bind(overlayLayer.widthProperty());
-        dim.heightProperty().bind(overlayLayer.heightProperty());
-        dim.setFill(Color.color(0, 0, 0, 0.65));
+        int localId = controller != null ? controller.getLocalPlayerId() : 1;
 
-        Label over = new Label("Match Ended");
-        over.setFont(Font.font("Arial", FontWeight.BOLD, 26));
-        over.setTextFill(Color.WHITE);
-
-        String winner = "Draw";
-        if (snap.winnerPlayerId != null) {
-            winner = snap.winnerPlayerId == controller.getLocalPlayerId() ? "You" : "Opponent";
-        }
-        Label winnerLabel = new Label("Winner: " + winner);
-        winnerLabel.setTextFill(Color.web("#ffd54f"));
-        winnerLabel.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-
-        Button exit = new Button("Return to Menu");
-        exit.setOnAction(e -> {
-            stopHostTicker();
-            stopBootstrapTicker();
-            if (controller != null) {
-                controller.close();
+        Integer p1Crowns = snap.player1Crowns;
+        Integer p2Crowns = snap.player2Crowns;
+        if (p1Crowns == null || p2Crowns == null) {
+            // Legacy fallback: derive from layout tower HP (counts destroyed crown towers)
+            int p1 = 0;
+            int p2 = 0;
+            for (Tower t : layout.getTowers()) {
+                if (t == null || t.getType() == null || t.getOwner() == null) continue;
+                if (t.getType() != TowerType.CROWN) continue;
+                if (t.getHp() > 0) continue;
+                if (t.getOwner() == TowerOwner.OPPONENT) {
+                    p1++; // player1 destroyed opponent crown
+                } else if (t.getOwner() == TowerOwner.PLAYER) {
+                    p2++; // player2 destroyed opponent crown
+                }
             }
-            navigator.showWelcomeScreen();
-        });
+            p1Crowns = p1;
+            p2Crowns = p2;
+        }
 
-        VBox box = new VBox(14, over, winnerLabel, exit);
-        box.setAlignment(Pos.CENTER);
-        overlayLayer.getChildren().addAll(dim, box);
-        StackPane.setAlignment(box, Pos.CENTER);
+        int localCrowns = localId == 1 ? p1Crowns : p2Crowns;
+        int opponentCrowns = localId == 1 ? p2Crowns : p1Crowns;
+
+        String headline = "Draw";
+        if (snap.winnerPlayerId != null) {
+            headline = snap.winnerPlayerId == localId ? "Victory" : "Defeat";
+        }
+
+        MatchEndOverlay.show(
+                overlayLayer,
+                "Opponent",
+                opponentCrowns,
+                "You",
+                localCrowns,
+                headline,
+                () -> {
+                    stopHostTicker();
+                    stopBootstrapTicker();
+                    if (controller != null) {
+                        controller.close();
+                    }
+                    if (navigator != null) {
+                        navigator.showNetworkMenuScreen();
+                    }
+                },
+                () -> {
+                    stopHostTicker();
+                    stopBootstrapTicker();
+                    if (controller != null) {
+                        controller.close();
+                    }
+                    if (navigator != null) {
+                        navigator.showWelcomeScreen();
+                    }
+                });
     }
 
     private String formatTime(double remainingSeconds) {

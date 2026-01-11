@@ -548,43 +548,45 @@ public class LocalPvPGameView {
     }
 
     private void showGameOverOverlay() {
-        overlayLayer.setVisible(true);
-        overlayLayer.setMouseTransparent(false);
-        overlayLayer.getChildren().clear();
-        Rectangle dim = new Rectangle();
-        dim.widthProperty().bind(overlayLayer.widthProperty());
-        dim.heightProperty().bind(overlayLayer.heightProperty());
-        dim.setFill(Color.color(0, 0, 0, 0.65));
-
         MatchOutcome outcome = match != null ? match.getOutcome() : null;
-        String winnerText = "Draw";
+        int bottomCrowns = outcome != null ? outcome.getPlayerCrowns() : 0;
+        int topCrowns = outcome != null ? outcome.getOpponentCrowns() : 0;
+
+        String headline = "Draw";
         if (outcome != null && outcome.getWinner() != null) {
-            winnerText = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER
-                    ? (bottomPlayer != null ? bottomPlayer.getName() : "Player 1")
-                    : (topPlayer != null ? topPlayer.getName() : "Player 2");
+            headline = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER ? "Victory" : "Defeat";
+        } else if (match != null && match.isFinished()) {
+            headline = "Draw";
         }
 
-        Label over = new Label("Game Over");
-        over.setFont(Font.font("Arial", FontWeight.BOLD, 28));
-        over.setTextFill(Color.WHITE);
+        String topName = topPlayer != null ? topPlayer.getName() : "Player 2";
+        String bottomName = bottomPlayer != null ? bottomPlayer.getName() : "Player 1";
 
-        Label winner = new Label("Winner: " + winnerText);
-        winner.setTextFill(Color.web("#ffd54f"));
-        winner.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-
-        Button exitButton = new Button("Return to Main Menu");
-        exitButton.setOnAction(e -> {
-            overlayLayer.getChildren().clear();
-            overlayLayer.setVisible(false);
-            overlayLayer.setMouseTransparent(true);
-            navigator.showWelcomeScreen();
-        });
-
-        VBox overlay = new VBox(16, over, winner, exitButton);
-        overlay.setAlignment(Pos.CENTER);
-
-        overlayLayer.getChildren().addAll(dim, overlay);
-        StackPane.setAlignment(overlay, Pos.CENTER);
+        MatchEndOverlay.show(
+                overlayLayer,
+                topName,
+                topCrowns,
+                bottomName,
+                bottomCrowns,
+                headline,
+                () -> {
+                    overlayLayer.getChildren().clear();
+                    overlayLayer.setVisible(false);
+                    overlayLayer.setMouseTransparent(true);
+                    stopTicker();
+                    if (navigator != null) {
+                        navigator.showLocalPvPSetupScreen();
+                    }
+                },
+                () -> {
+                    overlayLayer.getChildren().clear();
+                    overlayLayer.setVisible(false);
+                    overlayLayer.setMouseTransparent(true);
+                    stopTicker();
+                    if (navigator != null) {
+                        navigator.showWelcomeScreen();
+                    }
+                });
     }
 
     public Parent getRoot() {
