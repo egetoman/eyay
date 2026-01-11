@@ -13,7 +13,8 @@ public class Card {
     public Card() {
     }
 
-    public Card(String id, String name, int elixirCost, CardType type, CardStats stats, CardTarget target, String description) {
+    public Card(String id, String name, int elixirCost, CardType type, CardStats stats, CardTarget target,
+            String description) {
         this.id = id;
         this.name = name;
         this.elixirCost = elixirCost;
@@ -79,7 +80,3 @@ public class Card {
         this.description = description;
     }
 }
-
-
-
-
