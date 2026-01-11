@@ -118,7 +118,7 @@ public class LocalPvPGameView {
         root.setCenter(boardLayer);
 
         if (match != null && match.getArena() != null) {
-            arenaBoard.renderUnits(match.getArena().getUnits());
+            arenaBoard.render(match.getArena());
         }
 
         VBox hud = buildHudSection();
@@ -322,7 +322,7 @@ public class LocalPvPGameView {
 
         Arena arena = match.getArena();
         if (arena != null) {
-            arenaBoard.renderUnits(arena.getUnits());
+            arenaBoard.render(arena);
         }
         updateElixirHud();
 
@@ -379,11 +379,15 @@ public class LocalPvPGameView {
             return Result.fail("Cannot deploy on the river.");
         }
         boolean isBottom = acting == bottomPlayer;
-        if (isBottom && tile.getY() < riverBottom + 1) {
-            return Result.fail("Player 1 can only deploy on the bottom side.");
+        // bottomPlayer = TowerOwner.PLAYER with towers at NORTH (Y=2-7, low Y)
+        // topPlayer = TowerOwner.OPPONENT with towers at SOUTH (Y=24-29, high Y)
+        // So: bottomPlayer deploys on NORTH (Y < riverBottom), topPlayer deploys on
+        // SOUTH (Y > riverTop)
+        if (isBottom && tile.getY() >= riverBottom) {
+            return Result.fail("Player 1 can only deploy on their side (north).");
         }
-        if (!isBottom && tile.getY() > riverTop - 1) {
-            return Result.fail("Player 2 can only deploy on the top side.");
+        if (!isBottom && tile.getY() <= riverTop) {
+            return Result.fail("Player 2 can only deploy on their side (south).");
         }
         return Result.ok(null);
     }
@@ -402,7 +406,7 @@ public class LocalPvPGameView {
                 updateElixirHud();
                 updateClockHud();
                 if (match.getArena() != null) {
-                    arenaBoard.renderUnits(match.getArena().getUnits());
+                    arenaBoard.render(match.getArena());
                 }
             }
             if (match.isFinished()) {

@@ -33,7 +33,8 @@ import kuroyale.support.Result;
 
 /**
  * Challenge match UI (Phase 2 Feature 4).
- * Similar to StartGameView but adds challenge rules and star/reward overlay on completion.
+ * Similar to StartGameView but adds challenge rules and star/reward overlay on
+ * completion.
  */
 public class ChallengeMatchView {
     private final ScreenNavigator navigator;
@@ -55,10 +56,10 @@ public class ChallengeMatchView {
     private final StartGameDeckUi deckUi;
 
     public ChallengeMatchView(ScreenNavigator navigator,
-                              ChallengeService challengeService,
-                              MatchService matchService,
-                              ChallengeSession session,
-                              ArenaLayout layout) {
+            ChallengeService challengeService,
+            MatchService matchService,
+            ChallengeSession session,
+            ArenaLayout layout) {
         this.navigator = navigator;
         this.challengeService = challengeService;
         this.session = session;
@@ -85,9 +86,8 @@ public class ChallengeMatchView {
         styleMetric(timerLabel);
         styleMetric(phaseLabel);
         HBox metrics = new HBox(14,
-            metricPill("Phase", phaseLabel),
-            metricPill("Time", timerLabel)
-        );
+                metricPill("Phase", phaseLabel),
+                metricPill("Time", timerLabel));
         metrics.setAlignment(Pos.CENTER_RIGHT);
 
         VBox header = new VBox(6, title, rules, metrics);
@@ -337,5 +337,3 @@ public class ChallengeMatchView {
         }
     }
 }
-
-
