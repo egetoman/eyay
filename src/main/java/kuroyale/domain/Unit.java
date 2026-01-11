@@ -138,8 +138,8 @@ public class Unit {
 
             // Buildings attack nearby enemies if they have damage
             if (attackDamage > 0 && attackCooldownSeconds <= 0 && attackRangeTiles > 0) {
-                // Find nearest enemy in range
-                Unit nearestEnemy = arena.findNearestEnemyUnit(owner, position, attackRangeTiles);
+                // Find nearest enemy in range (respecting ground/flying restrictions)
+                Unit nearestEnemy = arena.findNearestEnemyUnit(owner, position, attackRangeTiles, this);
                 if (nearestEnemy != null) {
                     nearestEnemy.takeDamage(attackDamage);
                     attackCooldownSeconds = attackIntervalSeconds;
@@ -214,16 +214,16 @@ public class Unit {
                 targetTower.takeDamage(attackDamage);
             } else if (targetEnemyUnit != null) {
                 targetEnemyUnit.takeDamage(attackDamage);
-                // Immediately check if target was defeated and try to find new one
-                if (targetEnemyUnit.isDefeated()) {
-                    targetEnemyUnit = null;
-                    // Try to immediately acquire a new enemy unit
-                    double detectionRadius = Math.max(attackRangeTiles * 1.5, 2.5);
-                    Unit newTarget = arena.findNearestEnemyUnit(owner, position, detectionRadius);
-                    if (newTarget != null) {
-                        targetEnemyUnit = newTarget;
+                    // Immediately check if target was defeated and try to find new one
+                    if (targetEnemyUnit.isDefeated()) {
+                        targetEnemyUnit = null;
+                        // Try to immediately acquire a new enemy unit (respecting ground/flying restrictions)
+                        double detectionRadius = Math.max(attackRangeTiles * 1.5, 2.5);
+                        Unit newTarget = arena.findNearestEnemyUnit(owner, position, detectionRadius, this);
+                        if (newTarget != null) {
+                            targetEnemyUnit = newTarget;
+                        }
                     }
-                }
             }
             attackCooldownSeconds = attackIntervalSeconds;
         }
@@ -243,6 +243,51 @@ public class Unit {
         return currentHP <= 0;
     }
 
+    /**
+     * Checks if this unit can attack the target unit based on movement types and attack target capability.
+     * Ground units with GROUND target cannot attack flying units.
+     * Units with AIR_AND_GROUND target can attack both ground and flying units.
+     * 
+     * @param target The unit to check if it can be attacked
+     * @return true if this unit can attack the target unit, false otherwise
+     */
+    public boolean canAttackUnit(Unit target) {
+        if (target == null || target.isDefeated()) {
+            return false;
+        }
+        if (card == null || card.getTarget() == null) {
+            return true; // Default behavior if card info is missing
+        }
+        
+        CardTarget attackTarget = card.getTarget();
+        UnitMovementType targetMovementType = target.getMovementType();
+        
+        // BUILDINGS target means this unit only attacks buildings, not other units
+        if (attackTarget == CardTarget.BUILDINGS || attackTarget == CardTarget.NONE) {
+            return false;
+        }
+        
+        // If target is flying, check if attacker can hit air
+        if (targetMovementType == UnitMovementType.FLYING) {
+            // Only units with AIR_AND_GROUND can attack flying units
+            return attackTarget == CardTarget.AIR_AND_GROUND;
+        }
+        
+        // Ground targets can be attacked by both GROUND and AIR_AND_GROUND
+        return attackTarget == CardTarget.GROUND || attackTarget == CardTarget.AIR_AND_GROUND;
+    }
+
+    /**
+     * Gets the movement type of this unit (ground or flying).
+     * Defaults to GROUND if card information is not available.
+     */
+    public UnitMovementType getMovementType() {
+        if (card == null) {
+            return UnitMovementType.GROUND;
+        }
+        return card.getMovementType();
+    }
+
     private void acquireTargets(Arena arena) {
         // Building-only units (Giant, Hog Rider) should never target enemy troops
         if (card != null && card.getTarget() == CardTarget.BUILDINGS) {
@@ -254,17 +299,22 @@ public class Unit {
         // Reduced detection radius for more natural engagement (1.5x instead of 2x)
         double detectionRadius = Math.max(attackRangeTiles * 1.5, 2.5);
         if (targetEnemyUnit == null || targetEnemyUnit.isDefeated()) {
-            Unit candidate = arena.findNearestEnemyUnit(owner, position, detectionRadius);
+            Unit candidate = arena.findNearestEnemyUnit(owner, position, detectionRadius, this);
             if (candidate != null) {
                 targetEnemyUnit = candidate;
                 targetTower = null;
             }
         } else {
-            double dx = targetEnemyUnit.getPreciseX() - preciseX;
-            double dy = targetEnemyUnit.getPreciseY() - preciseY;
-            double distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance > detectionRadius * 1.5) {
+            // Check if current target can still be attacked (e.g., ground unit cannot attack flying)
+            if (!canAttackUnit(targetEnemyUnit)) {
                 targetEnemyUnit = null;
+            } else {
+                double dx = targetEnemyUnit.getPreciseX() - preciseX;
+                double dy = targetEnemyUnit.getPreciseY() - preciseY;
+                double distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > detectionRadius * 1.5) {
+                    targetEnemyUnit = null;
+                }
             }
         }
     }

@@ -172,6 +172,20 @@ public class Arena {
     }
 
     public Unit findNearestEnemyUnit(TowerOwner requester, Position fromPosition, double maxDistance) {
+        return findNearestEnemyUnit(requester, fromPosition, maxDistance, null);
+    }
+
+    /**
+     * Finds the nearest enemy unit that can be attacked by the attacker.
+     * Respects ground/flying restrictions: ground units with GROUND target cannot attack flying units.
+     * 
+     * @param requester The owner of the unit seeking targets
+     * @param fromPosition The position to search from
+     * @param maxDistance Maximum distance to search
+     * @param attacker The unit that will attack (null for backward compatibility, treats all units as attackable)
+     * @return The nearest attackable enemy unit, or null if none found
+     */
+    public Unit findNearestEnemyUnit(TowerOwner requester, Position fromPosition, double maxDistance, Unit attacker) {
         if (requester == null || fromPosition == null) {
             return null;
         }
@@ -179,6 +193,10 @@ public class Arena {
         Unit best = null;
         for (Unit unit : units) {
             if (unit == null || unit.getOwner() == requester || unit.isDefeated()) {
+                continue;
+            }
+            // Check if attacker can attack this unit (respects ground/flying restrictions)
+            if (attacker != null && !attacker.canAttackUnit(unit)) {
                 continue;
             }
             double dx = unit.getPreciseX() - fromPosition.getX();
