@@ -148,7 +148,7 @@ public class Match {
             double multiplier = multiplierFor(cursor);
             applyRegen(player, chunkDelta, multiplier, true);
             applyRegen(opponent, chunkDelta, multiplier, false);
-            arena.tickUnits(chunkDelta);
+            arena.tick(chunkDelta);
             handleBotBehavior(chunkDelta);
             cursor = chunkEnd;
             updateOutcomeIfNeeded(false);
