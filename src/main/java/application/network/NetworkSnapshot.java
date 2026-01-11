@@ -18,6 +18,9 @@ public class NetworkSnapshot {
     public List<UnitState> units = new ArrayList<>();
     public boolean finished;
     public Integer winnerPlayerId; // null => draw/unknown
+    public Integer player1Crowns; // 0..3 (null => unknown/legacy)
+    public Integer player2Crowns; // 0..3 (null => unknown/legacy)
+    public String endReason; // see MatchOutcome#getReason()
 
     public static class TowerHp {
         public int owner; // 1 or 2

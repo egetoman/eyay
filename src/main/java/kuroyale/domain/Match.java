@@ -320,12 +320,20 @@ public class Match {
 
         Tower playerKing = null;
         Tower opponentKing = null;
-        int destroyedPlayerCrowns = 0;
-        int destroyedOpponentCrowns = 0;
+        int playerCrownTowersDestroyed = 0;   // crown towers owned by PLAYER that are destroyed (opponent earned)
+        int opponentCrownTowersDestroyed = 0; // crown towers owned by OPPONENT that are destroyed (player earned)
+        int playerTowerHpTotal = 0;
+        int opponentTowerHpTotal = 0;
 
         for (Tower tower : arena.getTowers()) {
             if (tower == null) {
                 continue;
+            }
+            // HP totals for time-out tie-break (include 0 for destroyed towers)
+            if (tower.getOwner() == TowerOwner.PLAYER) {
+                playerTowerHpTotal += Math.max(0, tower.getHp());
+            } else if (tower.getOwner() == TowerOwner.OPPONENT) {
+                opponentTowerHpTotal += Math.max(0, tower.getHp());
             }
             if (tower.getType() == TowerType.KING) {
                 if (tower.getOwner() == TowerOwner.PLAYER) {
@@ -336,9 +344,9 @@ public class Match {
             } else if (tower.getType() == TowerType.CROWN) {
                 if (tower.isDestroyed()) {
                     if (tower.getOwner() == TowerOwner.PLAYER) {
-                        destroyedPlayerCrowns++;
+                        playerCrownTowersDestroyed++;
                     } else if (tower.getOwner() == TowerOwner.OPPONENT) {
-                        destroyedOpponentCrowns++;
+                        opponentCrownTowersDestroyed++;
                     }
                 }
             }
@@ -354,20 +362,48 @@ public class Match {
             } else if (opponentKingDestroyed && !playerKingDestroyed) {
                 winner = TowerOwner.PLAYER;
             }
-            int playerCrowns = opponentKingDestroyed ? 3 : destroyedOpponentCrowns;
-            int opponentCrowns = playerKingDestroyed ? 3 : destroyedPlayerCrowns;
+            int playerCrowns = opponentKingDestroyed ? 3 : opponentCrownTowersDestroyed;
+            int opponentCrowns = playerKingDestroyed ? 3 : playerCrownTowersDestroyed;
             outcome = new MatchOutcome(winner, playerCrowns, opponentCrowns, "KING_DESTROYED");
+            return;
+        }
+
+        // Scenario 2: if one side has destroyed more crown towers than the other (max 2), end match.
+        // We treat "2 crowns" (both crown towers destroyed) as an early victory condition.
+        if (opponentCrownTowersDestroyed == 2 && playerCrownTowersDestroyed < 2) {
+            outcome = new MatchOutcome(TowerOwner.PLAYER, 2, playerCrownTowersDestroyed, "CROWN_TOWERS_DESTROYED");
+            return;
+        }
+        if (playerCrownTowersDestroyed == 2 && opponentCrownTowersDestroyed < 2) {
+            outcome = new MatchOutcome(TowerOwner.OPPONENT, opponentCrownTowersDestroyed, 2, "CROWN_TOWERS_DESTROYED");
             return;
         }
 
         if (considerTimeOut && elapsedSeconds >= TOTAL_DURATION_SECONDS) {
             TowerOwner winner = null;
-            if (destroyedOpponentCrowns > destroyedPlayerCrowns) {
+            // First tie-break: crowns (destroyed opponent crown towers)
+            if (opponentCrownTowersDestroyed > playerCrownTowersDestroyed) {
                 winner = TowerOwner.PLAYER;
-            } else if (destroyedPlayerCrowns > destroyedOpponentCrowns) {
+                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_CROWNS");
+                return;
+            } else if (playerCrownTowersDestroyed > opponentCrownTowersDestroyed) {
                 winner = TowerOwner.OPPONENT;
+                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_CROWNS");
+                return;
             }
-            outcome = new MatchOutcome(winner, destroyedOpponentCrowns, destroyedPlayerCrowns, "TIME_OUT");
+
+            // Second tie-break: total remaining tower HP
+            if (playerTowerHpTotal > opponentTowerHpTotal) {
+                winner = TowerOwner.PLAYER;
+                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_HP");
+                return;
+            } else if (opponentTowerHpTotal > playerTowerHpTotal) {
+                winner = TowerOwner.OPPONENT;
+                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_HP");
+                return;
+            }
+
+            outcome = new MatchOutcome(null, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_DRAW");
         }
     }
 }
