@@ -96,12 +96,11 @@ public class StartGameView {
         phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.DOUBLE));
 
         comboCountLabel = createMetricLabel("Combos: 0");
-        
+
         HBox metricsRow = new HBox(20,
-            buildMetricPill("Phase", phaseLabel),
-            buildMetricPill("Time", timerLabel),
-            buildMetricPill("Combos", comboCountLabel)
-        );
+                buildMetricPill("Phase", phaseLabel),
+                buildMetricPill("Time", timerLabel),
+                buildMetricPill("Combos", comboCountLabel));
         metricsRow.setAlignment(Pos.CENTER_RIGHT);
 
         VBox header = new VBox(6, title, subtitle, metricsRow);
@@ -117,7 +116,7 @@ public class StartGameView {
         if (match != null) {
             Arena arena = match.getArena();
             if (arena != null) {
-                arenaBoard.renderUnits(arena.getUnits());
+                arenaBoard.render(arena);
             }
         }
 
@@ -219,11 +218,13 @@ public class StartGameView {
     private VBox buildElixirPanel() {
         elixirFill = new Region();
         elixirFill.setPrefSize(0, ELIXIR_BAR_HEIGHT);
-        elixirFill.setStyle("-fx-background-color: linear-gradient(to right, #b259ff, #7a4dff); -fx-background-radius: 10;");
+        elixirFill.setStyle(
+                "-fx-background-color: linear-gradient(to right, #b259ff, #7a4dff); -fx-background-radius: 10;");
 
         Region track = new Region();
         track.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
-        track.setStyle("-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
+        track.setStyle(
+                "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
 
         StackPane bar = new StackPane(track, elixirFill);
         StackPane.setAlignment(elixirFill, Pos.CENTER_LEFT);
@@ -339,24 +340,25 @@ public class StartGameView {
             showStatus("Selected slot is empty.", true);
             return;
         }
-        Result<?> result = controller != null ? controller.deployCard(player, card, tile) : Result.fail("Match controller missing.");
+        Result<?> result = controller != null ? controller.deployCard(player, card, tile)
+                : Result.fail("Match controller missing.");
         if (!result.isSuccess()) {
             showStatus(result.getMessage(), true);
             return;
         }
-        
+
         // Record card play for combo detection
         double currentTime = match != null ? match.getElapsedSeconds() : 0.0;
         comboDetector.recordCardPlay(card, currentTime);
         updateComboCounter();
-        
+
         cycleCard(selectedHandIndex);
         showStatus(card.getName() + " deployed at (" + tile.getX() + ", " + tile.getY() + ").", false);
         selectedHandIndex = -1;
         updateHandSelection();
         Arena arena = match.getArena();
         if (arena != null) {
-            arenaBoard.renderUnits(arena.getUnits());
+            arenaBoard.render(arena);
         }
         updateElixirHud();
     }
@@ -408,7 +410,7 @@ public class StartGameView {
                 updateClockHud();
                 Arena arena = match.getArena();
                 if (arena != null) {
-                    arenaBoard.renderUnits(arena.getUnits());
+                    arenaBoard.render(arena);
                 }
             }
             if (match.isFinished()) {
@@ -532,33 +534,33 @@ public class StartGameView {
         // Create combo message overlay
         StackPane comboOverlay = new StackPane();
         comboOverlay.setMouseTransparent(true);
-        
+
         VBox comboBox = new VBox(8);
         comboBox.setAlignment(Pos.CENTER);
         comboBox.setPadding(new Insets(20));
-        
+
         Label comboLabel = new Label("COMBO!");
         comboLabel.setFont(Font.font("Arial", FontWeight.BOLD, 48));
         comboLabel.setTextFill(Color.web("#ffd54f"));
-        
+
         Label nameLabel = new Label(comboName);
         nameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 24));
         nameLabel.setTextFill(Color.web("#9be564"));
-        
+
         Label effectLabel = new Label(effectDescription);
         effectLabel.setFont(Font.font("Arial", 16));
         effectLabel.setTextFill(Color.web("#cbd0d6"));
-        
+
         comboBox.getChildren().addAll(comboLabel, nameLabel, effectLabel);
         comboOverlay.getChildren().add(comboBox);
         StackPane.setAlignment(comboBox, Pos.CENTER);
-        
+
         // Add to overlay layer (temporarily)
         overlayLayer.getChildren().add(comboOverlay);
         if (!paused) {
             overlayLayer.setVisible(true);
         }
-        
+
         // Remove after 2 seconds
         comboMessageTimer = new Timeline(new KeyFrame(Duration.seconds(2), e -> {
             overlayLayer.getChildren().remove(comboOverlay);
