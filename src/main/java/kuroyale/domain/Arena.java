@@ -325,4 +325,54 @@ public class Arena {
         // Opponent towers are at the BOTTOM (south) with HIGH Y values (Y=24, Y=29)
         return position.getY() > getRiverBottomRow();
     }
+
+    /**
+     * Finds all units within a radius from a position.
+     * @param center The center position
+     * @param radiusTiles The radius in tiles
+     * @return List of units within radius
+     */
+    public List<Unit> findUnitsInRadius(Position center, double radiusTiles) {
+        List<Unit> result = new ArrayList<>();
+        if (center == null || radiusTiles <= 0) {
+            return result;
+        }
+        for (Unit unit : units) {
+            if (unit == null || unit.isDefeated() || unit.getPosition() == null) {
+                continue;
+            }
+            double dx = unit.getPreciseX() - center.getX();
+            double dy = unit.getPreciseY() - center.getY();
+            double distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance <= radiusTiles) {
+                result.add(unit);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Finds all towers within a radius from a position.
+     * @param center The center position
+     * @param radiusTiles The radius in tiles
+     * @return List of towers within radius
+     */
+    public List<Tower> findTowersInRadius(Position center, double radiusTiles) {
+        List<Tower> result = new ArrayList<>();
+        if (center == null || radiusTiles <= 0) {
+            return result;
+        }
+        for (Tower tower : towers) {
+            if (tower == null || tower.isDestroyed() || tower.getPosition() == null) {
+                continue;
+            }
+            double dx = tower.getPosition().getX() - center.getX();
+            double dy = tower.getPosition().getY() - center.getY();
+            double distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance <= radiusTiles) {
+                result.add(tower);
+            }
+        }
+        return result;
+    }
 }
