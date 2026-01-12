@@ -1,0 +1,12 @@
+Tiny RPG Character Asset Pack v1.03 (Free Soldier & Orc)
+Source: Provided by user locally at /Users/ozanozak/Downloads/Tiny RPG Character Asset Pack v1.03 -Free Soldier&Orc
+Used files (copied into src/main/resources/assets/tiny-rpg/):
+- soldier_idle.png
+- soldier_walk.png
+- soldier_attack1.png
+- orc_idle.png
+- orc_walk.png
+- orc_attack1.png
+
+TODO: Add the official license/author attribution text from the pack readme/license file here.
+

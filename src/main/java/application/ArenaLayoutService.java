@@ -8,6 +8,7 @@ import java.util.UUID;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Bridge;
 import kuroyale.domain.Tower;
+import kuroyale.domain.TowerType;
 import kuroyale.infrastructure.ArenaRepository;
 
 public class ArenaLayoutService {
@@ -22,10 +23,19 @@ public class ArenaLayoutService {
         List<ArenaLayout> loaded = repository.loadAll();
         if (loaded.isEmpty()) {
             ArenaLayout defaultLayout = ArenaLayout.defaultLayout();
+            normalizeTowerStats(defaultLayout);
             cachedLayouts.add(defaultLayout);
             activeLayoutId = defaultLayout.getId();
         } else {
             cachedLayouts.addAll(loaded);
+            boolean changed = false;
+            for (ArenaLayout l : cachedLayouts) {
+                changed |= normalizeTowerStats(l);
+            }
+            // Migrate old saved layouts (e.g., 250/140 tower damage) to current balance values.
+            if (changed) {
+                repository.saveAll(cachedLayouts);
+            }
             activeLayoutId = cachedLayouts.get(0).getId();
         }
     }
@@ -40,11 +50,13 @@ public class ArenaLayoutService {
 
     public ArenaLayout createLayout(String name, List<Tower> towers, List<Bridge> bridges, int width, int height) {
         ArenaLayout layout = ArenaLayout.of(UUID.randomUUID().toString(), name, width, height, towers, bridges);
+        normalizeTowerStats(layout);
         save(layout);
         return layout;
     }
 
     public void save(ArenaLayout layout) {
+        normalizeTowerStats(layout);
         cachedLayouts.removeIf(existing -> existing.getId().equals(layout.getId()));
         cachedLayouts.add(layout);
         repository.saveAll(cachedLayouts);
@@ -67,11 +79,40 @@ public class ArenaLayoutService {
     }
 
     public ArenaLayout getActiveLayout() {
-        return findById(activeLayoutId).orElseGet(ArenaLayout::defaultLayout);
+        ArenaLayout layout = findById(activeLayoutId).orElseGet(ArenaLayout::defaultLayout);
+        normalizeTowerStats(layout);
+        return layout;
     }
 
     public void setActiveLayout(String layoutId) {
         this.activeLayoutId = layoutId;
+    }
+
+    /**
+     * Ensures tower stats are aligned with the current balance tuning.
+     * Returns true if any tower was modified.
+     */
+    private boolean normalizeTowerStats(ArenaLayout layout) {
+        if (layout == null) {
+            return false;
+        }
+        boolean changed = false;
+        for (Tower t : layout.getTowers()) {
+            if (t == null || t.getType() == null) {
+                continue;
+            }
+            int desiredDamage = t.getType() == TowerType.KING ? 90 : 60;
+            double desiredAttackSpeed = t.getType() == TowerType.KING ? 1.0 : 0.8;
+            if (t.getDamage() != desiredDamage) {
+                t.setDamage(desiredDamage);
+                changed = true;
+            }
+            if (Double.compare(t.getAttackSpeed(), desiredAttackSpeed) != 0) {
+                t.setAttackSpeed(desiredAttackSpeed);
+                changed = true;
+            }
+        }
+        return changed;
     }
 }
 
