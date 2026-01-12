@@ -2,6 +2,8 @@ package kuroyale;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
@@ -14,6 +16,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
+import javafx.scene.image.Image;
 import kuroyale.domain.Arena;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Bridge;
@@ -26,12 +29,26 @@ import kuroyale.domain.Unit;
 public class ArenaBoard {
 
     private static final double TILE_SIZE = 20.0;
+    private static final int SPRITE_FRAME_SIZE = 100; // Tiny RPG pack frames are 100x100
+    private static final boolean ENABLE_UNIT_SPRITES = true;
+    private static final long ATTACK_HOLD_MILLIS = 450;
+    private static final long ATTACK_TRIGGER_COOLDOWN_MILLIS = 500;
+    private static final double MOVE_EPSILON_TILES = 0.03;
+
+    private static final Image SOLDIER_IDLE = load("/assets/tiny-rpg/soldier_idle.png");
+    private static final Image SOLDIER_WALK = load("/assets/tiny-rpg/soldier_walk.png");
+    private static final Image SOLDIER_ATTACK1 = load("/assets/tiny-rpg/soldier_attack1.png");
+    private static final Image ORC_IDLE = load("/assets/tiny-rpg/orc_idle.png");
+    private static final Image ORC_WALK = load("/assets/tiny-rpg/orc_walk.png");
+    private static final Image ORC_ATTACK1 = load("/assets/tiny-rpg/orc_attack1.png");
 
     private final ArenaLayout layout;
     private final Canvas canvas;
     private final ScrollPane root;
     private Consumer<Position> tileSelectionListener;
     private final boolean flipVertical;
+    private List<Tower> currentTowers = Collections.emptyList();
+    private final Map<Unit, UnitAnimState> animByUnit = new WeakHashMap<>();
 
     public ArenaBoard(ArenaLayout layout) {
         this(layout, false);
@@ -69,6 +86,7 @@ public class ArenaBoard {
 
     public void renderUnits(List<Unit> units) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
+        currentTowers = layout.getTowers();
         drawArena(gc, layout);
         drawUnits(gc, layout, units);
     }
@@ -80,7 +98,8 @@ public class ArenaBoard {
         }
         GraphicsContext gc = canvas.getGraphicsContext2D();
         drawArenaBase(gc, layout);
-        drawLiveTowers(gc, layout, arena.getTowers());
+        currentTowers = arena.getTowers() != null ? arena.getTowers() : layout.getTowers();
+        drawLiveTowers(gc, layout, currentTowers);
         drawUnits(gc, layout, arena.getUnits());
     }
 
@@ -367,13 +386,19 @@ public class ArenaBoard {
             double drawY = convertY(layout, unit.getPreciseY());
             boolean friendly = (!flipVertical && unit.getOwner() == TowerOwner.PLAYER)
                     || (flipVertical && unit.getOwner() == TowerOwner.OPPONENT);
-            Color fill = friendly ? Color.web("#8bed4a") : Color.web("#ff8a80");
-            gc.setFill(fill);
-            gc.fillOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
-            gc.setStroke(Color.web("#000000"));
-            gc.setLineWidth(0.8);
-            gc.strokeOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
 
+            if (ENABLE_UNIT_SPRITES) {
+                drawUnitSprite(gc, unit, drawX, drawY, friendly, units, currentTowers);
+            } else {
+                Color fill = friendly ? Color.web("#8bed4a") : Color.web("#ff8a80");
+                gc.setFill(fill);
+                gc.fillOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                gc.setStroke(Color.web("#000000"));
+                gc.setLineWidth(0.8);
+                gc.strokeOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+            }
+
+            // Keep text overlays for debugging (can be removed later)
             gc.setFill(Color.WHITE);
             gc.setFont(Font.font("Arial", FontWeight.BOLD, 10));
             gc.setTextAlign(TextAlignment.CENTER);
@@ -383,6 +408,148 @@ public class ArenaBoard {
             gc.setFont(Font.font("Arial", FontWeight.BOLD, 9));
             gc.setFill(Color.web("#ffe082"));
             gc.fillText(String.valueOf(unit.getCurrentHP()), drawX + TILE_SIZE / 2, drawY + TILE_SIZE + 10);
+        }
+    }
+
+    private void drawUnitSprite(GraphicsContext gc,
+            Unit unit,
+            double drawX,
+            double drawY,
+            boolean friendly,
+            List<Unit> units,
+            List<Tower> towers) {
+        if (gc == null || unit == null) {
+            return;
+        }
+
+        UnitAnimState st = animByUnit.computeIfAbsent(unit, u -> new UnitAnimState(u.getPreciseX(), u.getPreciseY()));
+        long now = System.currentTimeMillis();
+        double deltaX = unit.getPreciseX() - st.lastX;
+        double deltaY = unit.getPreciseY() - st.lastY;
+        double dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        boolean moving = dist > MOVE_EPSILON_TILES;
+        st.lastX = unit.getPreciseX();
+        st.lastY = unit.getPreciseY();
+
+        boolean attacking = false;
+        if (!moving) {
+            boolean inRange = hasEnemyInRange(unit, units, towers);
+            boolean cooldownReady = (now - st.lastAttackAtMs) >= ATTACK_TRIGGER_COOLDOWN_MILLIS;
+            if (inRange && cooldownReady) {
+                st.lastAttackAtMs = now;
+            }
+            attacking = inRange && (now - st.lastAttackAtMs) <= ATTACK_HOLD_MILLIS;
+        }
+
+        Image sheet = pickSheet(friendly, moving, attacking);
+        if (sheet == null) {
+            return;
+        }
+
+        int frames = Math.max(1, (int) Math.floor(sheet.getWidth() / SPRITE_FRAME_SIZE));
+        long t = System.currentTimeMillis();
+        int frame = (int) ((t / 140) % frames);
+
+        double sx = frame * SPRITE_FRAME_SIZE;
+        double sy = 0;
+        double sw = SPRITE_FRAME_SIZE;
+        double sh = Math.min(SPRITE_FRAME_SIZE, sheet.getHeight());
+
+        // Draw slightly larger than a single tile for readability.
+        double dw = TILE_SIZE * 1.6;
+        double dh = TILE_SIZE * 1.6;
+        double dx = drawX + (TILE_SIZE - dw) / 2;
+        double dy = drawY + (TILE_SIZE - dh) / 2;
+
+        gc.drawImage(sheet, sx, sy, sw, sh, dx, dy, dw, dh);
+    }
+
+    private Image pickSheet(boolean friendly, boolean moving, boolean attacking) {
+        if (friendly) {
+            if (attacking && SOLDIER_ATTACK1 != null) {
+                return SOLDIER_ATTACK1;
+            }
+            if (moving && SOLDIER_WALK != null) {
+                return SOLDIER_WALK;
+            }
+            return SOLDIER_IDLE != null ? SOLDIER_IDLE : SOLDIER_WALK;
+        }
+        if (attacking && ORC_ATTACK1 != null) {
+            return ORC_ATTACK1;
+        }
+        if (moving && ORC_WALK != null) {
+            return ORC_WALK;
+        }
+        return ORC_IDLE != null ? ORC_IDLE : ORC_WALK;
+    }
+
+    private boolean hasEnemyInRange(Unit unit, List<Unit> units, List<Tower> towers) {
+        if (unit == null || unit.getOwner() == null || unit.getPosition() == null) {
+            return false;
+        }
+        double range = resolveUnitRenderRange(unit);
+        TowerOwner myOwner = unit.getOwner();
+        double ux = unit.getPreciseX();
+        double uy = unit.getPreciseY();
+
+        if (units != null) {
+            for (Unit other : units) {
+                if (other == null || other == unit || other.isDefeated() || other.getOwner() == myOwner) {
+                    continue;
+                }
+                double dx = other.getPreciseX() - ux;
+                double dy = other.getPreciseY() - uy;
+                if (Math.sqrt(dx * dx + dy * dy) <= range) {
+                    return true;
+                }
+            }
+        }
+        if (towers != null) {
+            for (Tower t : towers) {
+                if (t == null || t.isDestroyed() || t.getOwner() == null || t.getPosition() == null || t.getOwner() == myOwner) {
+                    continue;
+                }
+                double dx = t.getPosition().getX() - ux;
+                double dy = t.getPosition().getY() - uy;
+                if (Math.sqrt(dx * dx + dy * dy) <= range) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private double resolveUnitRenderRange(Unit unit) {
+        // Prefer card stats range when present; otherwise use a sensible default.
+        if (unit != null && unit.getCard() != null && unit.getCard().getStats() != null) {
+            int r = unit.getCard().getStats().getRange();
+            if (r > 0) {
+                return r;
+            }
+        }
+        return 1.5;
+    }
+
+    private static Image load(String resourcePath) {
+        try (var in = ArenaBoard.class.getResourceAsStream(resourcePath)) {
+            if (in == null) {
+                return null;
+            }
+            return new Image(in);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static final class UnitAnimState {
+        private double lastX;
+        private double lastY;
+        private long lastAttackAtMs;
+
+        private UnitAnimState(double lastX, double lastY) {
+            this.lastX = lastX;
+            this.lastY = lastY;
+            this.lastAttackAtMs = 0;
         }
     }
 
