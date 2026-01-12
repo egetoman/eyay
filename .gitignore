@@ -6,3 +6,6 @@
 target/
 .DS_Store
 **/.DS_Store
+
+# Documentation files that shouldn't be in repository
+MISSING_FEATURES.md
