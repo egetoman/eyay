@@ -1,5 +1,8 @@
 package kuroyale.domain;
 
+import java.util.List;
+import kuroyale.infrastructure.CardCatalogRepository;
+
 public class Unit {
 
     private static final double DEFAULT_SPEED_TILES_PER_SECOND = 1.0;
@@ -17,6 +20,10 @@ public class Unit {
     private int attackDamage;
     private double attackIntervalSeconds;
     private double attackCooldownSeconds;
+    private double stunRemainingSeconds;
+    private double spawnCooldownSeconds;
+    private double lifetimeSeconds;
+    private double elixirGenerationCooldownSeconds;
 
     public Unit() {
         this.speedTilesPerSecond = DEFAULT_SPEED_TILES_PER_SECOND;
@@ -24,6 +31,10 @@ public class Unit {
         this.attackDamage = 50;
         this.attackIntervalSeconds = 1.0;
         this.attackCooldownSeconds = 0;
+        this.stunRemainingSeconds = 0;
+        this.spawnCooldownSeconds = 0;
+        this.lifetimeSeconds = 0;
+        this.elixirGenerationCooldownSeconds = 0;
     }
 
     public Unit(Card card, Position position, int currentHP, TowerOwner owner) {
@@ -38,6 +49,10 @@ public class Unit {
         this.attackDamage = resolveDamage(card);
         this.attackIntervalSeconds = resolveAttackInterval(card);
         this.attackCooldownSeconds = 0;
+        this.stunRemainingSeconds = 0;
+        this.spawnCooldownSeconds = 0;
+        this.lifetimeSeconds = 0;
+        this.elixirGenerationCooldownSeconds = 0;
     }
 
     public Card getCard() {
@@ -76,6 +91,10 @@ public class Unit {
 
     public void setOwner(TowerOwner owner) {
         this.owner = owner;
+    }
+
+    public double getLifetimeSeconds() {
+        return lifetimeSeconds;
     }
 
     public double getPreciseX() {
@@ -130,13 +149,46 @@ public class Unit {
         currentHP = Math.max(0, currentHP - amount);
     }
 
+    public void applyStun(double durationSeconds) {
+        if (durationSeconds > 0) {
+            stunRemainingSeconds = Math.max(stunRemainingSeconds, durationSeconds);
+        }
+    }
+
+    public boolean isStunned() {
+        return stunRemainingSeconds > 0;
+    }
+
     public void tick(Arena arena, double deltaSeconds) {
+        // Update lifetime and cooldowns
+        lifetimeSeconds += deltaSeconds;
+        stunRemainingSeconds = Math.max(0, stunRemainingSeconds - deltaSeconds);
+        
         // Buildings should never move or acquire targets - they are stationary
         if (card != null && card.getType() == CardType.BUILDING) {
+            // Handle spawner buildings
+            if (isSpawnerBuilding()) {
+                spawnCooldownSeconds = Math.max(0, spawnCooldownSeconds - deltaSeconds);
+                if (spawnCooldownSeconds <= 0 && !isDefeated()) {
+                    spawnUnits(arena);
+                }
+            }
+            
+            // Handle elixir collector
+            if (isElixirCollector()) {
+                elixirGenerationCooldownSeconds = Math.max(0, elixirGenerationCooldownSeconds - deltaSeconds);
+                if (elixirGenerationCooldownSeconds <= 0 && !isDefeated()) {
+                    generateElixir(arena);
+                    elixirGenerationCooldownSeconds = 10.0; // Generate every 10 seconds
+                }
+                // Elixir collector lifetime is 70 seconds
+                if (lifetimeSeconds >= 70.0) {
+                    currentHP = 0; // Destroy after lifetime
+                }
+            }
+            
             // Buildings can still attack if they have attack capabilities
             attackCooldownSeconds = Math.max(0, attackCooldownSeconds - deltaSeconds);
-
-            // Buildings attack nearby enemies if they have damage
             if (attackDamage > 0 && attackCooldownSeconds <= 0 && attackRangeTiles > 0) {
                 // Find nearest enemy in range (respecting ground/flying restrictions)
                 Unit nearestEnemy = arena.findNearestEnemyUnit(owner, position, attackRangeTiles, this);
@@ -151,6 +203,12 @@ public class Unit {
         if (arena == null || deltaSeconds <= 0 || speedTilesPerSecond <= 0 || isDefeated()) {
             return;
         }
+        
+        // Stunned units cannot move or attack
+        if (isStunned()) {
+            return;
+        }
+        
         attackCooldownSeconds = Math.max(0, attackCooldownSeconds - deltaSeconds);
 
         // Check if we're currently locked onto a tower (in range and attacking it)
@@ -365,5 +423,103 @@ public class Unit {
             return 1.0;
         }
         return hitSpeedMillis / 1000.0;
+    }
+
+    private boolean isSpawnerBuilding() {
+        if (card == null) {
+            return false;
+        }
+        String cardId = card.getId();
+        return "card_tombstone".equals(cardId) || "card_goblin_hut".equals(cardId) 
+            || "card_barbarian_hut".equals(cardId);
+    }
+
+    private boolean isElixirCollector() {
+        return card != null && "card_elixir_collector".equals(card.getId());
+    }
+
+    private void spawnUnits(Arena arena) {
+        if (arena == null || card == null || position == null || owner == null) {
+            return;
+        }
+        String cardId = card.getId();
+        CardCatalogRepository cardRepo = new CardCatalogRepository();
+        List<Card> allCards = cardRepo.findAll();
+        Card spawnCard = null;
+        int spawnCount = 0;
+        double spawnInterval = 0;
+
+        if ("card_tombstone".equals(cardId)) {
+            // Spawns 1 skeleton every 4.9s, Lifetime: 60s
+            // Note: "card_skeletons" is a swarm card that spawns 4 units, but tombstone spawns 1 skeleton
+            // We need to create a single skeleton unit, not the swarm card
+            spawnCard = allCards.stream().filter(c -> "card_skeletons".equals(c.getId())).findFirst().orElse(null);
+            spawnCount = 1; // Spawn 1 skeleton (the card itself represents multiple, but we spawn 1)
+            spawnInterval = 4.9;
+        } else if ("card_goblin_hut".equals(cardId)) {
+            // Spawns 1 spear goblin every 4.9s, Lifetime: 60s
+            spawnCard = allCards.stream().filter(c -> "card_spear_goblins".equals(c.getId())).findFirst().orElse(null);
+            spawnCount = 1; // Spawn 1 spear goblin (the card spawns 3, but hut spawns 1)
+            spawnInterval = 4.9;
+        } else if ("card_barbarian_hut".equals(cardId)) {
+            // Spawns 2 barbarians every 14s, Lifetime: 60s
+            spawnCard = allCards.stream().filter(c -> "card_barbarians".equals(c.getId())).findFirst().orElse(null);
+            spawnCount = 2; // Spawn 2 barbarians (the card spawns 4, but hut spawns 2)
+            spawnInterval = 14.0;
+        }
+
+        if (spawnCard == null) {
+            return;
+        }
+
+        // Get unit HP from the card stats
+        // Note: The card stats represent individual unit stats, not total for the swarm
+        int individualHp = spawnCard.getStats() != null ? spawnCard.getStats().getHp() : 0;
+
+        // Spawn units near the building
+        for (int i = 0; i < spawnCount; i++) {
+            // Try to find a free position near the building
+            Position spawnPos = findSpawnPosition(arena, position, i);
+            if (spawnPos != null && arena.isTileFree(spawnPos)) {
+                Unit spawnedUnit = new Unit(spawnCard, spawnPos, individualHp, owner);
+                Tower initialTarget = arena.findNearestEnemyTower(owner, spawnPos);
+                spawnedUnit.setTargetTower(initialTarget);
+                arena.addUnit(spawnedUnit);
+            }
+        }
+
+        spawnCooldownSeconds = spawnInterval;
+        
+        // Check lifetime (60 seconds for spawner buildings)
+        if (lifetimeSeconds >= 60.0) {
+            currentHP = 0; // Destroy after lifetime
+        }
+    }
+
+    private Position findSpawnPosition(Arena arena, Position buildingPos, int index) {
+        if (arena == null || buildingPos == null) {
+            return buildingPos;
+        }
+        // Try positions around the building
+        int[][] offsets = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+        if (index < offsets.length) {
+            int[] offset = offsets[index];
+            Position candidate = new Position(buildingPos.getX() + offset[0], buildingPos.getY() + offset[1]);
+            if (arena.isWithinBounds(candidate)) {
+                return candidate;
+            }
+        }
+        // Fallback to building position if no valid offset found
+        return buildingPos;
+    }
+
+    private void generateElixir(Arena arena) {
+        if (arena == null || owner == null) {
+            return;
+        }
+        // Find the player who owns this elixir collector
+        // This requires access to Match, so we'll handle it in Match.advanceTime
+        // For now, we'll just mark that elixir should be generated
+        // The actual generation will be handled in Match class
     }
 }
