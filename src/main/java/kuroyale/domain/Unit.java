@@ -193,7 +193,15 @@ public class Unit {
                 // Find nearest enemy in range (respecting ground/flying restrictions)
                 Unit nearestEnemy = arena.findNearestEnemyUnit(owner, position, attackRangeTiles, this);
                 if (nearestEnemy != null) {
-                    nearestEnemy.takeDamage(attackDamage);
+                    // Check if this building has area of effect attacks
+                    double splashRadius = getSplashRadius();
+                    if (splashRadius > 0) {
+                        // AoE attack - damage all enemies in splash radius around the target
+                        performAoEAttack(arena, nearestEnemy.getPosition(), splashRadius);
+                    } else {
+                        // Single target attack
+                        nearestEnemy.takeDamage(attackDamage);
+                    }
                     attackCooldownSeconds = attackIntervalSeconds;
                 }
             }
@@ -268,10 +276,21 @@ public class Unit {
 
         // ATTACK: Attack if in range and cooldown ready (independent of movement)
         if (inRange && attackCooldownSeconds <= 0 && attackDamage > 0) {
-            if (attackingTower) {
-                targetTower.takeDamage(attackDamage);
-            } else if (targetEnemyUnit != null) {
-                targetEnemyUnit.takeDamage(attackDamage);
+            // Check if this unit has area of effect attacks
+            double splashRadius = getSplashRadius();
+            if (splashRadius > 0) {
+                // AoE attack - damage all enemies in splash radius
+                Position attackPosition = attackingTower && targetTower != null ? targetTower.getPosition() 
+                    : (targetEnemyUnit != null ? targetEnemyUnit.getPosition() : position);
+                if (attackPosition != null) {
+                    performAoEAttack(arena, attackPosition, splashRadius);
+                }
+            } else {
+                // Single target attack
+                if (attackingTower) {
+                    targetTower.takeDamage(attackDamage);
+                } else if (targetEnemyUnit != null) {
+                    targetEnemyUnit.takeDamage(attackDamage);
                     // Immediately check if target was defeated and try to find new one
                     if (targetEnemyUnit.isDefeated()) {
                         targetEnemyUnit = null;
@@ -282,6 +301,7 @@ public class Unit {
                             targetEnemyUnit = newTarget;
                         }
                     }
+                }
             }
             attackCooldownSeconds = attackIntervalSeconds;
         }
@@ -521,5 +541,64 @@ public class Unit {
         // This requires access to Match, so we'll handle it in Match.advanceTime
         // For now, we'll just mark that elixir should be generated
         // The actual generation will be handled in Match class
+    }
+
+    /**
+     * Gets the splash radius for AoE attacks. Returns 0 if unit doesn't have AoE.
+     */
+    private double getSplashRadius() {
+        if (card == null) {
+            return 0;
+        }
+        String cardId = card.getId();
+        
+        // Troops with AoE
+        if ("card_bomber".equals(cardId)) {
+            return 1.5; // Bomber splash radius
+        } else if ("card_valkyrie".equals(cardId)) {
+            return 1.0; // Valkyrie melee AoE radius
+        } else if ("card_wizard".equals(cardId)) {
+            return 1.5; // Wizard fireball splash radius
+        }
+        
+        // Buildings with AoE
+        if ("card_mortar".equals(cardId)) {
+            return 5.0; // Mortar splash radius
+        } else if ("card_bomb_tower".equals(cardId)) {
+            return 1.8; // Bomb Tower splash radius
+        }
+        
+        return 0; // No AoE
+    }
+
+    /**
+     * Performs an area of effect attack, damaging all enemies within the splash radius.
+     */
+    private void performAoEAttack(Arena arena, Position center, double splashRadius) {
+        if (arena == null || center == null || splashRadius <= 0) {
+            return;
+        }
+        
+        // Find all enemy units in splash radius
+        List<Unit> unitsInRadius = arena.findUnitsInRadius(center, splashRadius);
+        for (Unit unit : unitsInRadius) {
+            if (unit != null && !unit.isDefeated() && unit.getOwner() != owner) {
+                // Check if we can attack this unit (respects ground/flying restrictions)
+                if (canAttackUnit(unit)) {
+                    unit.takeDamage(attackDamage);
+                }
+            }
+        }
+        
+        // Also damage towers in splash radius (for buildings and ranged AoE troops)
+        if (card != null && (card.getType() == CardType.BUILDING || 
+            "card_bomber".equals(card.getId()) || "card_wizard".equals(card.getId()))) {
+            List<Tower> towersInRadius = arena.findTowersInRadius(center, splashRadius);
+            for (Tower tower : towersInRadius) {
+                if (tower != null && !tower.isDestroyed() && tower.getOwner() != owner) {
+                    tower.takeDamage(attackDamage);
+                }
+            }
+        }
     }
 }

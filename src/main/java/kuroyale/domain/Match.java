@@ -10,8 +10,8 @@ import kuroyale.support.Result;
 
 public class Match {
 
-    private static final double TOTAL_DURATION_SECONDS = 6 * 60;
-    private static final double TRIPLE_ELIXIR_START_SECONDS = 5 * 60;
+    private static final double TOTAL_DURATION_SECONDS = 3 * 60; // 3 minutes as per document
+    private static final double TRIPLE_ELIXIR_START_SECONDS = 2.5 * 60; // Triple elixir at 2.5 minutes (halfway point)
     private static final double SINGLE_ELIXIR_PER_SECOND = 1.0 / 2.8;
 
     private Player player;
