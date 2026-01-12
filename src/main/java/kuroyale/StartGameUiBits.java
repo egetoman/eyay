@@ -3,11 +3,15 @@ package kuroyale;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import kuroyale.domain.Card;
+import kuroyale.domain.CardType;
 
 /**
  * Small UI helpers shared across match-related screens.
@@ -18,6 +22,9 @@ import kuroyale.domain.Card;
 final class StartGameUiBits {
     private StartGameUiBits() {
     }
+
+    private static final int SPRITE_FRAME_SIZE = 100;
+    private static final Image SOLDIER_IDLE = load("/assets/tiny-rpg/soldier_idle.png");
 
     static StackPane createCardSlot(Card card, boolean large, boolean highlighted) {
         double width = large ? 70 : 54;
@@ -30,6 +37,11 @@ final class StartGameUiBits {
         VBox content = new VBox(4);
         content.setAlignment(Pos.TOP_CENTER);
         content.setPadding(new Insets(6));
+
+        ImageView portrait = buildPortrait(card, large);
+        if (portrait != null) {
+            content.getChildren().add(portrait);
+        }
 
         Label name = new Label(card != null ? card.getName() : "Empty");
         name.setWrapText(true);
@@ -50,6 +62,33 @@ final class StartGameUiBits {
         return tile;
     }
 
+    private static ImageView buildPortrait(Card card, boolean large) {
+        if (card == null) {
+            return null;
+        }
+        // For now, only show portraits for TROOP cards using the Tiny RPG soldier idle sheet.
+        if (card.getType() != CardType.TROOP) {
+            return null;
+        }
+        if (SOLDIER_IDLE == null) {
+            return null;
+        }
+        int frame = 0;
+        ImageView iv = new ImageView(SOLDIER_IDLE);
+        iv.setViewport(new javafx.geometry.Rectangle2D(frame * SPRITE_FRAME_SIZE, 0, SPRITE_FRAME_SIZE, SPRITE_FRAME_SIZE));
+        double size = large ? 36 : 28;
+        iv.setFitWidth(size);
+        iv.setFitHeight(size);
+        iv.setPreserveRatio(true);
+
+        // Clip to rounded rect so it looks like "card art"
+        Rectangle clip = new Rectangle(size, size);
+        clip.setArcWidth(8);
+        clip.setArcHeight(8);
+        iv.setClip(clip);
+        return iv;
+    }
+
     private static void applySlotStyle(StackPane tile, boolean large, boolean highlighted) {
         StringBuilder style = new StringBuilder();
         style.append("-fx-background-color: linear-gradient(#2a2f45, #1c1f2e);");
@@ -64,6 +103,17 @@ final class StartGameUiBits {
             style.append("-fx-border-color: #404459; -fx-border-width: 1;");
         }
         tile.setStyle(style.toString());
+    }
+
+    private static Image load(String resourcePath) {
+        try (var in = StartGameUiBits.class.getResourceAsStream(resourcePath)) {
+            if (in == null) {
+                return null;
+            }
+            return new Image(in);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static StackPane buildCostChip(int cost, boolean large) {
