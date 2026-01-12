@@ -2,7 +2,9 @@ package kuroyale.domain;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import kuroyale.support.Result;
 
@@ -82,7 +84,8 @@ public class Match {
         if (!arena.isWithinBounds(position)) {
             return Result.fail("Position is outside the arena bounds.");
         }
-        if (!arena.isTileFree(position)) {
+        // Spells can be cast on occupied tiles (they're area effects)
+        if (card.getType() != CardType.SPELL && !arena.isTileFree(position)) {
             return Result.fail("Target tile is occupied.");
         }
 
@@ -110,6 +113,15 @@ public class Match {
         // Spells (CardType.SPELL) have no territory restriction
 
         actingPlayer.spendElixir(cost);
+        
+        // Handle spells differently - they deal area damage immediately
+        if (card.getType() == CardType.SPELL) {
+            castSpell(card, position, actingPlayer);
+            // Return a dummy unit for compatibility, but spells don't create units
+            return Result.ok(null);
+        }
+        
+        // Handle troops and buildings normally
         int hp = card.getStats() != null ? card.getStats().getHp() : 0;
         TowerOwner unitOwner = resolveOwner(actingPlayer);
         Unit unit = new Unit(card, new Position(position.getX(), position.getY()), hp, unitOwner);
@@ -117,6 +129,43 @@ public class Match {
         unit.setTargetTower(initialTarget);
         arena.addUnit(unit);
         return Result.ok(unit);
+    }
+
+    /**
+     * Casts a spell at the target position, dealing area damage.
+     * Spells deal reduced damage to towers (40% of unit damage).
+     * Zap also stuns units for 0.5 seconds.
+     */
+    private void castSpell(Card spell, Position targetPosition, Player caster) {
+        if (spell == null || targetPosition == null || spell.getStats() == null) {
+            return;
+        }
+        
+        int areaDamage = spell.getStats().getDamage();
+        double radiusTiles = spell.getStats().getRange() / 10.0; // Convert from internal units to tiles
+        String spellId = spell.getId();
+        boolean isZap = "card_zap".equals(spellId);
+        double stunDuration = isZap ? 0.5 : 0.0;
+        
+        // Damage units
+        List<Unit> unitsInRadius = arena.findUnitsInRadius(targetPosition, radiusTiles);
+        for (Unit unit : unitsInRadius) {
+            if (unit != null && !unit.isDefeated()) {
+                unit.takeDamage(areaDamage);
+                if (isZap && stunDuration > 0) {
+                    unit.applyStun(stunDuration);
+                }
+            }
+        }
+        
+        // Damage towers (40% of unit damage)
+        int towerDamage = (int) Math.round(areaDamage * 0.4);
+        List<Tower> towersInRadius = arena.findTowersInRadius(targetPosition, radiusTiles);
+        for (Tower tower : towersInRadius) {
+            if (tower != null && !tower.isDestroyed()) {
+                tower.takeDamage(towerDamage);
+            }
+        }
     }
 
     /**
@@ -148,6 +197,7 @@ public class Match {
             double multiplier = multiplierFor(cursor);
             applyRegen(player, chunkDelta, multiplier, true);
             applyRegen(opponent, chunkDelta, multiplier, false);
+            handleElixirCollectors(chunkDelta);
             arena.tick(chunkDelta);
             handleBotBehavior(chunkDelta);
             cursor = chunkEnd;
@@ -404,6 +454,56 @@ public class Match {
             }
 
             outcome = new MatchOutcome(null, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_DRAW");
+        }
+    }
+
+    // Track elixir generation for each collector to avoid double-generation
+    private Map<Unit, Integer> elixirCollectorGenerations = new HashMap<>();
+
+    /**
+     * Handles elixir generation from Elixir Collector buildings.
+     * Elixir Collectors generate 1 elixir every 10 seconds, up to 7 total over 70 seconds.
+     */
+    private void handleElixirCollectors(double deltaSeconds) {
+        if (arena == null || deltaSeconds <= 0) {
+            return;
+        }
+        List<Unit> unitsToRemove = new ArrayList<>();
+        for (Unit unit : arena.getUnits()) {
+            if (unit == null || unit.isDefeated() || unit.getCard() == null) {
+                continue;
+            }
+            if ("card_elixir_collector".equals(unit.getCard().getId())) {
+                TowerOwner owner = unit.getOwner();
+                if (owner == null) {
+                    continue;
+                }
+                Player ownerPlayer = (owner == TowerOwner.PLAYER) ? player : opponent;
+                if (ownerPlayer == null) {
+                    continue;
+                }
+                double lifetime = unit.getLifetimeSeconds();
+                int expectedGenerations = (int) Math.floor(lifetime / 10.0);
+                // Limit to 7 total generations over 70 seconds
+                if (expectedGenerations > 7) {
+                    expectedGenerations = 7;
+                }
+                int currentGenerations = elixirCollectorGenerations.getOrDefault(unit, 0);
+                // Generate elixir if we've crossed a new 10-second boundary
+                while (currentGenerations < expectedGenerations && currentGenerations < 7 && lifetime <= 70.0) {
+                    ownerPlayer.regenerateElixir(1);
+                    currentGenerations++;
+                    elixirCollectorGenerations.put(unit, currentGenerations);
+                }
+                // Remove from map if collector is destroyed or expired
+                if (unit.isDefeated() || lifetime >= 70.0) {
+                    unitsToRemove.add(unit);
+                }
+            }
+        }
+        // Clean up destroyed collectors
+        for (Unit unit : unitsToRemove) {
+            elixirCollectorGenerations.remove(unit);
         }
     }
 }
