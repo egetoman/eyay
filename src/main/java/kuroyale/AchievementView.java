@@ -69,10 +69,11 @@ public class AchievementView {
     }
 
     private VBox createAchievementTile(Achievement achievement, AchievementProgress progress) {
-        Label name = new Label(achievement.getName());
+        boolean unlocked = progress.isUnlocked();
+        Label name = new Label(unlocked ? achievement.getName() : "Locked Achievement");
         name.setFont(Font.font("Arial", FontWeight.BOLD, 18));
         
-        Label description = new Label(achievement.getDescription());
+        Label description = new Label(unlocked ? achievement.getDescription() : "???");
         description.setFont(Font.font("Arial", 14));
         
         double progressRatio = achievement.getTargetValue() > 0 
@@ -90,22 +91,36 @@ public class AchievementView {
         rewardLabel.setTextFill(Color.GOLD);
         
         Label statusLabel = new Label();
-        if (progress.isUnlocked()) {
-            statusLabel.setText("✓ UNLOCKED");
-            statusLabel.setTextFill(Color.GREEN);
+        if (unlocked && progress.isClaimed()) {
+            statusLabel.setText("✓ Claimed");
+            statusLabel.setTextFill(Color.web("#9be564"));
             statusLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        } else if (unlocked) {
+            statusLabel.setText("Unlocked");
+            statusLabel.setTextFill(Color.web("#cbd0d6"));
         } else {
-            statusLabel.setText("In Progress");
-            statusLabel.setTextFill(Color.ORANGE);
+            statusLabel.setText("Locked");
+            statusLabel.setTextFill(Color.web("#8f94a3"));
         }
+
+        Button claimButton = new Button("Claim Reward");
+        claimButton.setDisable(!unlocked || progress.isClaimed());
+        claimButton.setOnAction(e -> {
+            var result = achievementService.claimAchievementReward(achievement.getId());
+            if (result.isSuccess()) {
+                refreshAchievements();
+            }
+        });
         
-        VBox tile = new VBox(10, name, description, progressBar, progressText, rewardLabel, statusLabel);
+        VBox tile = new VBox(10, name, description, progressBar, progressText, rewardLabel, statusLabel, claimButton);
         tile.setPadding(new Insets(15));
         
-        if (progress.isUnlocked()) {
+        if (unlocked) {
             tile.setStyle("-fx-border-color: #4CAF50; -fx-border-width: 2; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
         } else {
-            tile.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
+            tile.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #171a20;");
+            name.setTextFill(Color.web("#8f94a3"));
+            description.setTextFill(Color.web("#8f94a3"));
         }
         
         tile.setPrefWidth(600);

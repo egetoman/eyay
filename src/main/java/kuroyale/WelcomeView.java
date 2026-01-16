@@ -67,9 +67,32 @@ public class WelcomeView {
         Button quitButton = new Button("Quit");
         quitButton.setOnAction(event -> Platform.exit());
 
+        applyBadgeIfNeeded(dailyQuestButton, navigator.getQuestService());
+        applyBadgeIfNeeded(achievementButton, navigator.getAchievementService());
+
         root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, 
             savedLayoutsButton, arenaDemoButton, upgradeCardButton, dailyQuestButton, matchHistoryButton, 
             achievementButton, comboLibraryButton, localPvpButton, networkButton, challengeButton, quitButton);
+    }
+
+    private void applyBadgeIfNeeded(Button button, application.QuestService questService) {
+        if (button == null || questService == null) {
+            return;
+        }
+        int count = questService.countUnclaimedRewards();
+        if (count > 0) {
+            button.setText(button.getText() + " (" + count + ")");
+        }
+    }
+
+    private void applyBadgeIfNeeded(Button button, application.AchievementService achievementService) {
+        if (button == null || achievementService == null) {
+            return;
+        }
+        int count = achievementService.countUnclaimedRewards();
+        if (count > 0) {
+            button.setText(button.getText() + " (" + count + ")");
+        }
     }
 
     public Parent getRoot() {
