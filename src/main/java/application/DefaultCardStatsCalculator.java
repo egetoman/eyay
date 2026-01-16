@@ -4,8 +4,9 @@ import kuroyale.domain.CardStats;
 
 public class DefaultCardStatsCalculator implements CardStatsCalculator {
     
-    // Stats increase by 10% per level
-    private static final double STAT_MULTIPLIER_PER_LEVEL = 1.10;
+    private static final double LEVEL_1_MULTIPLIER = 1.0;
+    private static final double LEVEL_2_MULTIPLIER = 1.10;
+    private static final double LEVEL_3_MULTIPLIER = 1.20;
     
     @Override
     public CardStats calculateStatsForLevel(CardStats baseStats, int level) {
@@ -13,8 +14,14 @@ public class DefaultCardStatsCalculator implements CardStatsCalculator {
             return baseStats;
         }
         
-        // Level 1 is base stats, so we multiply by (1.10 ^ (level - 1))
-        double multiplier = Math.pow(STAT_MULTIPLIER_PER_LEVEL, level - 1);
+        double multiplier;
+        if (level <= 1) {
+            multiplier = LEVEL_1_MULTIPLIER;
+        } else if (level == 2) {
+            multiplier = LEVEL_2_MULTIPLIER;
+        } else {
+            multiplier = LEVEL_3_MULTIPLIER;
+        }
         
         return new CardStats(
             (int) Math.round(baseStats.getHp() * multiplier),

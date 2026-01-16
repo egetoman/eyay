@@ -76,6 +76,7 @@ public class AchievementService {
             
             if (progress.isCompleted(achievement) && !progress.isUnlocked()) {
                 progress.setUnlocked(true);
+                progress.setClaimed(false);
                 totalReward += achievement.getRewardGold();
             }
             
@@ -106,9 +107,26 @@ public class AchievementService {
         if (progress == null || !progress.isUnlocked()) {
             return Result.fail("Achievement not unlocked");
         }
-        
-        // Rewards are automatically granted when unlocked, so this is just for display
+        if (progress.isClaimed()) {
+            return Result.fail("Reward already claimed");
+        }
+
+        progress.setClaimed(true);
+        progressMap.put(achievementId, progress);
+        achievementRepository.saveAll(progressMap);
+        // Rewards are already granted when unlocked; claiming just acknowledges.
         return Result.ok(achievement.getRewardGold());
+    }
+
+    public int countUnclaimedRewards() {
+        Map<String, AchievementProgress> progressMap = achievementRepository.loadAll();
+        int count = 0;
+        for (AchievementProgress progress : progressMap.values()) {
+            if (progress != null && progress.isUnlocked() && !progress.isClaimed()) {
+                count++;
+            }
+        }
+        return count;
     }
 }
 

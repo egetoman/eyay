@@ -181,12 +181,12 @@ public class ChallengeMatchView {
         stopTicker();
         var completion = challengeService.completeChallenge(session);
         String message;
-        String starsText = "Stars: 0";
+        String starsText = "Stars: 0/3";
         String goldText = "Gold: +0";
         if (completion.isSuccess() && completion.getData() != null) {
             var data = completion.getData();
             message = data.isWin() ? "Challenge Completed!" : "Challenge Failed";
-            starsText = "Stars: " + data.getStars();
+            starsText = "Stars: " + data.getStars() + "/3";
             goldText = "Gold: +" + data.getGoldAwarded();
         } else {
             message = "Challenge Ended";

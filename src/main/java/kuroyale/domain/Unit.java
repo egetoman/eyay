@@ -590,9 +590,8 @@ public class Unit {
             }
         }
         
-        // Also damage towers in splash radius (for buildings and ranged AoE troops)
-        if (card != null && (card.getType() == CardType.BUILDING || 
-            "card_bomber".equals(card.getId()) || "card_wizard".equals(card.getId()))) {
+        // Also damage towers in splash radius when this unit can attack buildings.
+        if (card != null && card.getTarget() != CardTarget.NONE) {
             List<Tower> towersInRadius = arena.findTowersInRadius(center, splashRadius);
             for (Tower tower : towersInRadius) {
                 if (tower != null && !tower.isDestroyed() && tower.getOwner() != owner) {

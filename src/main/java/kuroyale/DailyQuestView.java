@@ -25,6 +25,7 @@ public class DailyQuestView {
     private final BorderPane root;
     private final QuestService questService;
     private final VBox questsPane = new VBox(15);
+    private final Label resetLabel = new Label();
 
     public DailyQuestView(ScreenNavigator navigator, QuestService questService) {
         this.questService = questService;
@@ -34,9 +35,15 @@ public class DailyQuestView {
 
         Label title = new Label("Daily Quests");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        root.setTop(title);
-        BorderPane.setAlignment(title, Pos.CENTER);
-        BorderPane.setMargin(title, new Insets(0, 0, 20, 0));
+
+        resetLabel.setTextFill(Color.web("#8f94a3"));
+        resetLabel.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+        VBox header = new VBox(6, title, resetLabel);
+        header.setAlignment(Pos.CENTER);
+        root.setTop(header);
+        BorderPane.setAlignment(header, Pos.CENTER);
+        BorderPane.setMargin(header, new Insets(0, 0, 20, 0));
 
         questsPane.setPadding(new Insets(10));
         questsPane.setAlignment(Pos.TOP_CENTER);
@@ -59,6 +66,7 @@ public class DailyQuestView {
 
     private void refreshQuests() {
         questsPane.getChildren().clear();
+        updateResetCountdown();
         DailyQuestSet questSet = questService.getTodayQuests();
         
         if (questSet == null || questSet.getQuests().isEmpty()) {
@@ -74,6 +82,15 @@ public class DailyQuestView {
             }
             questsPane.getChildren().add(createQuestTile(quest, progress));
         }
+    }
+
+    private void updateResetCountdown() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime nextReset = now.toLocalDate().plusDays(1).atStartOfDay();
+        java.time.Duration remaining = java.time.Duration.between(now, nextReset);
+        long hours = Math.max(0, remaining.toHours());
+        long minutes = Math.max(0, remaining.minusHours(hours).toMinutes());
+        resetLabel.setText(String.format("Resets in %02d:%02d", hours, minutes));
     }
 
     private VBox createQuestTile(Quest quest, QuestProgress progress) {

@@ -100,11 +100,13 @@ public class UpgradeCardView {
         Label name = new Label(card.getName());
         name.setFont(Font.font("Arial", FontWeight.BOLD, 14));
         
-        Label level = new Label("Level: " + progression.getLevel() + "/3");
+        String levelStars = starsForLevel(progression.getLevel());
+        Label level = new Label("Level: " + progression.getLevel() + "/3 " + levelStars);
         level.setTextFill(Color.LIGHTBLUE);
         
-        Label rarity = new Label("Rarity: " + (progression.getRarity() != null ? progression.getRarity().name() : "COMMON"));
-        rarity.setTextFill(Color.GRAY);
+        String rarityName = progression.getRarity() != null ? progression.getRarity().name() : "COMMON";
+        Label rarity = new Label("Rarity: " + rarityName);
+        rarity.setTextFill(colorForRarity(progression.getRarity()));
 
         Button selectButton = new Button("Select");
         selectButton.setMaxWidth(Double.MAX_VALUE);
@@ -112,7 +114,8 @@ public class UpgradeCardView {
 
         VBox tile = new VBox(5, name, level, rarity, selectButton);
         tile.setPadding(new Insets(10));
-        tile.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
+        tile.setStyle("-fx-border-color: " + toHex(colorForRarity(progression.getRarity()))
+                + "; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
         tile.setPrefWidth(160);
         return tile;
     }
@@ -137,8 +140,10 @@ public class UpgradeCardView {
         Label title = new Label(card.getName());
         title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         
-        Label levelLabel = new Label("Current Level: " + progression.getLevel() + "/3");
-        Label rarityLabel = new Label("Rarity: " + (progression.getRarity() != null ? progression.getRarity().name() : "COMMON"));
+        String rarityName = progression.getRarity() != null ? progression.getRarity().name() : "COMMON";
+        Label levelLabel = new Label("Current Level: " + progression.getLevel() + "/3 " + starsForLevel(progression.getLevel()));
+        Label rarityLabel = new Label("Rarity: " + rarityName);
+        rarityLabel.setTextFill(colorForRarity(progression.getRarity()));
         
         Label currentStatsTitle = new Label("Current Stats:");
         currentStatsTitle.setFont(Font.font("Arial", FontWeight.BOLD, 14));
@@ -179,6 +184,8 @@ public class UpgradeCardView {
             new Label(""), // Spacer
             costLabel, upgradeButton
         );
+        detailsPane.setStyle("-fx-border-color: " + toHex(colorForRarity(progression.getRarity()))
+                + "; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
     }
 
     private String formatStats(kuroyale.domain.CardStats stats) {
@@ -217,6 +224,41 @@ public class UpgradeCardView {
     private void updateGoldDisplay() {
         PlayerProfile profile = upgradeService.getPlayerProfile();
         goldLabel.setText(String.valueOf(profile.getGold()));
+    }
+
+    private Color colorForRarity(kuroyale.domain.Rarity rarity) {
+        if (rarity == null) {
+            return Color.GRAY;
+        }
+        switch (rarity) {
+            case COMMON:
+                return Color.web("#c0c0c0");
+            case RARE:
+                return Color.web("#4a90e2");
+            case EPIC:
+                return Color.web("#9b59b6");
+            case LEGENDARY:
+                return Color.web("#f39c12");
+            default:
+                return Color.GRAY;
+        }
+    }
+
+    private String starsForLevel(int level) {
+        if (level <= 1) {
+            return "*";
+        }
+        if (level == 2) {
+            return "**";
+        }
+        return "***";
+    }
+
+    private String toHex(Color color) {
+        int r = (int) Math.round(color.getRed() * 255);
+        int g = (int) Math.round(color.getGreen() * 255);
+        int b = (int) Math.round(color.getBlue() * 255);
+        return String.format("#%02x%02x%02x", r, g, b);
     }
 
     public Parent getRoot() {
