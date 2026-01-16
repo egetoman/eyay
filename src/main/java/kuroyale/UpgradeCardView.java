@@ -97,6 +97,7 @@ public class UpgradeCardView {
     }
 
     private VBox createCardTile(Card card, CardProgression progression) {
+        javafx.scene.image.ImageView portrait = CardArt.buildCardPortrait(card, 40);
         Label name = new Label(card.getName());
         name.setFont(Font.font("Arial", FontWeight.BOLD, 14));
         
@@ -112,7 +113,9 @@ public class UpgradeCardView {
         selectButton.setMaxWidth(Double.MAX_VALUE);
         selectButton.setOnAction(e -> selectCard(card));
 
-        VBox tile = new VBox(5, name, level, rarity, selectButton);
+        VBox tile = portrait != null
+                ? new VBox(5, portrait, name, level, rarity, selectButton)
+                : new VBox(5, name, level, rarity, selectButton);
         tile.setPadding(new Insets(10));
         tile.setStyle("-fx-border-color: " + toHex(colorForRarity(progression.getRarity()))
                 + "; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
@@ -136,6 +139,7 @@ public class UpgradeCardView {
 
         Card card = preview.getCard();
         CardProgression progression = preview.getProgression();
+        javafx.scene.image.ImageView portrait = CardArt.buildCardPortrait(card, 64);
 
         Label title = new Label(card.getName());
         title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
@@ -176,6 +180,7 @@ public class UpgradeCardView {
         }
 
         detailsPane.getChildren().addAll(
+            portrait != null ? portrait : new Label(""),
             title, levelLabel, rarityLabel,
             new Label(""), // Spacer
             currentStatsTitle, currentStats,

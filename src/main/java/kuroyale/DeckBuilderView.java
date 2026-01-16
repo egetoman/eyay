@@ -11,6 +11,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -107,6 +108,7 @@ public class DeckBuilderView {
     }
 
     private VBox createCardTile(Card card) {
+        ImageView portrait = CardArt.buildCardPortrait(card, 40);
         Label name = new Label(card.getName());
         name.setFont(Font.font("Arial", FontWeight.BOLD, 14));
         Label cost = new Label("Cost: " + card.getElixirCost());
@@ -127,7 +129,9 @@ public class DeckBuilderView {
             refreshDeckSlots();
         });
 
-        VBox tile = new VBox(5, name, cost, type, addButton);
+        VBox tile = portrait != null
+                ? new VBox(5, portrait, name, cost, type, addButton)
+                : new VBox(5, name, cost, type, addButton);
         tile.setPadding(new Insets(10));
         tile.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
         tile.setPrefWidth(160);
@@ -145,6 +149,7 @@ public class DeckBuilderView {
     }
 
     private VBox createDeckSlot(Card card) {
+        ImageView portrait = CardArt.buildCardPortrait(card, 40);
         Label label = new Label(card != null ? card.getName() : "Empty Slot");
         label.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
@@ -157,7 +162,9 @@ public class DeckBuilderView {
             }
         });
 
-        VBox slot = new VBox(5, label, actionButton);
+        VBox slot = portrait != null
+                ? new VBox(5, portrait, label, actionButton)
+                : new VBox(5, label, actionButton);
         slot.setPadding(new Insets(10));
         slot.setPrefWidth(150);
         slot.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #0f1216;");
