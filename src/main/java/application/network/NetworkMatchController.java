@@ -408,7 +408,14 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
         NetworkSnapshot snap = new NetworkSnapshot();
         snap.elapsedSeconds = match.getElapsedSeconds();
         snap.remainingSeconds = match.getRemainingSeconds();
-        snap.phase = match.getCurrentElixirPhase() == ElixirPhase.TRIPLE ? "TRIPLE" : "DOUBLE";
+        ElixirPhase phase = match.getCurrentElixirPhase();
+        if (phase == ElixirPhase.TRIPLE) {
+            snap.phase = "TRIPLE";
+        } else if (phase == ElixirPhase.DOUBLE) {
+            snap.phase = "DOUBLE";
+        } else {
+            snap.phase = "NORMAL";
+        }
 
         Player p1 = match.getPlayer();
         Player p2 = match.getOpponent();
