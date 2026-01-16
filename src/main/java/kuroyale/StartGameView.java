@@ -4,24 +4,37 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import application.ComboDetector;
+import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
+import javafx.animation.ParallelTransition;
+import javafx.animation.PathTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.SequentialTransition;
 import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
+import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
@@ -41,14 +54,24 @@ public class StartGameView {
 
     private static final double ELIXIR_BAR_WIDTH = 460;
     private static final double ELIXIR_BAR_HEIGHT = 18;
+    private static final double CROWN_ANIM_DURATION_SECONDS = 0.7;
+    private static final double CROWN_ICON_SIZE = 26;
 
-    private final BorderPane root;
+    private final StackPane root;
+    private final BorderPane content;
+    private final Pane effectLayer;
     private final MatchController controller;
     private final Match match;
     private final Player player;
     private final ArenaBoard arenaBoard;
     private final Label timerLabel;
     private final Label phaseLabel;
+    private final Label playerCrownLabel;
+    private final Label opponentCrownLabel;
+    private final StackPane playerCrownTarget;
+    private final StackPane opponentCrownTarget;
+    private final StackPane playerCrownPill;
+    private final StackPane opponentCrownPill;
     private final Label statusLabel = new Label();
     private final VBox deckSectionContainer = new VBox();
     private final Deque<Card> drawPile = new ArrayDeque<>();
@@ -67,6 +90,9 @@ public class StartGameView {
     private final ComboDetector comboDetector;
     private Label comboCountLabel;
     private Timeline comboMessageTimer;
+    private final Set<String> destroyedTowerKeys = new HashSet<>();
+    private int playerCrowns = 0;
+    private int opponentCrowns = 0;
 
     public StartGameView(ScreenNavigator navigator, MatchController controller, ArenaLayout selectedLayout) {
         this.navigator = navigator;
@@ -81,9 +107,15 @@ public class StartGameView {
         });
         initializeDeckState(resolveDeckCards());
 
-        root = new BorderPane();
-        root.setPadding(new Insets(10));
-        root.setStyle("-fx-background-color: #0f1216;");
+        root = new StackPane();
+        content = new BorderPane();
+        content.setPadding(new Insets(10));
+        content.setStyle("-fx-background-color: #0f1216;");
+        effectLayer = new Pane();
+        effectLayer.setMouseTransparent(true);
+        effectLayer.prefWidthProperty().bind(root.widthProperty());
+        effectLayer.prefHeightProperty().bind(root.heightProperty());
+        root.getChildren().addAll(content, effectLayer);
 
         Label title = new Label("Battlefield: " + selectedLayout.getName());
         title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
@@ -97,22 +129,35 @@ public class StartGameView {
 
         comboCountLabel = createMetricLabel("Combos: 0");
 
-        HBox metricsRow = new HBox(20,
+        opponentCrownLabel = createMetricLabel("0");
+        opponentCrownTarget = createCrownTarget();
+        opponentCrownPill = buildCrownPill("Enemy", opponentCrownLabel, opponentCrownTarget, "#b63a4c");
+
+        playerCrownLabel = createMetricLabel("0");
+        playerCrownTarget = createCrownTarget();
+        playerCrownPill = buildCrownPill("You", playerCrownLabel, playerCrownTarget, "#2a6fd2");
+
+        HBox metricsRow = new HBox(14,
                 buildMetricPill("Phase", phaseLabel),
                 buildMetricPill("Time", timerLabel),
                 buildMetricPill("Combos", comboCountLabel));
         metricsRow.setAlignment(Pos.CENTER_RIGHT);
 
-        VBox header = new VBox(6, title, subtitle, metricsRow);
+        Region crownSpacer = new Region();
+        HBox.setHgrow(crownSpacer, Priority.ALWAYS);
+        HBox crownRow = new HBox(14, opponentCrownPill, crownSpacer, metricsRow, playerCrownPill);
+        crownRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox header = new VBox(6, title, subtitle, crownRow);
         header.setPadding(new Insets(10, 10, 15, 10));
-        root.setTop(header);
+        content.setTop(header);
 
         arenaBoard = new ArenaBoard(selectedLayout);
         arenaBoard.setOnTileSelected(this::handleTileSelection);
         overlayLayer.setVisible(false);
         overlayLayer.setMouseTransparent(true);
         StackPane boardLayer = new StackPane(arenaBoard.getView(), overlayLayer);
-        root.setCenter(boardLayer);
+        content.setCenter(boardLayer);
         if (match != null) {
             Arena arena = match.getArena();
             if (arena != null) {
@@ -121,7 +166,7 @@ public class StartGameView {
         }
 
         VBox hud = buildHudSection();
-        root.setBottom(hud);
+        content.setBottom(hud);
 
         updateElixirHud();
         updateClockHud();
@@ -341,6 +386,7 @@ public class StartGameView {
                 Arena arena = match.getArena();
                 if (arena != null) {
                     arenaBoard.render(arena);
+                    detectTowerDestruction(arena);
                 }
             }
             if (match.isFinished()) {
@@ -552,4 +598,142 @@ public class StartGameView {
             comboCountLabel.setText("Combos: " + count);
         }
     }
+
+    private StackPane buildCrownPill(String caption, Label valueLabel, StackPane crownTarget, String accentColor) {
+        Label cap = new Label(caption.toUpperCase());
+        cap.setFont(Font.font("Arial", FontWeight.BOLD, 10));
+        cap.setTextFill(Color.web("#8f94a3"));
+
+        Label icon = new Label("♛");
+        icon.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        icon.setTextFill(Color.web(accentColor));
+        crownTarget.getChildren().add(icon);
+
+        HBox row = new HBox(6, crownTarget, valueLabel);
+        row.setAlignment(Pos.CENTER_LEFT);
+
+        StackPane pill = new StackPane(new VBox(2, cap, row));
+        pill.setPadding(new Insets(8, 12, 8, 12));
+        pill.setStyle("-fx-background-color: #1c1f2a; -fx-background-radius: 8;");
+        return pill;
+    }
+
+    private StackPane createCrownTarget() {
+        StackPane target = new StackPane();
+        target.setMinSize(16, 16);
+        target.setPrefSize(16, 16);
+        return target;
+    }
+
+    private void detectTowerDestruction(Arena arena) {
+        if (arena == null || arena.getTowers() == null) {
+            return;
+        }
+        for (var tower : arena.getTowers()) {
+            if (tower == null || tower.getPosition() == null || tower.getOwner() == null) {
+                continue;
+            }
+            String key = tower.getOwner() + "|" + tower.getType() + "|" + tower.getPosition().getX() + "|"
+                    + tower.getPosition().getY();
+            if (tower.isDestroyed() && !destroyedTowerKeys.contains(key)) {
+                destroyedTowerKeys.add(key);
+                triggerCrownAnimation(tower);
+            }
+        }
+    }
+
+    private void triggerCrownAnimation(kuroyale.domain.Tower destroyedTower) {
+        if (destroyedTower == null || destroyedTower.getPosition() == null) {
+            return;
+        }
+        StackPane targetPill = destroyedTower.getOwner() == kuroyale.domain.TowerOwner.OPPONENT
+                ? playerCrownPill
+                : opponentCrownPill;
+        StackPane targetIcon = destroyedTower.getOwner() == kuroyale.domain.TowerOwner.OPPONENT
+                ? playerCrownTarget
+                : opponentCrownTarget;
+
+        Point2D startTile = arenaBoard.getTileCenterPx(destroyedTower.getPosition());
+        if (startTile == null) {
+            return;
+        }
+        Point2D startScene = arenaBoard.getOverlayLayer().localToScene(startTile);
+        Point2D start = effectLayer.sceneToLocal(startScene);
+
+        var targetBounds = targetIcon.localToScene(targetIcon.getBoundsInLocal());
+        Point2D endScene = new Point2D(
+                (targetBounds.getMinX() + targetBounds.getMaxX()) / 2.0,
+                (targetBounds.getMinY() + targetBounds.getMaxY()) / 2.0);
+        Point2D end = effectLayer.sceneToLocal(endScene);
+
+        StackPane crown = createFlyingCrown();
+        crown.setTranslateX(-CROWN_ICON_SIZE / 2.0);
+        crown.setTranslateY(-CROWN_ICON_SIZE / 2.0);
+        effectLayer.getChildren().add(crown);
+
+        Path path = new Path();
+        path.getElements().add(new MoveTo(start.getX(), start.getY()));
+        double controlX = (start.getX() + end.getX()) / 2.0;
+        double controlY = Math.min(start.getY(), end.getY()) - 80;
+        path.getElements().add(new QuadCurveTo(controlX, controlY, end.getX(), end.getY()));
+
+        PathTransition move = new PathTransition(Duration.seconds(CROWN_ANIM_DURATION_SECONDS), path, crown);
+        move.setInterpolator(Interpolator.EASE_OUT);
+
+        ScaleTransition scaleUp = new ScaleTransition(Duration.millis(120), crown);
+        scaleUp.setFromX(0.7);
+        scaleUp.setFromY(0.7);
+        scaleUp.setToX(1.2);
+        scaleUp.setToY(1.2);
+
+        ScaleTransition scaleDown = new ScaleTransition(Duration.millis(80), crown);
+        scaleDown.setToX(1.0);
+        scaleDown.setToY(1.0);
+
+        TranslateTransition bounce = new TranslateTransition(Duration.millis(120), crown);
+        bounce.setByY(-10);
+        bounce.setAutoReverse(true);
+        bounce.setCycleCount(2);
+
+        SequentialTransition popScale = new SequentialTransition(scaleUp, scaleDown);
+        ParallelTransition pop = new ParallelTransition(popScale, bounce);
+        SequentialTransition full = new SequentialTransition(pop, move);
+
+        full.setOnFinished(e -> {
+            effectLayer.getChildren().remove(crown);
+            if (destroyedTower.getOwner() == kuroyale.domain.TowerOwner.OPPONENT) {
+                playerCrowns = Math.min(3, playerCrowns + 1);
+                playerCrownLabel.setText(String.valueOf(playerCrowns));
+            } else {
+                opponentCrowns = Math.min(3, opponentCrowns + 1);
+                opponentCrownLabel.setText(String.valueOf(opponentCrowns));
+            }
+            pulseCounter(targetPill);
+        });
+        full.play();
+    }
+
+    private StackPane createFlyingCrown() {
+        Label crownIcon = new Label("♛");
+        crownIcon.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 22));
+        crownIcon.setTextFill(Color.web("#ffd54f"));
+        StackPane crown = new StackPane(crownIcon);
+        crown.setPrefSize(CROWN_ICON_SIZE, CROWN_ICON_SIZE);
+        crown.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 6, 0.2, 0, 2);");
+        return crown;
+    }
+
+    private void pulseCounter(StackPane pill) {
+        if (pill == null) {
+            return;
+        }
+        ScaleTransition up = new ScaleTransition(Duration.millis(120), pill);
+        up.setToX(1.1);
+        up.setToY(1.1);
+        ScaleTransition down = new ScaleTransition(Duration.millis(120), pill);
+        down.setToX(1.0);
+        down.setToY(1.0);
+        new SequentialTransition(up, down).play();
+    }
+
 }
