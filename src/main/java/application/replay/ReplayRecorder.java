@@ -57,7 +57,7 @@ public class ReplayRecorder {
      *   else: appends a ReplayFrame with:
      *     elapsedSeconds := match.getElapsedSeconds()
      *     remainingSeconds := match.getRemainingSeconds()
-     *     phase := (match.getCurrentElixirPhase()==TRIPLE ? "TRIPLE" : "DOUBLE")
+     *     phase := NORMAL/DOUBLE/TRIPLE based on match.getCurrentElixirPhase()
      *     playerElixir := (match.getPlayer()!=null ? match.getPlayer().getCurrentElixir() : 0)
      *     opponentElixir := (match.getOpponent()!=null ? match.getOpponent().getCurrentElixir() : 0)
      *     towers := from match.getArena().getTowers(); skip if tower==null or owner/type/position==null;
@@ -74,7 +74,14 @@ public class ReplayRecorder {
         ReplayFrame frame = new ReplayFrame();
         frame.setElapsedSeconds(match.getElapsedSeconds());
         frame.setRemainingSeconds(match.getRemainingSeconds());
-        frame.setPhase(match.getCurrentElixirPhase() == ElixirPhase.TRIPLE ? "TRIPLE" : "DOUBLE");
+        ElixirPhase phase = match.getCurrentElixirPhase();
+        if (phase == ElixirPhase.TRIPLE) {
+            frame.setPhase("TRIPLE");
+        } else if (phase == ElixirPhase.DOUBLE) {
+            frame.setPhase("DOUBLE");
+        } else {
+            frame.setPhase("NORMAL");
+        }
 
         Player p1 = match.getPlayer();
         Player p2 = match.getOpponent();

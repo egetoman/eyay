@@ -4,22 +4,35 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javafx.animation.KeyFrame;
+import javafx.animation.Interpolator;
+import javafx.animation.ParallelTransition;
+import javafx.animation.PathTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.SequentialTransition;
 import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
+import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
@@ -46,8 +59,12 @@ public class LocalPvPGameView {
 
     private static final double ELIXIR_BAR_WIDTH = 220;
     private static final double ELIXIR_BAR_HEIGHT = 14;
+    private static final double CROWN_ANIM_DURATION_SECONDS = 0.7;
+    private static final double CROWN_ICON_SIZE = 26;
 
-    private final BorderPane root;
+    private final StackPane root;
+    private final BorderPane content;
+    private final Pane effectLayer;
     private final MatchController controller;
     private final Match match;
     private final Player bottomPlayer;
@@ -57,6 +74,12 @@ public class LocalPvPGameView {
     private final Label timerLabel;
     private final Label phaseLabel;
     private final Label turnLabel;
+    private final Label topCrownLabel;
+    private final Label bottomCrownLabel;
+    private final StackPane topCrownTarget;
+    private final StackPane bottomCrownTarget;
+    private final StackPane topCrownPill;
+    private final StackPane bottomCrownPill;
     private final Label statusLabel = new Label();
     private final VBox deckSectionContainer = new VBox();
     private Timeline matchTicker;
@@ -74,6 +97,9 @@ public class LocalPvPGameView {
     private boolean paused = false;
     private final StackPane overlayLayer = new StackPane();
     private final ScreenNavigator navigator;
+    private final Set<String> destroyedTowerKeys = new HashSet<>();
+    private int bottomCrowns = 0;
+    private int topCrowns = 0;
 
     public LocalPvPGameView(ScreenNavigator navigator, MatchController controller, ArenaLayout selectedLayout) {
         this.navigator = navigator;
@@ -85,9 +111,15 @@ public class LocalPvPGameView {
         this.bottomHand = new HandState(resolveDeckCards(bottomPlayer));
         this.topHand = new HandState(resolveDeckCards(topPlayer));
 
-        root = new BorderPane();
-        root.setPadding(new Insets(10));
-        root.setStyle("-fx-background-color: #0f1216;");
+        root = new StackPane();
+        content = new BorderPane();
+        content.setPadding(new Insets(10));
+        content.setStyle("-fx-background-color: #0f1216;");
+        effectLayer = new Pane();
+        effectLayer.setMouseTransparent(true);
+        effectLayer.prefWidthProperty().bind(root.widthProperty());
+        effectLayer.prefHeightProperty().bind(root.heightProperty());
+        root.getChildren().addAll(content, effectLayer);
 
         Label title = new Label("Local PvP");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
@@ -98,7 +130,17 @@ public class LocalPvPGameView {
         turnLabel.setTextFill(Color.web("#ffd54f"));
 
         timerLabel = createMetricLabel(formatTime(match != null ? match.getRemainingSeconds() : 0));
-        phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.DOUBLE));
+        phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.NORMAL));
+
+        topCrownLabel = createMetricLabel("0");
+        topCrownTarget = createCrownTarget();
+        topCrownPill = buildCrownPill(topPlayer != null ? topPlayer.getName() : "Player 2",
+                topCrownLabel, topCrownTarget, "#b63a4c");
+
+        bottomCrownLabel = createMetricLabel("0");
+        bottomCrownTarget = createCrownTarget();
+        bottomCrownPill = buildCrownPill(bottomPlayer != null ? bottomPlayer.getName() : "Player 1",
+                bottomCrownLabel, bottomCrownTarget, "#2a6fd2");
 
         HBox metricsRow = new HBox(16,
                 buildMetricPill("Turn", turnLabel),
@@ -106,23 +148,28 @@ public class LocalPvPGameView {
                 buildMetricPill("Time", timerLabel));
         metricsRow.setAlignment(Pos.CENTER_RIGHT);
 
-        VBox header = new VBox(6, title, metricsRow);
+        Region crownSpacer = new Region();
+        HBox.setHgrow(crownSpacer, Priority.ALWAYS);
+        HBox crownRow = new HBox(14, topCrownPill, crownSpacer, metricsRow, bottomCrownPill);
+        crownRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox header = new VBox(6, title, crownRow);
         header.setPadding(new Insets(10, 10, 15, 10));
-        root.setTop(header);
+        content.setTop(header);
 
         arenaBoard = new ArenaBoard(selectedLayout);
         arenaBoard.setOnTileSelected(this::handleTileSelection);
         overlayLayer.setVisible(false);
         overlayLayer.setMouseTransparent(true);
         StackPane boardLayer = new StackPane(arenaBoard.getView(), overlayLayer);
-        root.setCenter(boardLayer);
+        content.setCenter(boardLayer);
 
         if (match != null && match.getArena() != null) {
             arenaBoard.render(match.getArena());
         }
 
         VBox hud = buildHudSection();
-        root.setBottom(hud);
+        content.setBottom(hud);
 
         refreshTurnHud();
         updateElixirHud();
@@ -407,6 +454,7 @@ public class LocalPvPGameView {
                 updateClockHud();
                 if (match.getArena() != null) {
                     arenaBoard.render(match.getArena());
+                    detectTowerDestruction(match.getArena());
                 }
             }
             if (match.isFinished()) {
@@ -443,7 +491,7 @@ public class LocalPvPGameView {
     private void updateClockHud() {
         if (match == null) {
             timerLabel.setText("00:00");
-            phaseLabel.setText(formatPhase(ElixirPhase.DOUBLE));
+            phaseLabel.setText(formatPhase(ElixirPhase.NORMAL));
             return;
         }
         timerLabel.setText(formatTime(match.getRemainingSeconds()));
@@ -490,7 +538,10 @@ public class LocalPvPGameView {
     }
 
     private String formatPhase(ElixirPhase phase) {
-        return phase == ElixirPhase.TRIPLE ? "Triple" : "Double";
+        if (phase == ElixirPhase.TRIPLE) {
+            return "Triple";
+        }
+        return phase == ElixirPhase.DOUBLE ? "Double" : "Normal";
     }
 
     private double clamp01(double v) {
@@ -545,6 +596,143 @@ public class LocalPvPGameView {
 
         overlayLayer.getChildren().addAll(dim, overlay);
         StackPane.setAlignment(overlay, Pos.CENTER);
+    }
+
+    private StackPane buildCrownPill(String caption, Label valueLabel, StackPane crownTarget, String accentColor) {
+        Label cap = new Label(caption.toUpperCase());
+        cap.setFont(Font.font("Arial", FontWeight.BOLD, 10));
+        cap.setTextFill(Color.web("#8f94a3"));
+
+        Label icon = new Label("♛");
+        icon.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        icon.setTextFill(Color.web(accentColor));
+        crownTarget.getChildren().add(icon);
+
+        HBox row = new HBox(6, crownTarget, valueLabel);
+        row.setAlignment(Pos.CENTER_LEFT);
+
+        StackPane pill = new StackPane(new VBox(2, cap, row));
+        pill.setPadding(new Insets(8, 12, 8, 12));
+        pill.setStyle("-fx-background-color: #1c1f2a; -fx-background-radius: 8;");
+        return pill;
+    }
+
+    private StackPane createCrownTarget() {
+        StackPane target = new StackPane();
+        target.setMinSize(16, 16);
+        target.setPrefSize(16, 16);
+        return target;
+    }
+
+    private void detectTowerDestruction(Arena arena) {
+        if (arena == null || arena.getTowers() == null) {
+            return;
+        }
+        for (var tower : arena.getTowers()) {
+            if (tower == null || tower.getPosition() == null || tower.getOwner() == null) {
+                continue;
+            }
+            String key = tower.getOwner() + "|" + tower.getType() + "|" + tower.getPosition().getX() + "|"
+                    + tower.getPosition().getY();
+            if (tower.isDestroyed() && !destroyedTowerKeys.contains(key)) {
+                destroyedTowerKeys.add(key);
+                triggerCrownAnimation(tower);
+            }
+        }
+    }
+
+    private void triggerCrownAnimation(kuroyale.domain.Tower destroyedTower) {
+        if (destroyedTower == null || destroyedTower.getPosition() == null) {
+            return;
+        }
+        StackPane targetPill = destroyedTower.getOwner() == kuroyale.domain.TowerOwner.OPPONENT
+                ? bottomCrownPill
+                : topCrownPill;
+        StackPane targetIcon = destroyedTower.getOwner() == kuroyale.domain.TowerOwner.OPPONENT
+                ? bottomCrownTarget
+                : topCrownTarget;
+
+        Point2D startTile = arenaBoard.getTileCenterPx(destroyedTower.getPosition());
+        if (startTile == null) {
+            return;
+        }
+        Point2D startScene = arenaBoard.getOverlayLayer().localToScene(startTile);
+        Point2D start = effectLayer.sceneToLocal(startScene);
+
+        var targetBounds = targetIcon.localToScene(targetIcon.getBoundsInLocal());
+        Point2D endScene = new Point2D(
+                (targetBounds.getMinX() + targetBounds.getMaxX()) / 2.0,
+                (targetBounds.getMinY() + targetBounds.getMaxY()) / 2.0);
+        Point2D end = effectLayer.sceneToLocal(endScene);
+
+        StackPane crown = createFlyingCrown();
+        crown.setTranslateX(-CROWN_ICON_SIZE / 2.0);
+        crown.setTranslateY(-CROWN_ICON_SIZE / 2.0);
+        effectLayer.getChildren().add(crown);
+
+        Path path = new Path();
+        path.getElements().add(new MoveTo(start.getX(), start.getY()));
+        double controlX = (start.getX() + end.getX()) / 2.0;
+        double controlY = Math.min(start.getY(), end.getY()) - 80;
+        path.getElements().add(new QuadCurveTo(controlX, controlY, end.getX(), end.getY()));
+
+        PathTransition move = new PathTransition(Duration.seconds(CROWN_ANIM_DURATION_SECONDS), path, crown);
+        move.setInterpolator(Interpolator.EASE_OUT);
+
+        ScaleTransition scaleUp = new ScaleTransition(Duration.millis(120), crown);
+        scaleUp.setFromX(0.7);
+        scaleUp.setFromY(0.7);
+        scaleUp.setToX(1.2);
+        scaleUp.setToY(1.2);
+
+        ScaleTransition scaleDown = new ScaleTransition(Duration.millis(80), crown);
+        scaleDown.setToX(1.0);
+        scaleDown.setToY(1.0);
+
+        TranslateTransition bounce = new TranslateTransition(Duration.millis(120), crown);
+        bounce.setByY(-10);
+        bounce.setAutoReverse(true);
+        bounce.setCycleCount(2);
+
+        SequentialTransition popScale = new SequentialTransition(scaleUp, scaleDown);
+        ParallelTransition pop = new ParallelTransition(popScale, bounce);
+        SequentialTransition full = new SequentialTransition(pop, move);
+
+        full.setOnFinished(e -> {
+            effectLayer.getChildren().remove(crown);
+            if (destroyedTower.getOwner() == kuroyale.domain.TowerOwner.OPPONENT) {
+                bottomCrowns = Math.min(3, bottomCrowns + 1);
+                bottomCrownLabel.setText(String.valueOf(bottomCrowns));
+            } else {
+                topCrowns = Math.min(3, topCrowns + 1);
+                topCrownLabel.setText(String.valueOf(topCrowns));
+            }
+            pulseCounter(targetPill);
+        });
+        full.play();
+    }
+
+    private StackPane createFlyingCrown() {
+        Label crownIcon = new Label("♛");
+        crownIcon.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 22));
+        crownIcon.setTextFill(Color.web("#ffd54f"));
+        StackPane crown = new StackPane(crownIcon);
+        crown.setPrefSize(CROWN_ICON_SIZE, CROWN_ICON_SIZE);
+        crown.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 6, 0.2, 0, 2);");
+        return crown;
+    }
+
+    private void pulseCounter(StackPane pill) {
+        if (pill == null) {
+            return;
+        }
+        ScaleTransition up = new ScaleTransition(Duration.millis(120), pill);
+        up.setToX(1.1);
+        up.setToY(1.1);
+        ScaleTransition down = new ScaleTransition(Duration.millis(120), pill);
+        down.setToX(1.0);
+        down.setToY(1.0);
+        new SequentialTransition(up, down).play();
     }
 
     private void showGameOverOverlay() {
