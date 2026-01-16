@@ -34,21 +34,21 @@ public class MainApp extends Application {
         ArenaLayoutService layoutService = new ArenaLayoutService(new ArenaRepository());
         DeckService deckService = new DeckService(new CardCatalogRepository(), new DeckRepository());
         MatchService matchService = new MatchService(new MatchRepository());
-        
+
         // Phase 2 services
         CardCatalogRepository cardCatalog = new CardCatalogRepository();
         PlayerProfileRepository profileRepository = new PlayerProfileRepository();
         UpgradePolicy upgradePolicy = new DefaultUpgradePolicy();
         CardUpgradeService upgradeService = new CardUpgradeService(profileRepository, cardCatalog, upgradePolicy);
-        
+
         QuestRepository questRepository = new QuestRepository();
         QuestGenerator questGenerator = new QuestGenerator();
         QuestResetPolicy resetPolicy = new DefaultQuestResetPolicy();
         QuestService questService = new QuestService(questRepository, profileRepository, questGenerator, resetPolicy);
-        
+
         MatchHistoryRepository historyRepository = new MatchHistoryRepository();
         MatchHistoryService historyService = new MatchHistoryService(historyRepository);
-        
+
         AchievementRepository achievementRepository = new AchievementRepository();
         AchievementService achievementService = new AchievementService(achievementRepository, profileRepository);
 
@@ -56,11 +56,12 @@ public class MainApp extends Application {
         NetworkService networkService = new NetworkService(new NetworkConfigService());
 
         // Phase 2 challenge service
-        ChallengeService challengeService = new ChallengeService(profileRepository, deckService, matchService, layoutService);
-        
+        ChallengeService challengeService = new ChallengeService(profileRepository, deckService, matchService,
+                layoutService);
+
         ScreenNavigator navigator = new ScreenNavigator(primaryStage, layoutService, deckService, matchService,
-            upgradeService, questService, historyService, achievementService, networkService, challengeService);
-        navigator.showWelcomeScreen();
+                upgradeService, questService, historyService, achievementService, networkService, challengeService);
+        navigator.showSplashScreen();
         primaryStage.show();
     }
 
