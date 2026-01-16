@@ -28,10 +28,17 @@ public class QuestService {
     }
     
     public DailyQuestSet getTodayQuests() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = resetPolicy.getResetDate();
         DailyQuestSet questSet = questRepository.loadForDate(today);
-        
-        if (questSet == null || resetPolicy.shouldReset(null)) {
+
+        LocalDate existingDate = questSet != null ? questSet.getDate() : null;
+        java.time.LocalDateTime lastResetAt = existingDate != null ? existingDate.atStartOfDay() : null;
+        boolean shouldReset = questSet == null
+                || existingDate == null
+                || !existingDate.equals(today)
+                || resetPolicy.shouldReset(lastResetAt);
+
+        if (shouldReset) {
             // Generate new quests for today
             long seed = today.toEpochDay();
             List<Quest> quests = questGenerator.generateDailyQuests(seed);
@@ -94,6 +101,20 @@ public class QuestService {
             profile.spendGold(quest.getRewardGold());
             return Result.fail("Save failed - reverted: " + e.getMessage());
         }
+    }
+
+    public int countUnclaimedRewards() {
+        DailyQuestSet questSet = getTodayQuests();
+        if (questSet == null) {
+            return 0;
+        }
+        int count = 0;
+        for (QuestProgress progress : questSet.getProgress()) {
+            if (progress != null && progress.getStatus() == QuestStatus.COMPLETED) {
+                count++;
+            }
+        }
+        return count;
     }
 }
 

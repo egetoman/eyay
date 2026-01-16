@@ -56,9 +56,11 @@ public class CardUpgradeService {
         }
         
         CardProgression progression = profile.getCardProgression(cardId);
+        kuroyale.domain.Rarity resolvedRarity = resolveRarity(card);
         if (progression == null) {
-            // Initialize progression with default rarity (COMMON for now)
-            progression = new CardProgression(cardId, 1, kuroyale.domain.Rarity.COMMON);
+            progression = new CardProgression(cardId, 1, resolvedRarity);
+        } else if (progression.getRarity() == null || progression.getRarity() != resolvedRarity) {
+            progression.setRarity(resolvedRarity);
         }
         
         if (!upgradePolicy.canUpgrade(progression.getLevel())) {
@@ -95,14 +97,18 @@ public class CardUpgradeService {
         }
         
         CardProgression progression = profile.getCardProgression(cardId);
+        kuroyale.domain.Rarity resolvedRarity = resolveRarity(card);
         if (progression == null) {
-            progression = new CardProgression(cardId, 1, kuroyale.domain.Rarity.COMMON);
+            progression = new CardProgression(cardId, 1, resolvedRarity);
+        } else if (progression.getRarity() == null || progression.getRarity() != resolvedRarity) {
+            progression.setRarity(resolvedRarity);
         }
         
+        CardStats baseStats = card.getStats();
         CardStats currentStats = upgradePolicy.getStatsCalculator()
-            .calculateStatsForLevel(card.getStats(), progression.getLevel());
+            .calculateStatsForLevel(baseStats, progression.getLevel());
         CardStats nextStats = upgradePolicy.getStatsCalculator()
-            .previewNextLevel(currentStats, progression.getLevel());
+            .previewNextLevel(baseStats, progression.getLevel());
         int upgradeCost = upgradePolicy.getUpgradeCost(progression.getRarity(), progression.getLevel());
         boolean canUpgrade = upgradePolicy.canUpgrade(progression.getLevel()) && 
                             profile.hasEnoughGold(upgradeCost);
@@ -119,6 +125,13 @@ public class CardUpgradeService {
             .filter(c -> c.getId().equals(cardId))
             .findFirst()
             .orElse(null);
+    }
+
+    private kuroyale.domain.Rarity resolveRarity(Card card) {
+        if (card == null) {
+            return kuroyale.domain.Rarity.COMMON;
+        }
+        return kuroyale.domain.CardRarityCatalog.rarityForCardId(card.getId());
     }
     
     public static class UpgradePreview {

@@ -4,15 +4,18 @@ public class AchievementProgress {
     private String achievementId;
     private int currentProgress;
     private boolean unlocked;
+    private boolean claimed;
     
     public AchievementProgress() {
         this.unlocked = false;
+        this.claimed = false;
     }
     
     public AchievementProgress(String achievementId, int currentProgress, boolean unlocked) {
         this.achievementId = achievementId;
         this.currentProgress = currentProgress;
         this.unlocked = unlocked;
+        this.claimed = unlocked;
     }
     
     public String getAchievementId() {
@@ -41,6 +44,14 @@ public class AchievementProgress {
     
     public void setUnlocked(boolean unlocked) {
         this.unlocked = unlocked;
+    }
+
+    public boolean isClaimed() {
+        return claimed;
+    }
+
+    public void setClaimed(boolean claimed) {
+        this.claimed = claimed;
     }
     
     public boolean isCompleted(Achievement achievement) {

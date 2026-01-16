@@ -75,8 +75,8 @@ public class ArenaLayout {
         int baseHp = type == TowerType.KING ? 4000 : 2500;
         // Balance tuning:
         // - King Tower: 90 damage per hit
-        // - Crown Tower: 60 damage per hit
-        int baseDamage = type == TowerType.KING ? 90 : 60;
+        // - Crown Tower: 45 damage per hit (reduced to slow crown DPS)
+        int baseDamage = type == TowerType.KING ? 90 : 45;
         double attackSpeed = type == TowerType.KING ? 1.0 : 0.8;
         return new Tower(baseHp, position, baseDamage, attackSpeed, type, owner);
     }

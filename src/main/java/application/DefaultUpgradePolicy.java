@@ -11,27 +11,25 @@ public class DefaultUpgradePolicy implements UpgradePolicy {
         if (currentLevel >= MAX_LEVEL) {
             return Integer.MAX_VALUE; // Cannot upgrade beyond max
         }
-        
-        int baseCost = getBaseCost(rarity);
-        // Cost increases with level: base * (level + 1)
-        return baseCost * (currentLevel + 1);
+        return resolveUpgradeCost(rarity, currentLevel);
     }
     
-    private int getBaseCost(Rarity rarity) {
+    private int resolveUpgradeCost(Rarity rarity, int currentLevel) {
         if (rarity == null) {
-            return 50; // Default for unknown rarity
+            rarity = Rarity.COMMON;
         }
+        boolean toLevel2 = currentLevel == 1;
         switch (rarity) {
             case COMMON:
-                return 50;
+                return toLevel2 ? 200 : 500;
             case RARE:
-                return 100;
+                return toLevel2 ? 400 : 1000;
             case EPIC:
-                return 200;
+                return toLevel2 ? 800 : 2000;
             case LEGENDARY:
-                return 400;
+                return toLevel2 ? 1500 : 4000;
             default:
-                return 50;
+                return toLevel2 ? 200 : 500;
         }
     }
     
