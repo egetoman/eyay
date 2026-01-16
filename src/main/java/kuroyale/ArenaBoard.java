@@ -234,6 +234,10 @@ public class ArenaBoard {
         if (position == null) {
             return;
         }
+        // Don't draw towers with zero or negative health
+        if (tower.getHp() <= 0) {
+            return;
+        }
         double x = position.getX() * TILE_SIZE;
         double y = convertY(layout, position.getY());
 
