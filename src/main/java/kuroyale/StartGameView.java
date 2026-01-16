@@ -53,7 +53,6 @@ public class StartGameView {
     private final VBox deckSectionContainer = new VBox();
     private final Deque<Card> drawPile = new ArrayDeque<>();
     private final List<Card> handCards = new ArrayList<>();
-    private final List<StackPane> handSlotViews = new ArrayList<>();
     private Timeline matchTicker;
     private Label elixirValueLabel;
     private Region elixirFill;
@@ -187,21 +186,19 @@ public class StartGameView {
     }
 
     private void refreshDeckSection() {
-        handSlotViews.clear();
         deckSectionContainer.getChildren().clear();
 
         HBox handRow = new HBox(8);
         handRow.setAlignment(Pos.CENTER_LEFT);
         for (int i = 0; i < 4; i++) {
             Card card = i < handCards.size() ? handCards.get(i) : null;
-            StackPane slot = createCardSlot(card, true);
+            StackPane slot = StartGameUiBits.createCardSlot(card, true, i == selectedHandIndex);
             final int index = i;
             slot.setOnMouseClicked(event -> selectHandIndex(index));
-            handSlotViews.add(slot);
             handRow.getChildren().add(slot);
         }
 
-        StackPane nextSlot = createCardSlot(nextCard, false);
+        StackPane nextSlot = StartGameUiBits.createCardSlot(nextCard, false, false);
         VBox nextColumn = new VBox(4);
         nextColumn.setAlignment(Pos.CENTER);
         Label nextLabel = new Label("Next");
@@ -213,7 +210,6 @@ public class StartGameView {
         deckRow.setAlignment(Pos.CENTER_LEFT);
 
         deckSectionContainer.getChildren().add(deckRow);
-        updateHandSelection();
     }
 
     private VBox buildElixirPanel() {
@@ -246,84 +242,17 @@ public class StartGameView {
         return panel;
     }
 
-    private StackPane createCardSlot(Card card, boolean large) {
-        double width = large ? 70 : 54;
-        double height = large ? 90 : 70;
-
-        StackPane tile = new StackPane();
-        tile.setPrefSize(width, height);
-        applySlotStyle(tile, large, false);
-
-        VBox content = new VBox(4);
-        content.setAlignment(Pos.TOP_CENTER);
-        content.setPadding(new Insets(6));
-
-        Label name = new Label(card != null ? card.getName() : "Empty");
-        name.setWrapText(true);
-        name.setAlignment(Pos.CENTER);
-        name.setTextFill(Color.WHITE);
-        name.setFont(Font.font("Arial", FontWeight.BOLD, large ? 11 : 9));
-
-        Label hp = new Label(card != null && card.getStats() != null ? "HP " + card.getStats().getHp() : "HP —");
-        hp.setTextFill(Color.web("#a6ffcb"));
-        hp.setFont(Font.font("Arial", large ? 10 : 8));
-
-        StackPane costChip = buildCostChip(card != null ? card.getElixirCost() : -1, large);
-        StackPane.setAlignment(costChip, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(costChip, new Insets(0, 0, 4, 0));
-
-        content.getChildren().addAll(name, hp);
-
-        tile.getChildren().addAll(content, costChip);
-        return tile;
-    }
-
-    private void applySlotStyle(StackPane tile, boolean large, boolean highlighted) {
-        StringBuilder style = new StringBuilder();
-        style.append("-fx-background-color: linear-gradient(#2a2f45, #1c1f2e);");
-        if (large) {
-            style.append("-fx-background-radius: 10; -fx-border-radius: 10;");
-        } else {
-            style.append("-fx-background-radius: 8; -fx-border-radius: 8;");
-        }
-        if (highlighted) {
-            style.append("-fx-border-color: #ffd54f; -fx-border-width: 3;");
-        } else {
-            style.append("-fx-border-color: #404459; -fx-border-width: 1;");
-        }
-        tile.setStyle(style.toString());
-    }
-
-    private StackPane buildCostChip(int cost, boolean large) {
-        String text = cost >= 0 ? String.valueOf(cost) : "-";
-        Label label = new Label(text);
-        label.setFont(Font.font("Arial", FontWeight.BOLD, large ? 14 : 12));
-        label.setTextFill(Color.WHITE);
-
-        StackPane chip = new StackPane(label);
-        chip.setPadding(new Insets(4, 10, 4, 10));
-        chip.setStyle("-fx-background-color: #b259ff; -fx-background-radius: 20;");
-        return chip;
-    }
-
     private void selectHandIndex(int index) {
         if (index < 0 || index >= handCards.size() || handCards.get(index) == null) {
             selectedHandIndex = -1;
-            updateHandSelection();
+            refreshDeckSection();
             return;
         }
         selectedHandIndex = index;
-        updateHandSelection();
+        refreshDeckSection();
         Card selected = handCards.get(index);
         if (selected != null) {
             showStatus(selected.getName() + " selected.", false);
-        }
-    }
-
-    private void updateHandSelection() {
-        for (int i = 0; i < handSlotViews.size(); i++) {
-            StackPane slot = handSlotViews.get(i);
-            applySlotStyle(slot, true, i == selectedHandIndex);
         }
     }
 
@@ -356,7 +285,7 @@ public class StartGameView {
         cycleCard(selectedHandIndex);
         showStatus(card.getName() + " deployed at (" + tile.getX() + ", " + tile.getY() + ").", false);
         selectedHandIndex = -1;
-        updateHandSelection();
+        refreshDeckSection();
         Arena arena = match.getArena();
         if (arena != null) {
             arenaBoard.render(arena);
