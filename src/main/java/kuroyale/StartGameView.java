@@ -125,7 +125,7 @@ public class StartGameView {
         subtitle.setTextFill(Color.web("#cbd0d6"));
 
         timerLabel = createMetricLabel(formatTime(match != null ? match.getRemainingSeconds() : 0));
-        phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.DOUBLE));
+        phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.NORMAL));
 
         comboCountLabel = createMetricLabel("Combos: 0");
 
@@ -474,7 +474,7 @@ public class StartGameView {
     private void updateClockHud() {
         if (match == null) {
             timerLabel.setText("00:00");
-            phaseLabel.setText(formatPhase(ElixirPhase.DOUBLE));
+            phaseLabel.setText(formatPhase(ElixirPhase.NORMAL));
             return;
         }
         timerLabel.setText(formatTime(match.getRemainingSeconds()));
@@ -490,7 +490,10 @@ public class StartGameView {
     }
 
     private String formatPhase(ElixirPhase phase) {
-        return phase == ElixirPhase.TRIPLE ? "Triple Elixir" : "Double Elixir";
+        if (phase == ElixirPhase.TRIPLE) {
+            return "Triple Elixir";
+        }
+        return phase == ElixirPhase.DOUBLE ? "Double Elixir" : "Normal Elixir";
     }
 
     public Parent getRoot() {

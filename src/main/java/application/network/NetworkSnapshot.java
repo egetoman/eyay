@@ -11,7 +11,7 @@ import java.util.List;
 public class NetworkSnapshot {
     public double elapsedSeconds;
     public double remainingSeconds;
-    public String phase; // "DOUBLE" or "TRIPLE"
+    public String phase; // "NORMAL", "DOUBLE", or "TRIPLE"
     public int player1Elixir;
     public int player2Elixir;
     public List<TowerHp> towers = new ArrayList<>();
