@@ -3,16 +3,22 @@ package kuroyale.domain;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import kuroyale.support.Result;
 
 public class Match {
 
-    private static final double TOTAL_DURATION_SECONDS = 3 * 60; // 3 minutes as per document
-    private static final double TRIPLE_ELIXIR_START_SECONDS = 2.5 * 60; // Triple elixir at 2.5 minutes (halfway point)
+    private static final double NORMAL_DURATION_SECONDS = 3 * 60; // 3 minutes as per document
+    private static final double OVERTIME_DURATION_SECONDS = 3 * 60; // 3 minutes overtime
+    private static final double DOUBLE_ELIXIR_START_SECONDS = 2 * 60; // Double elixir starts at 2 minutes
+    private static final double OVERTIME_START_SECONDS = NORMAL_DURATION_SECONDS;
+    private static final double OVERTIME_END_SECONDS = NORMAL_DURATION_SECONDS + OVERTIME_DURATION_SECONDS;
     private static final double SINGLE_ELIXIR_PER_SECOND = 1.0 / 2.8;
+    private static final double SUDDEN_DEATH_DAMAGE_PER_SECOND = 120.0;
 
     private Player player;
     private Player opponent;
@@ -25,6 +31,12 @@ public class Match {
     private transient CardCostPolicy cardCostPolicy;
     private boolean botEnabled = true;
     private MatchOutcome outcome;
+    private boolean suddenDeathActive;
+    private double suddenDeathDamageRemainder;
+    private final Set<String> suddenDeathAliveTowerKeys = new HashSet<>();
+    private final Map<String, Integer> suddenDeathHpBefore = new HashMap<>();
+    private boolean overtimeActive;
+    private final Set<String> overtimeAliveTowerKeys = new HashSet<>();
 
     public Match() {
         this.arena = new Arena();
@@ -189,10 +201,14 @@ public class Match {
         if (isOver()) {
             return;
         }
-        double targetTime = Math.min(TOTAL_DURATION_SECONDS, elapsedSeconds + deltaSeconds);
+        double targetTime = elapsedSeconds + deltaSeconds;
+        if (!suddenDeathActive) {
+            double cap = overtimeActive ? OVERTIME_END_SECONDS : NORMAL_DURATION_SECONDS;
+            targetTime = Math.min(cap, targetTime);
+        }
         double cursor = elapsedSeconds;
         while (cursor < targetTime) {
-            double chunkBoundary = nextPhaseBoundary(cursor);
+            double chunkBoundary = suddenDeathActive ? targetTime : nextPhaseBoundary(cursor);
             double chunkEnd = Math.min(targetTime, chunkBoundary);
             double chunkDelta = chunkEnd - cursor;
             double multiplier = multiplierFor(cursor);
@@ -202,13 +218,24 @@ public class Match {
             arena.tick(chunkDelta);
             handleBotBehavior(chunkDelta);
             cursor = chunkEnd;
-            updateOutcomeIfNeeded(false);
-            if (isOver()) {
-                break;
+            if (suddenDeathActive) {
+                applySuddenDeathDamage(chunkDelta);
+                if (resolveSuddenDeathOutcomeIfNeeded()) {
+                    break;
+                }
+            } else {
+                updateOutcomeIfNeeded(false);
+                if (isOver()) {
+                    break;
+                }
             }
         }
-        elapsedSeconds = targetTime;
-        updateOutcomeIfNeeded(true);
+        elapsedSeconds = cursor;
+        if (suddenDeathActive) {
+            resolveSuddenDeathOutcomeIfNeeded();
+        } else {
+            updateOutcomeIfNeeded(true);
+        }
     }
 
     public double getElapsedSeconds() {
@@ -216,11 +243,17 @@ public class Match {
     }
 
     public double getRemainingSeconds() {
-        return Math.max(0, TOTAL_DURATION_SECONDS - elapsedSeconds);
+        if (suddenDeathActive) {
+            return 0;
+        }
+        if (overtimeActive) {
+            return Math.max(0, OVERTIME_END_SECONDS - elapsedSeconds);
+        }
+        return Math.max(0, NORMAL_DURATION_SECONDS - elapsedSeconds);
     }
 
     public double getTotalDurationSeconds() {
-        return TOTAL_DURATION_SECONDS;
+        return NORMAL_DURATION_SECONDS + OVERTIME_DURATION_SECONDS;
     }
 
     public boolean isFinished() {
@@ -228,7 +261,7 @@ public class Match {
     }
 
     public boolean isOver() {
-        return outcome != null || elapsedSeconds >= TOTAL_DURATION_SECONDS;
+        return outcome != null;
     }
 
     public MatchOutcome getOutcome() {
@@ -252,13 +285,16 @@ public class Match {
      * Used by synchronization systems to align clocks.
      */
     public void setElapsedSeconds(double elapsedSeconds) {
-        this.elapsedSeconds = Math.max(0, Math.min(TOTAL_DURATION_SECONDS, elapsedSeconds));
+        this.elapsedSeconds = Math.max(0, elapsedSeconds);
     }
 
     public ElixirPhase getCurrentElixirPhase() {
-        return elapsedSeconds >= TRIPLE_ELIXIR_START_SECONDS
-                ? ElixirPhase.TRIPLE
-                : ElixirPhase.DOUBLE;
+        if (elapsedSeconds >= OVERTIME_START_SECONDS) {
+            return ElixirPhase.TRIPLE;
+        }
+        return elapsedSeconds >= DOUBLE_ELIXIR_START_SECONDS
+                ? ElixirPhase.DOUBLE
+                : ElixirPhase.NORMAL;
     }
 
     private boolean isParticipant(Player potential) {
@@ -292,14 +328,186 @@ public class Match {
     }
 
     private double nextPhaseBoundary(double currentSeconds) {
-        if (currentSeconds < TRIPLE_ELIXIR_START_SECONDS) {
-            return TRIPLE_ELIXIR_START_SECONDS;
+        if (currentSeconds < DOUBLE_ELIXIR_START_SECONDS) {
+            return DOUBLE_ELIXIR_START_SECONDS;
         }
-        return TOTAL_DURATION_SECONDS;
+        if (currentSeconds < OVERTIME_START_SECONDS) {
+            return OVERTIME_START_SECONDS;
+        }
+        return OVERTIME_END_SECONDS;
     }
 
     private double multiplierFor(double currentSeconds) {
-        return currentSeconds >= TRIPLE_ELIXIR_START_SECONDS ? 3.0 : 2.0;
+        if (currentSeconds >= OVERTIME_START_SECONDS) {
+            return 3.0;
+        }
+        return currentSeconds >= DOUBLE_ELIXIR_START_SECONDS ? 2.0 : 1.0;
+    }
+
+    private void activateOvertime() {
+        if (arena == null) {
+            return;
+        }
+        overtimeActive = true;
+        overtimeAliveTowerKeys.clear();
+        for (Tower tower : arena.getTowers()) {
+            if (tower == null || tower.isDestroyed() || tower.getPosition() == null || tower.getOwner() == null
+                    || tower.getType() == null) {
+                continue;
+            }
+            overtimeAliveTowerKeys.add(buildTowerKey(tower));
+        }
+    }
+
+    private boolean resolveOvertimeTowerDestroyed() {
+        if (!overtimeActive || arena == null || arena.getTowers() == null) {
+            return false;
+        }
+        Tower destroyed = null;
+        for (Tower tower : arena.getTowers()) {
+            if (tower == null || tower.getPosition() == null || tower.getOwner() == null || tower.getType() == null) {
+                continue;
+            }
+            String key = buildTowerKey(tower);
+            if (overtimeAliveTowerKeys.contains(key) && tower.isDestroyed()) {
+                overtimeAliveTowerKeys.remove(key);
+                if (destroyed == null) {
+                    destroyed = tower;
+                }
+            }
+        }
+        if (destroyed == null) {
+            return false;
+        }
+        int playerCrowns = countDestroyedCrowns(TowerOwner.OPPONENT);
+        int opponentCrowns = countDestroyedCrowns(TowerOwner.PLAYER);
+        TowerOwner winner = destroyed.getOwner() == TowerOwner.PLAYER ? TowerOwner.OPPONENT : TowerOwner.PLAYER;
+        outcome = new MatchOutcome(winner, playerCrowns, opponentCrowns, "OVERTIME_TOWER_DESTROYED");
+        return true;
+    }
+
+    private void activateSuddenDeath() {
+        if (arena == null) {
+            return;
+        }
+        suddenDeathActive = true;
+        suddenDeathDamageRemainder = 0;
+        suddenDeathAliveTowerKeys.clear();
+        suddenDeathHpBefore.clear();
+        for (Tower tower : arena.getTowers()) {
+            if (tower == null || tower.isDestroyed() || tower.getPosition() == null || tower.getOwner() == null
+                    || tower.getType() == null) {
+                continue;
+            }
+            suddenDeathAliveTowerKeys.add(buildTowerKey(tower));
+        }
+    }
+
+    private void applySuddenDeathDamage(double deltaSeconds) {
+        if (!suddenDeathActive || arena == null || deltaSeconds <= 0) {
+            return;
+        }
+        double totalDamage = deltaSeconds * SUDDEN_DEATH_DAMAGE_PER_SECOND + suddenDeathDamageRemainder;
+        int damage = (int) Math.floor(totalDamage);
+        suddenDeathDamageRemainder = totalDamage - damage;
+        if (damage <= 0) {
+            return;
+        }
+        suddenDeathHpBefore.clear();
+        for (Tower tower : arena.getTowers()) {
+            if (tower == null || tower.isDestroyed() || tower.getPosition() == null || tower.getOwner() == null
+                    || tower.getType() == null) {
+                continue;
+            }
+            suddenDeathHpBefore.put(buildTowerKey(tower), tower.getHp());
+            tower.takeDamage(damage);
+        }
+    }
+
+    private boolean resolveSuddenDeathOutcomeIfNeeded() {
+        if (!suddenDeathActive || arena == null || arena.getTowers() == null) {
+            return false;
+        }
+        Set<TowerOwner> destroyedOwners = new HashSet<>();
+        TowerOwner candidateOwner = null;
+        int candidateHpBefore = Integer.MAX_VALUE;
+        int playerMinBefore = Integer.MAX_VALUE;
+        int opponentMinBefore = Integer.MAX_VALUE;
+        int playerTotalBefore = 0;
+        int opponentTotalBefore = 0;
+        for (Tower tower : arena.getTowers()) {
+            if (tower == null || tower.getPosition() == null || tower.getOwner() == null || tower.getType() == null) {
+                continue;
+            }
+            String key = buildTowerKey(tower);
+            Integer hpBefore = suddenDeathHpBefore.get(key);
+            if (hpBefore != null) {
+                if (tower.getOwner() == TowerOwner.PLAYER) {
+                    playerTotalBefore += hpBefore;
+                    playerMinBefore = Math.min(playerMinBefore, hpBefore);
+                } else {
+                    opponentTotalBefore += hpBefore;
+                    opponentMinBefore = Math.min(opponentMinBefore, hpBefore);
+                }
+            }
+            if (suddenDeathAliveTowerKeys.contains(key) && tower.isDestroyed()) {
+                destroyedOwners.add(tower.getOwner());
+                suddenDeathAliveTowerKeys.remove(key);
+                if (hpBefore != null && hpBefore < candidateHpBefore) {
+                    candidateHpBefore = hpBefore;
+                    candidateOwner = tower.getOwner();
+                }
+            }
+        }
+        if (destroyedOwners.isEmpty()) {
+            return false;
+        }
+        int playerCrowns = countDestroyedCrowns(TowerOwner.OPPONENT);
+        int opponentCrowns = countDestroyedCrowns(TowerOwner.PLAYER);
+        TowerOwner destroyedOwner;
+        if (destroyedOwners.size() == 1) {
+            destroyedOwner = destroyedOwners.iterator().next();
+        } else {
+            if (candidateOwner != null) {
+                destroyedOwner = candidateOwner;
+            } else {
+                if (playerMinBefore < opponentMinBefore) {
+                    destroyedOwner = TowerOwner.PLAYER;
+                } else if (opponentMinBefore < playerMinBefore) {
+                    destroyedOwner = TowerOwner.OPPONENT;
+                } else if (playerTotalBefore < opponentTotalBefore) {
+                    destroyedOwner = TowerOwner.PLAYER;
+                } else if (opponentTotalBefore < playerTotalBefore) {
+                    destroyedOwner = TowerOwner.OPPONENT;
+                } else {
+                    destroyedOwner = TowerOwner.PLAYER;
+                }
+            }
+        }
+        TowerOwner winner = destroyedOwner == TowerOwner.PLAYER ? TowerOwner.OPPONENT : TowerOwner.PLAYER;
+        outcome = new MatchOutcome(winner, playerCrowns, opponentCrowns, "SUDDEN_DEATH");
+        return true;
+    }
+
+    private int countDestroyedCrowns(TowerOwner owner) {
+        if (arena == null || arena.getTowers() == null) {
+            return 0;
+        }
+        int count = 0;
+        for (Tower tower : arena.getTowers()) {
+            if (tower == null || tower.getOwner() != owner || tower.getType() != TowerType.CROWN) {
+                continue;
+            }
+            if (tower.isDestroyed()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private String buildTowerKey(Tower tower) {
+        return tower.getOwner() + "|" + tower.getType() + "|" + tower.getPosition().getX() + "|"
+                + tower.getPosition().getY();
     }
 
     private void handleBotBehavior(double deltaSeconds) {
@@ -373,18 +581,9 @@ public class Match {
         Tower opponentKing = null;
         int playerCrownTowersDestroyed = 0;   // crown towers owned by PLAYER that are destroyed (opponent earned)
         int opponentCrownTowersDestroyed = 0; // crown towers owned by OPPONENT that are destroyed (player earned)
-        int playerTowerHpTotal = 0;
-        int opponentTowerHpTotal = 0;
-
         for (Tower tower : arena.getTowers()) {
             if (tower == null) {
                 continue;
-            }
-            // HP totals for time-out tie-break (include 0 for destroyed towers)
-            if (tower.getOwner() == TowerOwner.PLAYER) {
-                playerTowerHpTotal += Math.max(0, tower.getHp());
-            } else if (tower.getOwner() == TowerOwner.OPPONENT) {
-                opponentTowerHpTotal += Math.max(0, tower.getHp());
             }
             if (tower.getType() == TowerType.KING) {
                 if (tower.getOwner() == TowerOwner.PLAYER) {
@@ -419,42 +618,49 @@ public class Match {
             return;
         }
 
-        // Scenario 2: if one side has destroyed more crown towers than the other (max 2), end match.
-        // We treat "2 crowns" (both crown towers destroyed) as an early victory condition.
-        if (opponentCrownTowersDestroyed == 2 && playerCrownTowersDestroyed < 2) {
-            outcome = new MatchOutcome(TowerOwner.PLAYER, 2, playerCrownTowersDestroyed, "CROWN_TOWERS_DESTROYED");
-            return;
-        }
-        if (playerCrownTowersDestroyed == 2 && opponentCrownTowersDestroyed < 2) {
-            outcome = new MatchOutcome(TowerOwner.OPPONENT, opponentCrownTowersDestroyed, 2, "CROWN_TOWERS_DESTROYED");
-            return;
+        if (overtimeActive) {
+            if (resolveOvertimeTowerDestroyed()) {
+                return;
+            }
+        } else {
+            // Scenario 2: if one side has destroyed more crown towers than the other (max 2), end match.
+            // We treat "2 crowns" (both crown towers destroyed) as an early victory condition.
+            if (opponentCrownTowersDestroyed == 2 && playerCrownTowersDestroyed < 2) {
+                outcome = new MatchOutcome(TowerOwner.PLAYER, 2, playerCrownTowersDestroyed, "CROWN_TOWERS_DESTROYED");
+                return;
+            }
+            if (playerCrownTowersDestroyed == 2 && opponentCrownTowersDestroyed < 2) {
+                outcome = new MatchOutcome(TowerOwner.OPPONENT, opponentCrownTowersDestroyed, 2, "CROWN_TOWERS_DESTROYED");
+                return;
+            }
         }
 
-        if (considerTimeOut && elapsedSeconds >= TOTAL_DURATION_SECONDS) {
+        if (considerTimeOut && elapsedSeconds >= NORMAL_DURATION_SECONDS && !overtimeActive) {
+            if (suddenDeathActive) {
+                return;
+            }
             TowerOwner winner = null;
             // First tie-break: crowns (destroyed opponent crown towers)
             if (opponentCrownTowersDestroyed > playerCrownTowersDestroyed) {
                 winner = TowerOwner.PLAYER;
-                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_CROWNS");
+                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed,
+                        "TIME_OUT_CROWNS");
                 return;
             } else if (playerCrownTowersDestroyed > opponentCrownTowersDestroyed) {
                 winner = TowerOwner.OPPONENT;
-                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_CROWNS");
+                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed,
+                        "TIME_OUT_CROWNS");
                 return;
             }
+            activateOvertime();
+            return;
+        }
 
-            // Second tie-break: total remaining tower HP
-            if (playerTowerHpTotal > opponentTowerHpTotal) {
-                winner = TowerOwner.PLAYER;
-                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_HP");
-                return;
-            } else if (opponentTowerHpTotal > playerTowerHpTotal) {
-                winner = TowerOwner.OPPONENT;
-                outcome = new MatchOutcome(winner, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_HP");
+        if (considerTimeOut && overtimeActive && elapsedSeconds >= OVERTIME_END_SECONDS) {
+            if (suddenDeathActive) {
                 return;
             }
-
-            outcome = new MatchOutcome(null, opponentCrownTowersDestroyed, playerCrownTowersDestroyed, "TIME_OUT_DRAW");
+            activateSuddenDeath();
         }
     }
 

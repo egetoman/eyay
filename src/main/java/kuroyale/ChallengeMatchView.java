@@ -173,7 +173,14 @@ public class ChallengeMatchView {
             return;
         }
         timerLabel.setText(formatTime(match.getRemainingSeconds()));
-        phaseLabel.setText(match.getCurrentElixirPhase() == ElixirPhase.TRIPLE ? "Triple" : "Double");
+        ElixirPhase phase = match.getCurrentElixirPhase();
+        if (phase == ElixirPhase.TRIPLE) {
+            phaseLabel.setText("Triple");
+        } else if (phase == ElixirPhase.DOUBLE) {
+            phaseLabel.setText("Double");
+        } else {
+            phaseLabel.setText("Normal");
+        }
         deckUi.refresh();
     }
 
