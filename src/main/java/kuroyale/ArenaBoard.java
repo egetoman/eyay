@@ -11,12 +11,14 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.image.Image;
+import javafx.geometry.Point2D;
 import kuroyale.domain.Arena;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Bridge;
@@ -45,6 +47,7 @@ public class ArenaBoard {
     private final ArenaLayout layout;
     private final Canvas canvas;
     private final ScrollPane root;
+    private final Pane overlayLayer;
     private Consumer<Position> tileSelectionListener;
     private final boolean flipVertical;
     private List<Tower> currentTowers = Collections.emptyList();
@@ -62,10 +65,15 @@ public class ArenaBoard {
         this.layout = layout;
         this.flipVertical = flipVertical;
         this.canvas = new Canvas(layout.getWidth() * TILE_SIZE, layout.getHeight() * TILE_SIZE);
+        this.overlayLayer = new Pane();
+        this.overlayLayer.setPickOnBounds(false);
+        this.overlayLayer.setMouseTransparent(true);
+        this.overlayLayer.prefWidthProperty().bind(canvas.widthProperty());
+        this.overlayLayer.prefHeightProperty().bind(canvas.heightProperty());
         renderUnits(Collections.emptyList());
         this.canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
 
-        StackPane canvasContainer = new StackPane(canvas);
+        StackPane canvasContainer = new StackPane(canvas, overlayLayer);
         canvasContainer.setPadding(new Insets(15));
         canvasContainer.setStyle("-fx-background-color: #1b1e24;");
 
@@ -78,6 +86,19 @@ public class ArenaBoard {
 
     public Parent getView() {
         return root;
+    }
+
+    public Pane getOverlayLayer() {
+        return overlayLayer;
+    }
+
+    public Point2D getTileCenterPx(Position position) {
+        if (position == null) {
+            return null;
+        }
+        double x = position.getX() * TILE_SIZE + (TILE_SIZE / 2.0);
+        double y = convertY(layout, position.getY()) + (TILE_SIZE / 2.0);
+        return new Point2D(x, y);
     }
 
     public void setOnTileSelected(Consumer<Position> listener) {
