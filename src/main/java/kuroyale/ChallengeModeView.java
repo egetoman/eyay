@@ -81,7 +81,7 @@ public class ChallengeModeView {
 
             Label meta = new Label((unlocked ? "Unlocked" : "Locked")
                 + " • Reward: " + def.getRewardGold() + "g"
-                + " • Best Stars: " + stars
+                + " • Stars: " + formatStars(stars)
                 + (prog != null && prog.getBestTimeSeconds() > 0 ? String.format(" • Best Time: %.1fs", prog.getBestTimeSeconds()) : ""));
             meta.setTextFill(Color.web("#8f94a3"));
 
@@ -109,6 +109,15 @@ public class ChallengeModeView {
 
     public Parent getRoot() {
         return root;
+    }
+
+    private String formatStars(int stars) {
+        int safe = Math.max(0, Math.min(3, stars));
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < safe; i++) {
+            sb.append("*");
+        }
+        return safe + "/3 " + sb;
     }
 }
 

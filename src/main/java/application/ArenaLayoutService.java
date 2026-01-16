@@ -98,10 +98,16 @@ public class ArenaLayoutService {
         }
         boolean changed = false;
         for (Tower t : layout.getTowers()) {
-            if (t == null || t.getType() == null) {
+            if (t == null) {
                 continue;
             }
-            int desiredDamage = t.getType() == TowerType.KING ? 90 : 60;
+            if (t.getType() == null) {
+                // Older saved layouts may omit tower type; infer from HP.
+                int hp = t.getHp();
+                t.setType(hp >= 3500 ? TowerType.KING : TowerType.CROWN);
+                changed = true;
+            }
+            int desiredDamage = t.getType() == TowerType.KING ? 90 : 45;
             double desiredAttackSpeed = t.getType() == TowerType.KING ? 1.0 : 0.8;
             if (t.getDamage() != desiredDamage) {
                 t.setDamage(desiredDamage);

@@ -146,11 +146,12 @@ public class Match {
         String spellId = spell.getId();
         boolean isZap = "card_zap".equals(spellId);
         double stunDuration = isZap ? 0.5 : 0.0;
+        TowerOwner casterOwner = resolveOwner(caster);
         
         // Damage units
         List<Unit> unitsInRadius = arena.findUnitsInRadius(targetPosition, radiusTiles);
         for (Unit unit : unitsInRadius) {
-            if (unit != null && !unit.isDefeated()) {
+            if (unit != null && !unit.isDefeated() && unit.getOwner() != casterOwner) {
                 unit.takeDamage(areaDamage);
                 if (isZap && stunDuration > 0) {
                     unit.applyStun(stunDuration);
@@ -162,7 +163,7 @@ public class Match {
         int towerDamage = (int) Math.round(areaDamage * 0.4);
         List<Tower> towersInRadius = arena.findTowersInRadius(targetPosition, radiusTiles);
         for (Tower tower : towersInRadius) {
-            if (tower != null && !tower.isDestroyed()) {
+            if (tower != null && !tower.isDestroyed() && tower.getOwner() != casterOwner) {
                 tower.takeDamage(towerDamage);
             }
         }

@@ -351,6 +351,14 @@ public class ScreenNavigator {
         primaryStage.setScene(scene);
     }
 
+    public application.QuestService getQuestService() {
+        return questService;
+    }
+
+    public application.AchievementService getAchievementService() {
+        return achievementService;
+    }
+
     public void showDeckComboScreen() {
         DeckComboView view = new DeckComboView(this, deckController);
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);

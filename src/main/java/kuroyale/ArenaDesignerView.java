@@ -226,7 +226,7 @@ public class ArenaDesignerView {
         }
 
         int hp = selectedType == TowerType.KING ? 4000 : 2500;
-        int damage = selectedType == TowerType.KING ? 90 : 60;
+        int damage = selectedType == TowerType.KING ? 90 : 45;
         double attackSpeed = selectedType == TowerType.KING ? 1.0 : 0.8;
         Tower tower = new Tower(hp, normalized, damage, attackSpeed, selectedType, TowerOwner.PLAYER);
         playerTowers.add(tower);

@@ -8,14 +8,10 @@ import kuroyale.domain.QuestType;
 
 public class QuestGenerator {
     
-    private final Random random;
-    
     public QuestGenerator() {
-        this.random = new Random();
     }
     
     public QuestGenerator(long seed) {
-        this.random = new Random(seed);
     }
     /**
      * REQUIRES:
@@ -39,13 +35,23 @@ public class QuestGenerator {
         Random rng = new Random(seed);
         List<Quest> quests = new ArrayList<>();
         
-        // Generate 3 random quests
+        // Generate 3 random quests from the 15 defined types
         List<QuestType> availableTypes = new ArrayList<>(List.of(
             QuestType.WIN_MATCHES,
-            QuestType.PLAY_MATCHES,
-            QuestType.DEAL_DAMAGE,
-            QuestType.DESTROY_TOWERS,
-            QuestType.USE_CARDS
+            QuestType.DESTROY_CROWN_TOWERS,
+            QuestType.PLAY_SPELL_CARDS,
+            QuestType.DEPLOY_TROOP_CARDS,
+            QuestType.SPEND_ELIXIR,
+            QuestType.WIN_WITHOUT_LOSING_CROWN,
+            QuestType.PLAY_BUILDING_CARDS,
+            QuestType.DEAL_SPELL_DAMAGE,
+            QuestType.WIN_ONLY_COMMON,
+            QuestType.COMPLETE_CHALLENGES,
+            QuestType.WIN_NETWORK_MATCH,
+            QuestType.PLAY_20_CARDS_SINGLE_MATCH,
+            QuestType.WIN_STREAK,
+            QuestType.DESTROY_ENEMY_KING,
+            QuestType.WIN_PVP_MATCH
         ));
         
         for (int i = 0; i < 3 && !availableTypes.isEmpty(); i++) {
@@ -65,29 +71,79 @@ public class QuestGenerator {
         
         switch (type) {
             case WIN_MATCHES:
-                targetValue = 2 + rng.nextInt(3); // 2-4 wins
-                description = "Win " + targetValue + " matches";
-                rewardGold = 50 + targetValue * 25;
+                targetValue = 3;
+                description = "Win 3 matches";
+                rewardGold = 250;
                 break;
-            case PLAY_MATCHES:
-                targetValue = 3 + rng.nextInt(3); // 3-5 matches
-                description = "Play " + targetValue + " matches";
-                rewardGold = 30 + targetValue * 15;
+            case DESTROY_CROWN_TOWERS:
+                targetValue = 5;
+                description = "Destroy 5 Crown Towers";
+                rewardGold = 200;
                 break;
-            case DEAL_DAMAGE:
-                targetValue = 5000 + rng.nextInt(5000); // 5000-10000 damage
-                description = "Deal " + targetValue + " damage to towers";
-                rewardGold = 40 + targetValue / 200;
+            case PLAY_SPELL_CARDS:
+                targetValue = 10;
+                description = "Play 10 spell cards";
+                rewardGold = 150;
                 break;
-            case DESTROY_TOWERS:
-                targetValue = 1 + rng.nextInt(2); // 1-2 towers
-                description = "Destroy " + targetValue + " tower" + (targetValue > 1 ? "s" : "");
-                rewardGold = 60 + targetValue * 40;
+            case DEPLOY_TROOP_CARDS:
+                targetValue = 15;
+                description = "Deploy 15 troop cards";
+                rewardGold = 175;
                 break;
-            case USE_CARDS:
-                targetValue = 20 + rng.nextInt(20); // 20-39 cards
-                description = "Use " + targetValue + " cards in matches";
-                rewardGold = 35 + targetValue * 2;
+            case SPEND_ELIXIR:
+                targetValue = 100;
+                description = "Spend 100 total Elixir";
+                rewardGold = 100;
+                break;
+            case WIN_WITHOUT_LOSING_CROWN:
+                targetValue = 1;
+                description = "Win a match without losing a Crown Tower";
+                rewardGold = 300;
+                break;
+            case PLAY_BUILDING_CARDS:
+                targetValue = 5;
+                description = "Play 5 building cards";
+                rewardGold = 150;
+                break;
+            case DEAL_SPELL_DAMAGE:
+                targetValue = 3000;
+                description = "Deal 3000 damage with spells";
+                rewardGold = 200;
+                break;
+            case WIN_ONLY_COMMON:
+                targetValue = 1;
+                description = "Win using only common cards";
+                rewardGold = 250;
+                break;
+            case COMPLETE_CHALLENGES:
+                targetValue = 2;
+                description = "Complete 2 challenges";
+                rewardGold = 300;
+                break;
+            case WIN_NETWORK_MATCH:
+                targetValue = 1;
+                description = "Win a network multiplayer match";
+                rewardGold = 200;
+                break;
+            case PLAY_20_CARDS_SINGLE_MATCH:
+                targetValue = 20;
+                description = "Play 20 cards in a single match";
+                rewardGold = 150;
+                break;
+            case WIN_STREAK:
+                targetValue = 2;
+                description = "Win 2 matches in a row";
+                rewardGold = 300;
+                break;
+            case DESTROY_ENEMY_KING:
+                targetValue = 1;
+                description = "Destroy an enemy King Tower";
+                rewardGold = 350;
+                break;
+            case WIN_PVP_MATCH:
+                targetValue = 1;
+                description = "Win a PvP match";
+                rewardGold = 200;
                 break;
             default:
                 targetValue = 1;
