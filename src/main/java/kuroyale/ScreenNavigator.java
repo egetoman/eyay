@@ -42,12 +42,12 @@ public class ScreenNavigator {
     private static final double DEFAULT_WIDTH = 800;
     private static final double DEFAULT_HEIGHT = 600;
 
-    public ScreenNavigator(Stage primaryStage, ArenaLayoutService arenaLayoutService, DeckService deckService, 
-                          MatchService matchService, CardUpgradeService upgradeService, 
-                          QuestService questService, MatchHistoryService historyService,
-                          AchievementService achievementService,
-                          NetworkService networkService,
-                          ChallengeService challengeService) {
+    public ScreenNavigator(Stage primaryStage, ArenaLayoutService arenaLayoutService, DeckService deckService,
+            MatchService matchService, CardUpgradeService upgradeService,
+            QuestService questService, MatchHistoryService historyService,
+            AchievementService achievementService,
+            NetworkService networkService,
+            ChallengeService challengeService) {
         this.primaryStage = primaryStage;
         this.arenaLayoutService = arenaLayoutService;
         this.deckController = new DeckController(deckService);
@@ -64,6 +64,13 @@ public class ScreenNavigator {
         WelcomeView view = new WelcomeView(this);
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Main Menu");
+        primaryStage.setScene(scene);
+    }
+
+    public void showSplashScreen() {
+        SplashScreenView view = new SplashScreenView(this);
+        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        primaryStage.setTitle("KU Royale");
         primaryStage.setScene(scene);
     }
 
@@ -100,7 +107,8 @@ public class ScreenNavigator {
 
     // Phase 2 Feature 2: Network Multiplayer (implemented next)
     public void showNetworkMenuScreen() {
-        NetworkMenuView view = new NetworkMenuView(this, deckController, networkService, arenaLayoutService.getActiveLayout());
+        NetworkMenuView view = new NetworkMenuView(this, deckController, networkService,
+                arenaLayoutService.getActiveLayout());
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Network Multiplayer");
         primaryStage.setScene(scene);
@@ -120,7 +128,8 @@ public class ScreenNavigator {
         primaryStage.setScene(scene);
     }
 
-    public void showNetworkMatchFromLobby(NetworkLobbyController lobbyController, boolean hostSide, String startPayload) {
+    public void showNetworkMatchFromLobby(NetworkLobbyController lobbyController, boolean hostSide,
+            String startPayload) {
         if (lobbyController == null) {
             showWelcomeScreen();
             return;
@@ -138,11 +147,10 @@ public class ScreenNavigator {
         }
 
         NetworkMatchController matchController = new NetworkMatchController(
-            lobbyController.getAdapter(),
-            lobbyController.getConfig(),
-            hostSide,
-            hostSide ? 1 : 2
-        );
+                lobbyController.getAdapter(),
+                lobbyController.getConfig(),
+                hostSide,
+                hostSide ? 1 : 2);
         matchController.attachLayoutForClient(layout);
 
         // Deck enforcement: local side must map to local player id.
@@ -157,9 +165,11 @@ public class ScreenNavigator {
         }
 
         if (hostSide) {
-            // Host creates authoritative match with both players; opponent deck is a default deck placeholder.
+            // Host creates authoritative match with both players; opponent deck is a
+            // default deck placeholder.
             Deck hostDeck = deckController.loadDeck();
-            Deck opponentDeck = buildDeckFromIds(lobbyController.getState().getRemoteDeckCardIds(), deckController.buildDefaultDeck());
+            Deck opponentDeck = buildDeckFromIds(lobbyController.getState().getRemoteDeckCardIds(),
+                    deckController.buildDefaultDeck());
             Player hostPlayer = new Player(lobbyController.getState().getLocalName(), hostDeck, 0);
             Player clientPlayer = new Player(lobbyController.getState().getRemoteName(), opponentDeck, 0);
             Match match = matchService.createMatch(hostPlayer, clientPlayer, layout);
@@ -172,12 +182,12 @@ public class ScreenNavigator {
         } else {
             // Client uses its own local deck for UI selection
             matchController.setLocalDeck(deckController.loadDeck());
-            // If the lobby already received a snapshot, transfer it so the match view renders immediately.
+            // If the lobby already received a snapshot, transfer it so the match view
+            // renders immediately.
             String snapshotJson = lobbyController.getLastReceivedSnapshotJson();
             if (snapshotJson != null && !snapshotJson.isBlank()) {
                 matchController.onMessage(new application.network.NetworkMessage(
-                    application.network.NetworkMessageType.STATE_SNAPSHOT, 0, snapshotJson, ""
-                ));
+                        application.network.NetworkMessageType.STATE_SNAPSHOT, 0, snapshotJson, ""));
             }
         }
 
@@ -197,7 +207,8 @@ public class ScreenNavigator {
         }
         java.util.List<kuroyale.domain.Card> cards = new java.util.ArrayList<>();
         for (String id : ids) {
-            if (id == null || id.isBlank()) continue;
+            if (id == null || id.isBlank())
+                continue;
             kuroyale.domain.Card c = byId.get(id.trim());
             if (c != null) {
                 cards.add(c);
@@ -221,7 +232,8 @@ public class ScreenNavigator {
     }
 
     public void showChallengeMatchScreen(application.challenge.ChallengeSession session) {
-        ChallengeMatchView view = new ChallengeMatchView(this, challengeService, matchService, session, arenaLayoutService.getActiveLayout());
+        ChallengeMatchView view = new ChallengeMatchView(this, challengeService, matchService, session,
+                arenaLayoutService.getActiveLayout());
         Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Challenge Match");
         primaryStage.setScene(scene);
@@ -322,14 +334,13 @@ public class ScreenNavigator {
         }
 
         MatchRecord record = new MatchRecord(
-            java.util.UUID.randomUUID().toString(),
-            LocalDateTime.now(),
-            opponentType,
-            result,
-            crowns,
-            0,
-            layout != null ? layout.getName() : "Unknown"
-        );
+                java.util.UUID.randomUUID().toString(),
+                LocalDateTime.now(),
+                opponentType,
+                result,
+                crowns,
+                0,
+                layout != null ? layout.getName() : "Unknown");
         if (layout != null) {
             record.setArenaLayoutId(layout.getId());
         }
@@ -366,7 +377,3 @@ public class ScreenNavigator {
         primaryStage.setScene(scene);
     }
 }
-
-
-
-
