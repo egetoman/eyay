@@ -16,6 +16,7 @@ import application.network.NetworkMatchController;
 import application.network.NetworkLobbyController;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import kuroyale.domain.ArenaLayout;
@@ -60,16 +61,27 @@ public class ScreenNavigator {
         this.challengeService = challengeService;
     }
 
+    private Scene createScene(Parent root, double width, double height) {
+        Scene scene = new Scene(root, width, height);
+        // Apply Global Theme
+        try {
+            scene.getStylesheets().add(getClass().getResource("/theme.css").toExternalForm());
+        } catch (Exception e) {
+            System.err.println("Failed to load theme.css: " + e.getMessage());
+        }
+        return scene;
+    }
+
     public void showWelcomeScreen() {
         WelcomeView view = new WelcomeView(this);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Main Menu");
         primaryStage.setScene(scene);
     }
 
     public void showSplashScreen() {
         SplashScreenView view = new SplashScreenView(this);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale");
         primaryStage.setScene(scene);
     }
@@ -83,14 +95,14 @@ public class ScreenNavigator {
         Match match = matchService.createMatch(player, bot, activeLayout);
         MatchController controller = new MatchController(matchService, match);
         StartGameView view = new StartGameView(this, controller, activeLayout);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Match Preview");
         primaryStage.setScene(scene);
     }
 
     public void showLocalPvPSetupScreen() {
         LocalPvPSetupView view = new LocalPvPSetupView(this, arenaLayoutService, deckController, matchService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Local PvP Setup");
         primaryStage.setScene(scene);
     }
@@ -100,7 +112,7 @@ public class ScreenNavigator {
         match.setBotEnabled(false);
         MatchController controller = new MatchController(matchService, match);
         LocalPvPGameView view = new LocalPvPGameView(this, controller, layout);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Local PvP");
         primaryStage.setScene(scene);
     }
@@ -109,21 +121,21 @@ public class ScreenNavigator {
     public void showNetworkMenuScreen() {
         NetworkMenuView view = new NetworkMenuView(this, deckController, networkService,
                 arenaLayoutService.getActiveLayout());
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Network Multiplayer");
         primaryStage.setScene(scene);
     }
 
     public void showNetworkLobbyScreen(application.network.NetworkLobbyController lobbyController) {
         NetworkLobbyView view = new NetworkLobbyView(this, lobbyController);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Network Lobby");
         primaryStage.setScene(scene);
     }
 
     public void showNetworkMatchScreen(NetworkMatchController controller, ArenaLayout layout) {
         NetworkMatchView view = new NetworkMatchView(this, controller, layout);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Network Match");
         primaryStage.setScene(scene);
     }
@@ -226,7 +238,7 @@ public class ScreenNavigator {
     // Phase 2 Feature 4: Challenge Mode
     public void showChallengeModeScreen() {
         ChallengeModeView view = new ChallengeModeView(this, challengeService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Challenge Mode");
         primaryStage.setScene(scene);
     }
@@ -234,42 +246,42 @@ public class ScreenNavigator {
     public void showChallengeMatchScreen(application.challenge.ChallengeSession session) {
         ChallengeMatchView view = new ChallengeMatchView(this, challengeService, matchService, session,
                 arenaLayoutService.getActiveLayout());
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Challenge Match");
         primaryStage.setScene(scene);
     }
 
     public void showDeckBuilderScreen() {
         DeckBuilderView view = new DeckBuilderView(this, deckController);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Deck Builder");
         primaryStage.setScene(scene);
     }
 
     public void showArenaDemoScreen() {
         ArenaView view = new ArenaView(this, arenaLayoutService.getActiveLayout(), this::showWelcomeScreen);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Arena Preview");
         primaryStage.setScene(scene);
     }
 
     public void showArenaDesignerScreen() {
         ArenaDesignerView view = new ArenaDesignerView(this, arenaLayoutService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Arena Designer");
         primaryStage.setScene(scene);
     }
 
     public void showLayoutLibrary() {
         LayoutLibraryView view = new LayoutLibraryView(this, arenaLayoutService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("Saved Arenas");
         primaryStage.setScene(scene);
     }
 
     public void showArenaSelection() {
         ArenaSelectionView view = new ArenaSelectionView(this, arenaLayoutService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("Select Arena");
         primaryStage.setScene(scene);
     }
@@ -280,35 +292,35 @@ public class ScreenNavigator {
 
     public void showArenaPreview(ArenaLayout layout, Runnable backAction) {
         ArenaView view = new ArenaView(this, layout, backAction);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("Preview - " + layout.getName());
         primaryStage.setScene(scene);
     }
 
     public void showUpgradeCardScreen() {
         UpgradeCardView view = new UpgradeCardView(this, upgradeService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Upgrade Card");
         primaryStage.setScene(scene);
     }
 
     public void showDailyQuestScreen() {
         DailyQuestView view = new DailyQuestView(this, questService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Daily Quests");
         primaryStage.setScene(scene);
     }
 
     public void showMatchHistoryScreen() {
         MatchHistoryView view = new MatchHistoryView(this, historyService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Match History & Stats");
         primaryStage.setScene(scene);
     }
 
     public void showReplayScreen(MatchRecord record) {
         ReplayView view = new ReplayView(this, arenaLayoutService, record);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH + 200, DEFAULT_HEIGHT + 200);
         primaryStage.setTitle("KU Royale - Replay");
         primaryStage.setScene(scene);
     }
@@ -350,14 +362,14 @@ public class ScreenNavigator {
 
     public void showAchievementScreen() {
         AchievementView view = new AchievementView(this, achievementService);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Achievements");
         primaryStage.setScene(scene);
     }
 
     public void showComboLibraryScreen() {
         ComboLibraryView view = new ComboLibraryView(this, deckController);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Combo Library");
         primaryStage.setScene(scene);
     }
@@ -372,7 +384,7 @@ public class ScreenNavigator {
 
     public void showDeckComboScreen() {
         DeckComboView view = new DeckComboView(this, deckController);
-        Scene scene = new Scene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
         primaryStage.setTitle("KU Royale - Deck Combos");
         primaryStage.setScene(scene);
     }

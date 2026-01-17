@@ -15,20 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Tests for ChallengeService.completeChallenge() method.
- * 
- * Test cases cover:
- * - Invalid session (null or missing match)
- * - Unknown challenge ID
- * - Match not finished
- * - Loss scenario (no stars, no gold)
- * - Win scenario with 1 star (base win)
- * - Win scenario with 2 stars (within time limit)
- * - Win scenario with 3 stars (no damage taken)
- * - Progress updates on win
- * - Next challenge unlocking
- */
+
 public class ChallengeServiceTest {
 
     private ChallengeService challengeService;

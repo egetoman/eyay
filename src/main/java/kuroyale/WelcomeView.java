@@ -1,98 +1,262 @@
 package kuroyale;
 
 import javafx.application.Platform;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 
 public class WelcomeView {
 
-    private final VBox root;
-    //Shows the welcome screen of the game.
+    private final BorderPane root;
+    private final ScreenNavigator navigator;
+    private final StackPane centerContent;
+
+    // Styles are defined in src/main/resources/main_menu.css
+    // We will assume the stylesheet is loaded by the Scene or Parent.
+
     public WelcomeView(ScreenNavigator navigator) {
-        root = new VBox(15);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(20));
+        this.navigator = navigator;
+        root = new BorderPane();
+        root.getStyleClass().add("main-background");
 
-        Label title = new Label("KU Royale (Work In Progress)");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 36));
+        // Ensure CSS is loaded
+        root.getStylesheets().add(getClass().getResource("/main_menu.css").toExternalForm());
 
-        Label subtitle = new Label("A Single-Player Strategy Battle Game");
-        subtitle.setFont(Font.font("Arial", 18));
+        // --- Top Section: Resources ---
+        HBox topBar = createTopBar();
+        root.setTop(topBar);
 
-        Button startGameButton = new Button("Start Game");
-        startGameButton.setOnAction(event -> navigator.showArenaSelection());
+        // --- Center Section: Dynamic Content ---
+        centerContent = new StackPane();
+        centerContent.setAlignment(Pos.CENTER);
+        root.setCenter(centerContent);
 
-        Button deckBuilderButton = new Button("Deck Builder");
-        deckBuilderButton.setOnAction(event -> navigator.showDeckBuilderScreen());
+        // --- Bottom Section: Navigation ---
+        HBox navBar = createNavBar();
+        root.setBottom(navBar);
 
-        Button designerButton = new Button("Design Arena");
-        designerButton.setOnAction(event -> navigator.showArenaDesignerScreen());
-
-        Button savedLayoutsButton = new Button("Saved Layouts");
-        savedLayoutsButton.setOnAction(event -> navigator.showLayoutLibrary());
-
-        Button arenaDemoButton = new Button("Arena Layout Preview");
-        arenaDemoButton.setOnAction(event -> navigator.showArenaDemoScreen());
-
-        Button upgradeCardButton = new Button("Upgrade Card");
-        upgradeCardButton.setOnAction(event -> navigator.showUpgradeCardScreen());
-
-        Button dailyQuestButton = new Button("Daily Quests");
-        dailyQuestButton.setOnAction(event -> navigator.showDailyQuestScreen());
-
-        Button matchHistoryButton = new Button("Match History & Stats");
-        matchHistoryButton.setOnAction(event -> navigator.showMatchHistoryScreen());
-
-        Button achievementButton = new Button("Achievements");
-        achievementButton.setOnAction(event -> navigator.showAchievementScreen());
-
-        Button comboLibraryButton = new Button("Combo Library");
-        comboLibraryButton.setOnAction(event -> navigator.showComboLibraryScreen());
-
-        Button localPvpButton = new Button("Local PvP");
-        localPvpButton.setOnAction(event -> navigator.showLocalPvPSetupScreen());
-
-        Button networkButton = new Button("Network Multiplayer");
-        networkButton.setOnAction(event -> navigator.showNetworkMenuScreen());
-
-        Button challengeButton = new Button("Challenge Mode");
-        challengeButton.setOnAction(event -> navigator.showChallengeModeScreen());
-
-        Button quitButton = new Button("Quit");
-        quitButton.setOnAction(event -> Platform.exit());
-
-        applyBadgeIfNeeded(dailyQuestButton, navigator.getQuestService());
-        applyBadgeIfNeeded(achievementButton, navigator.getAchievementService());
-
-        root.getChildren().addAll(title, subtitle, startGameButton, deckBuilderButton, designerButton, 
-            savedLayoutsButton, arenaDemoButton, upgradeCardButton, dailyQuestButton, matchHistoryButton, 
-            achievementButton, comboLibraryButton, localPvpButton, networkButton, challengeButton, quitButton);
+        // Default view: Battle
+        showBattleTab();
     }
 
-    private void applyBadgeIfNeeded(Button button, application.QuestService questService) {
-        if (button == null || questService == null) {
+    private HBox createTopBar() {
+        HBox topBar = new HBox();
+        topBar.getStyleClass().add("resource-bar");
+        topBar.setAlignment(Pos.CENTER);
+
+        // Mock User Profile
+        Label levelLabel = new Label("Level 13");
+        levelLabel.getStyleClass().add("resource-item");
+
+        Label nameLabel = new Label("Challenger"); // Could fetch from PlayerProfile
+        nameLabel.getStyleClass().add("resource-item");
+
+        // Mock Resources
+        Label goldLabel = new Label("53,200 Gold");
+        goldLabel.getStyleClass().addAll("resource-item", "gold-text");
+
+        Label gemLabel = new Label("120 Gems");
+        gemLabel.getStyleClass().addAll("resource-item", "gem-text");
+
+        topBar.getChildren().addAll(levelLabel, nameLabel, createSpacer(), goldLabel, gemLabel);
+        return topBar;
+    }
+
+    private HBox createNavBar() {
+        HBox navBar = new HBox();
+        navBar.getStyleClass().add("nav-bar");
+        navBar.setAlignment(Pos.CENTER);
+
+        ToggleGroup navGroup = new ToggleGroup();
+
+        ToggleButton shopTab = createNavButton("Shop", navGroup);
+        shopTab.setOnAction(e -> showShopTab());
+
+        ToggleButton cardsTab = createNavButton("Cards", navGroup);
+        cardsTab.setOnAction(e -> showCardsTab());
+
+        ToggleButton battleTab = createNavButton("Battle", navGroup);
+        battleTab.setSelected(true); // Default
+        battleTab.setOnAction(e -> showBattleTab());
+
+        ToggleButton socialTab = createNavButton("Social", navGroup);
+        socialTab.setOnAction(e -> showSocialTab());
+
+        ToggleButton eventsTab = createNavButton("Events", navGroup);
+        eventsTab.setOnAction(e -> showEventsTab());
+
+        // Badges
+        applyBadgeIfNeeded(eventsTab, navigator.getQuestService()); // Quests are in Events now
+        // applyBadgeIfNeeded(socialTab, navigator.getAchievementService()); //
+        // Achievements can be in Social or Events
+
+        navBar.getChildren().addAll(shopTab, cardsTab, battleTab, socialTab, eventsTab);
+        return navBar;
+    }
+
+    private ToggleButton createNavButton(String text, ToggleGroup group) {
+        ToggleButton btn = new ToggleButton(text);
+        btn.setToggleGroup(group);
+        btn.getStyleClass().add("nav-button");
+        btn.setPrefWidth(100);
+        return btn;
+    }
+
+    // --- Content Switchers ---
+
+    private void showBattleTab() {
+        VBox battleView = new VBox(20);
+        battleView.getStyleClass().add("battle-section");
+        battleView.setAlignment(Pos.CENTER);
+
+        Label arenaLabel = new Label("Arena 1: Training Camp");
+        arenaLabel.getStyleClass().add("arena-title");
+
+        Button battleBtn = new Button("BATTLE");
+        battleBtn.getStyleClass().add("battle-button");
+        battleBtn.setOnAction(e -> navigator.showArenaSelection()); // Or start game directly? Standard flow is
+                                                                    // selection.
+
+        HBox subModes = new HBox(15);
+        subModes.setAlignment(Pos.CENTER);
+
+        Button pvpBtn = new Button("2v2 / Local");
+        pvpBtn.getStyleClass().add("secondary-button");
+        pvpBtn.setOnAction(e -> navigator.showLocalPvPSetupScreen());
+
+        Button networkBtn = new Button("Network");
+        networkBtn.getStyleClass().add("secondary-button");
+        networkBtn.setOnAction(e -> navigator.showNetworkMenuScreen());
+
+        Button quitBtn = new Button("Quit");
+        quitBtn.getStyleClass().add("secondary-button");
+        quitBtn.setOnAction(e -> Platform.exit());
+
+        subModes.getChildren().addAll(pvpBtn, networkBtn, quitBtn);
+
+        battleView.getChildren().addAll(arenaLabel, battleBtn, subModes);
+        centerContent.getChildren().clear();
+        centerContent.getChildren().add(battleView);
+    }
+
+    private void showCardsTab() {
+        VBox cardsView = new VBox(15);
+        cardsView.setAlignment(Pos.CENTER);
+
+        Label title = new Label("Collection");
+        title.getStyleClass().add("arena-title");
+
+        Button deckBuilderBtn = new Button("Edit Deck");
+        deckBuilderBtn.getStyleClass().add("secondary-button");
+        deckBuilderBtn.setOnAction(e -> navigator.showDeckBuilderScreen());
+
+        Button upgradeBtn = new Button("Upgrade Cards");
+        upgradeBtn.getStyleClass().add("secondary-button");
+        upgradeBtn.setOnAction(e -> navigator.showUpgradeCardScreen());
+
+        Button comboBtn = new Button("Combo Library");
+        comboBtn.getStyleClass().add("secondary-button");
+        comboBtn.setOnAction(e -> navigator.showComboLibraryScreen());
+
+        cardsView.getChildren().addAll(title, deckBuilderBtn, upgradeBtn, comboBtn);
+        centerContent.getChildren().clear();
+        centerContent.getChildren().add(cardsView);
+    }
+
+    private void showEventsTab() {
+        VBox eventsView = new VBox(15);
+        eventsView.setAlignment(Pos.CENTER);
+
+        Label title = new Label("Events & Quests");
+        title.getStyleClass().add("arena-title");
+
+        Button dailyQuestBtn = new Button("Daily Quests");
+        dailyQuestBtn.getStyleClass().add("secondary-button");
+        dailyQuestBtn.setOnAction(e -> navigator.showDailyQuestScreen());
+
+        Button challengeBtn = new Button("Challenge Mode");
+        challengeBtn.getStyleClass().add("secondary-button");
+        challengeBtn.setOnAction(e -> navigator.showChallengeModeScreen());
+
+        eventsView.getChildren().addAll(title, dailyQuestBtn, challengeBtn);
+        centerContent.getChildren().clear();
+        centerContent.getChildren().add(eventsView);
+    }
+
+    private void showSocialTab() {
+        VBox socialView = new VBox(15);
+        socialView.setAlignment(Pos.CENTER);
+
+        Label title = new Label("Social");
+        title.getStyleClass().add("arena-title");
+
+        Button historyBtn = new Button("Match History");
+        historyBtn.getStyleClass().add("secondary-button");
+        historyBtn.setOnAction(e -> navigator.showMatchHistoryScreen());
+
+        Button achievBtn = new Button("Achievements");
+        achievBtn.getStyleClass().add("secondary-button");
+        achievBtn.setOnAction(e -> navigator.showAchievementScreen());
+
+        socialView.getChildren().addAll(title, historyBtn, achievBtn);
+        centerContent.getChildren().clear();
+        centerContent.getChildren().add(socialView);
+    }
+
+    private void showShopTab() {
+        VBox shopView = new VBox(15);
+        shopView.setAlignment(Pos.CENTER);
+
+        Label title = new Label("Shop & Design");
+        title.getStyleClass().add("arena-title");
+
+        Button layoutLibBtn = new Button("Saved Arenas");
+        layoutLibBtn.getStyleClass().add("secondary-button");
+        layoutLibBtn.setOnAction(e -> navigator.showLayoutLibrary());
+
+        Button designerBtn = new Button("Design Arena");
+        designerBtn.getStyleClass().add("secondary-button");
+        designerBtn.setOnAction(e -> navigator.showArenaDesignerScreen());
+
+        Button demoBtn = new Button("Layout Preview");
+        demoBtn.getStyleClass().add("secondary-button");
+        demoBtn.setOnAction(e -> navigator.showArenaDemoScreen());
+
+        shopView.getChildren().addAll(title, layoutLibBtn, designerBtn, demoBtn);
+        centerContent.getChildren().clear();
+        centerContent.getChildren().add(shopView);
+    }
+
+    private HBox createSpacer() {
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        return new HBox(spacer);
+    }
+
+    // Original helper methods adapted if needed
+    private void applyBadgeIfNeeded(ToggleButton button, application.QuestService questService) {
+        if (button == null || questService == null)
             return;
-        }
         int count = questService.countUnclaimedRewards();
-        if (count > 0) {
+        if (count > 0)
             button.setText(button.getText() + " (" + count + ")");
-        }
     }
 
-    private void applyBadgeIfNeeded(Button button, application.AchievementService achievementService) {
-        if (button == null || achievementService == null) {
+    // Overloaded for Button if needed in sub-views, though not used in navbar
+    private void applyBadgeIfNeeded(Button button, application.QuestService questService) {
+        if (button == null || questService == null)
             return;
-        }
-        int count = achievementService.countUnclaimedRewards();
-        if (count > 0) {
+        int count = questService.countUnclaimedRewards();
+        if (count > 0)
             button.setText(button.getText() + " (" + count + ")");
-        }
     }
 
     public Parent getRoot() {
