@@ -18,8 +18,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import kuroyale.domain.Card;
 import kuroyale.domain.Deck;
 
@@ -43,7 +41,7 @@ public class DeckBuilderView {
         root.setPadding(new Insets(20));
 
         Label title = new Label("Deck Builder");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 32));
+        title.getStyleClass().add("screen-title");
         root.setTop(title);
         BorderPane.setAlignment(title, Pos.CENTER);
         BorderPane.setMargin(title, new Insets(0, 0, 20, 0));
@@ -56,19 +54,30 @@ public class DeckBuilderView {
         deckSlotsPane.setVgap(12);
         deckSlotsPane.setPrefWrapLength(400);
 
-        VBox availableBox = new VBox(10, new Label("Available Cards"), availableCardsPane);
-        availableBox.setPadding(new Insets(10));
+        // --- Available Cards Panel ---
+        VBox availableBox = new VBox(10);
+        Label availTitle = new Label("Available Cards");
+        availTitle.getStyleClass().add("section-title");
+        availableBox.getChildren().addAll(availTitle, availableCardsPane);
+        availableBox.getStyleClass().add("sub-panel");
         availableBox.setPrefWidth(420);
 
-        VBox deckBox = new VBox(10, new Label("Your Deck (8 cards)"), deckSlotsPane, statusLabel, buildDeckActions(navigator));
-        deckBox.setPadding(new Insets(10));
+        // --- Current Deck Panel ---
+        VBox deckBox = new VBox(10);
+        Label deckTitle = new Label("Your Deck (8 cards)");
+        deckTitle.getStyleClass().add("section-title");
+        deckBox.getChildren().addAll(deckTitle, deckSlotsPane, statusLabel, buildDeckActions(navigator));
+        deckBox.getStyleClass().add("sub-panel");
         deckBox.setPrefWidth(420);
 
         HBox content = new HBox(20, availableBox, deckBox);
+        content.setAlignment(Pos.CENTER);
         HBox.setHgrow(deckBox, Priority.ALWAYS);
+
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
+        // Make ScrollPane transparent to show background
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         root.setCenter(scrollPane);
 
@@ -78,21 +87,25 @@ public class DeckBuilderView {
 
     private HBox buildDeckActions(ScreenNavigator navigator) {
         Button saveButton = new Button("Save Deck");
+        saveButton.getStyleClass().add("game-button");
         saveButton.setOnAction(e -> saveDeck());
 
-        Button resetButton = new Button("Reset to Stored Deck");
+        Button resetButton = new Button("Reset");
+        resetButton.getStyleClass().add("secondary-button");
         resetButton.setOnAction(e -> {
             currentDeck = new Deck(deckController.loadDeck().getCards());
             refreshDeckSlots();
         });
 
-        Button clearButton = new Button("Clear Deck");
+        Button clearButton = new Button("Clear");
+        clearButton.getStyleClass().add("danger-button");
         clearButton.setOnAction(e -> {
             currentDeck.clear();
             refreshDeckSlots();
         });
 
         Button backButton = new Button("Back");
+        backButton.getStyleClass().add("secondary-button");
         backButton.setOnAction(e -> navigator.showWelcomeScreen());
 
         HBox box = new HBox(10, saveButton, resetButton, clearButton, backButton);
@@ -110,12 +123,14 @@ public class DeckBuilderView {
     private VBox createCardTile(Card card) {
         ImageView portrait = CardArt.buildCardPortrait(card, 40);
         Label name = new Label(card.getName());
-        name.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-        Label cost = new Label("Cost: " + card.getElixirCost());
+        name.setStyle("-fx-font-weight: bold;");
+        Label cost = new Label("Elixir: " + card.getElixirCost());
+        cost.setTextFill(Color.web("#ffd700"));
         Label type = new Label(card.getType().name());
-        type.setTextFill(Color.GRAY);
+        type.setStyle("-fx-font-size: 10px;");
 
         Button addButton = new Button("Add");
+        addButton.getStyleClass().add("secondary-button");
         addButton.setMaxWidth(Double.MAX_VALUE);
         addButton.setOnAction(e -> {
             if (currentDeck.containsCard(card)) {
@@ -132,9 +147,8 @@ public class DeckBuilderView {
         VBox tile = portrait != null
                 ? new VBox(5, portrait, name, cost, type, addButton)
                 : new VBox(5, name, cost, type, addButton);
-        tile.setPadding(new Insets(10));
-        tile.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
-        tile.setPrefWidth(160);
+        tile.getStyleClass().add("card-tile");
+        tile.setPrefWidth(140);
         return tile;
     }
 
@@ -145,15 +159,15 @@ public class DeckBuilderView {
             Card card = i < cards.size() ? cards.get(i) : null;
             deckSlotsPane.getChildren().add(createDeckSlot(card));
         }
-        statusLabel.setText("Cards selected: " + cards.size() + "/" + Deck.MAX_CARDS);
+        statusLabel.setText("Cards: " + cards.size() + "/" + Deck.MAX_CARDS);
     }
 
     private VBox createDeckSlot(Card card) {
         ImageView portrait = CardArt.buildCardPortrait(card, 40);
-        Label label = new Label(card != null ? card.getName() : "Empty Slot");
-        label.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        Label label = new Label(card != null ? card.getName() : "Empty");
 
-        Button actionButton = new Button(card != null ? "Remove" : "Empty");
+        Button actionButton = new Button(card != null ? "Remove" : "-");
+        actionButton.getStyleClass().add("secondary-button");
         actionButton.setDisable(card == null);
         actionButton.setOnAction(e -> {
             if (card != null) {
@@ -165,9 +179,8 @@ public class DeckBuilderView {
         VBox slot = portrait != null
                 ? new VBox(5, portrait, label, actionButton)
                 : new VBox(5, label, actionButton);
-        slot.setPadding(new Insets(10));
-        slot.setPrefWidth(150);
-        slot.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #0f1216;");
+        slot.getStyleClass().add("card-tile");
+        slot.setPrefWidth(130);
         return slot;
     }
 
@@ -200,4 +213,3 @@ public class DeckBuilderView {
         return root;
     }
 }
-

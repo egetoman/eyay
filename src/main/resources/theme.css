@@ -1,0 +1,158 @@
+/* Global Game Theme - High Contrast Dark Mode */
+.root {
+    -fx-background-color: #212529;
+    /* Deep grey/blue fallback */
+    -fx-font-family: 'Arial';
+
+    /* Correct JavaFX radial gradient syntax: 
+       radial-gradient([focus-angle <angle>, ] [focus-distance <percentage>, ] [center <point>, ] radius <length>, <color-stop>[, <color-stop>]+) 
+    */
+    -fx-background: radial-gradient(focus-angle 0deg, focus-distance 0%, center 50% 50%, radius 100%, #343a40 0%, #121212 100%);
+}
+
+/* Typography */
+.label,
+.text {
+    -fx-text-fill: white;
+}
+
+.screen-title {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffd700;
+    /* Gold */
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 2, 0, 0, 1);
+}
+
+.section-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8f9fa;
+    -fx-padding: 0 0 10 0;
+}
+
+/* Panels */
+.sub-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-background-radius: 10;
+    -fx-padding: 20;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}
+
+/* Card Tiles */
+.card-tile {
+    -fx-background-color: #343a40;
+    -fx-background-radius: 8;
+    -fx-border-color: #495057;
+    -fx-border-radius: 8;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 5, 0, 0, 2);
+    -fx-padding: 10;
+    -fx-alignment: center;
+}
+
+.card-tile:hover {
+    -fx-border-color: #f39c12;
+    -fx-cursor: hand;
+}
+
+/* Buttons */
+.button {
+    -fx-background-radius: 6;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-fill: white;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.4), 2, 0, 0, 1);
+}
+
+.game-button {
+    -fx-background-color: linear-gradient(to bottom, #f1c40f, #f39c12);
+    -fx-border-color: #d35400;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 6;
+    -fx-padding: 10 30 10 30;
+    -fx-text-fill: white;
+}
+
+.game-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #f39c12, #e67e22);
+}
+
+.game-button:pressed {
+    -fx-background-color: #d35400;
+    -fx-border-width: 0;
+    -fx-translate-y: 2;
+}
+
+.secondary-button {
+    -fx-background-color: linear-gradient(to bottom, #3498db, #2980b9);
+    -fx-border-color: #1f618d;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 6;
+    -fx-padding: 8 20 8 20;
+}
+
+.secondary-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #5dade2, #3498db);
+}
+
+.secondary-button:pressed {
+    -fx-background-color: #1f618d;
+    -fx-border-width: 0;
+    -fx-translate-y: 2;
+}
+
+.danger-button {
+    -fx-background-color: linear-gradient(to bottom, #e74c3c, #c0392b);
+    -fx-border-color: #922b21;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 6;
+    -fx-padding: 8 20 8 20;
+}
+
+.danger-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #ec7063, #e74c3c);
+}
+
+/* Nav Bar (Previous code integration) */
+.nav-bar {
+    -fx-background-color: #1e272e;
+    -fx-border-color: #485460;
+    -fx-border-width: 2 0 0 0;
+    -fx-padding: 15;
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #bdc3c7;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-content-display: top;
+    -fx-padding: 10 20 10 20;
+}
+
+.nav-button:selected {
+    -fx-text-fill: #f39c12;
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-background-radius: 10;
+}
+
+/* Resource Bar */
+.resource-bar {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-padding: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-width: 0 0 1 0;
+}
+
+.resource-item {
+    -fx-background-color: rgba(0, 0, 0, 0.6);
+    -fx-background-radius: 15;
+    -fx-padding: 5 15 5 15;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}

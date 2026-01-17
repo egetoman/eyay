@@ -1,0 +1,125 @@
+/* Main Menu Styles */
+.root {
+    -fx-background-color: #333333; /* Dark background fallback */
+    -fx-font-family: 'Arial';
+}
+
+/* Helper for background image if needed, for now just a dark gradient */
+.main-background {
+    -fx-background-color: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d); 
+}
+
+/* Top Resource Bar */
+.resource-bar {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-padding: 10;
+    -fx-spacing: 20;
+    -fx-alignment: center;
+}
+
+.resource-item {
+    -fx-background-color: rgba(0, 0, 0, 0.6);
+    -fx-background-radius: 15;
+    -fx-padding: 5 15 5 15;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 2, 0, 0, 1);
+}
+
+.gold-text { -fx-text-fill: #ffd700; }
+.gem-text { -fx-text-fill: #00ff00; }
+
+/* Center Battle Section */
+.battle-section {
+    -fx-alignment: center;
+    -fx-spacing: 20;
+    -fx-padding: 20;
+}
+
+.arena-title {
+    -fx-text-fill: white;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(three-pass-box, black, 5, 0, 0, 0);
+}
+
+.battle-button {
+    -fx-background-color: #f39c12;
+    -fx-background-radius: 10;
+    -fx-text-fill: white;
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-padding: 15 50 15 50;
+    -fx-border-color: #e67e22;
+    -fx-border-width: 3;
+    -fx-border-radius: 10;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.6), 5, 0, 0, 2);
+    -fx-cursor: hand;
+}
+
+.battle-button:hover {
+    -fx-background-color: #f1c40f;
+}
+
+.battle-button:pressed {
+    -fx-background-color: #d35400;
+    -fx-translate-y: 2;
+}
+
+.secondary-button {
+    -fx-background-color: #3498db;
+    -fx-background-radius: 8;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 20 8 20;
+    -fx-border-color: #2980b9;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+}
+
+.secondary-button:hover {
+    -fx-background-color: #5dade2;
+}
+
+/* Bottom Navigation Bar */
+.nav-bar {
+    -fx-background-color: #2c3e50;
+    -fx-padding: 10;
+    -fx-spacing: 10;
+    -fx-alignment: center;
+    -fx-border-color: #34495e;
+    -fx-border-width: 2 0 0 0;
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #bdc3c7;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-content-display: top;
+    -fx-cursor: hand;
+    -fx-padding: 10;
+}
+
+.nav-button:selected {
+    -fx-text-fill: #f39c12;
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 10;
+}
+
+.nav-button:hover {
+    -fx-text-fill: white;
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-background-radius: 10;
+}
+
+/* Card/Deck Section Styles */
+.card-grid {
+    -fx-hgap: 10;
+    -fx-vgap: 10;
+    -fx-alignment: center;
+    -fx-padding: 20;
+}
