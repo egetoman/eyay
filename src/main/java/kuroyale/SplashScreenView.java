@@ -80,7 +80,7 @@ public class SplashScreenView {
         StackPane.setAlignment(bottomBox, Pos.BOTTOM_CENTER);
 
         // Auto-play sound
-        playSound("/assets/sounds/intro.mp3");
+        playSound("/assets/sounds/Clash Royale Intro Sound Effect.mp3");
     }
 
     private void startLoading() {
