@@ -64,6 +64,14 @@ public class Match {
         this.opponent = opponent;
     }
 
+    public double getPlayerElixirFraction() {
+        return playerElixirFraction;
+    }
+
+    public double getOpponentElixirFraction() {
+        return opponentElixirFraction;
+    }
+
     public Arena getArena() {
         return arena;
     }
@@ -125,14 +133,14 @@ public class Match {
         // Spells (CardType.SPELL) have no territory restriction
 
         actingPlayer.spendElixir(cost);
-        
+
         // Handle spells differently - they deal area damage immediately
         if (card.getType() == CardType.SPELL) {
             castSpell(card, position, actingPlayer);
             // Return a dummy unit for compatibility, but spells don't create units
             return Result.ok(null);
         }
-        
+
         // Handle troops and buildings normally
         int hp = card.getStats() != null ? card.getStats().getHp() : 0;
         TowerOwner unitOwner = resolveOwner(actingPlayer);
@@ -152,14 +160,14 @@ public class Match {
         if (spell == null || targetPosition == null || spell.getStats() == null) {
             return;
         }
-        
+
         int areaDamage = spell.getStats().getDamage();
         double radiusTiles = spell.getStats().getRange() / 10.0; // Convert from internal units to tiles
         String spellId = spell.getId();
         boolean isZap = "card_zap".equals(spellId);
         double stunDuration = isZap ? 0.5 : 0.0;
         TowerOwner casterOwner = resolveOwner(caster);
-        
+
         // Damage units
         List<Unit> unitsInRadius = arena.findUnitsInRadius(targetPosition, radiusTiles);
         for (Unit unit : unitsInRadius) {
@@ -170,7 +178,7 @@ public class Match {
                 }
             }
         }
-        
+
         // Damage towers (40% of unit damage)
         int towerDamage = (int) Math.round(areaDamage * 0.4);
         List<Tower> towersInRadius = arena.findTowersInRadius(targetPosition, radiusTiles);
@@ -579,7 +587,7 @@ public class Match {
 
         Tower playerKing = null;
         Tower opponentKing = null;
-        int playerCrownTowersDestroyed = 0;   // crown towers owned by PLAYER that are destroyed (opponent earned)
+        int playerCrownTowersDestroyed = 0; // crown towers owned by PLAYER that are destroyed (opponent earned)
         int opponentCrownTowersDestroyed = 0; // crown towers owned by OPPONENT that are destroyed (player earned)
         for (Tower tower : arena.getTowers()) {
             if (tower == null) {
@@ -623,14 +631,17 @@ public class Match {
                 return;
             }
         } else {
-            // Scenario 2: if one side has destroyed more crown towers than the other (max 2), end match.
-            // We treat "2 crowns" (both crown towers destroyed) as an early victory condition.
+            // Scenario 2: if one side has destroyed more crown towers than the other (max
+            // 2), end match.
+            // We treat "2 crowns" (both crown towers destroyed) as an early victory
+            // condition.
             if (opponentCrownTowersDestroyed == 2 && playerCrownTowersDestroyed < 2) {
                 outcome = new MatchOutcome(TowerOwner.PLAYER, 2, playerCrownTowersDestroyed, "CROWN_TOWERS_DESTROYED");
                 return;
             }
             if (playerCrownTowersDestroyed == 2 && opponentCrownTowersDestroyed < 2) {
-                outcome = new MatchOutcome(TowerOwner.OPPONENT, opponentCrownTowersDestroyed, 2, "CROWN_TOWERS_DESTROYED");
+                outcome = new MatchOutcome(TowerOwner.OPPONENT, opponentCrownTowersDestroyed, 2,
+                        "CROWN_TOWERS_DESTROYED");
                 return;
             }
         }
@@ -669,7 +680,8 @@ public class Match {
 
     /**
      * Handles elixir generation from Elixir Collector buildings.
-     * Elixir Collectors generate 1 elixir every 10 seconds, up to 7 total over 70 seconds.
+     * Elixir Collectors generate 1 elixir every 10 seconds, up to 7 total over 70
+     * seconds.
      */
     private void handleElixirCollectors(double deltaSeconds) {
         if (arena == null || deltaSeconds <= 0) {

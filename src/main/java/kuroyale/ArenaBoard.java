@@ -423,16 +423,33 @@ public class ArenaBoard {
                 gc.strokeOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
             }
 
-            // Keep text overlays for debugging (can be removed later)
-            gc.setFill(Color.WHITE);
-            gc.setFont(Font.font("Arial", FontWeight.BOLD, 10));
-            gc.setTextAlign(TextAlignment.CENTER);
-            String name = unit.getCard() != null ? unit.getCard().getName() : "Unit";
-            gc.fillText(name, drawX + TILE_SIZE / 2, drawY);
+            // Health Bar logic
+            int maxHp = unit.getCard() != null && unit.getCard().getStats() != null
+                    ? unit.getCard().getStats().getHp()
+                    : unit.getCurrentHP();
+            if (maxHp <= 0)
+                maxHp = 1;
 
-            gc.setFont(Font.font("Arial", FontWeight.BOLD, 9));
-            gc.setFill(Color.web("#ffe082"));
-            gc.fillText(String.valueOf(unit.getCurrentHP()), drawX + TILE_SIZE / 2, drawY + TILE_SIZE + 10);
+            double hpPercent = (double) unit.getCurrentHP() / maxHp;
+            hpPercent = Math.max(0, Math.min(1.0, hpPercent));
+
+            double barWidth = TILE_SIZE;
+            double barHeight = 4;
+            double barX = drawX;
+            double barY = drawY - 6;
+
+            // Background
+            gc.setFill(Color.web("#2a2a2a"));
+            gc.fillRect(barX, barY, barWidth, barHeight);
+
+            // Foreground
+            gc.setFill(friendly ? Color.web("#4caf50") : Color.web("#f44336"));
+            gc.fillRect(barX, barY, barWidth * hpPercent, barHeight);
+
+            // Border
+            gc.setStroke(Color.BLACK);
+            gc.setLineWidth(0.5);
+            gc.strokeRect(barX, barY, barWidth, barHeight);
         }
     }
 
@@ -531,7 +548,8 @@ public class ArenaBoard {
         }
         if (towers != null) {
             for (Tower t : towers) {
-                if (t == null || t.isDestroyed() || t.getOwner() == null || t.getPosition() == null || t.getOwner() == myOwner) {
+                if (t == null || t.isDestroyed() || t.getOwner() == null || t.getPosition() == null
+                        || t.getOwner() == myOwner) {
                     continue;
                 }
                 double dx = t.getPosition().getX() - ux;
