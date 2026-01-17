@@ -443,12 +443,14 @@ public class LocalPvPGameView {
         if (match == null) {
             return;
         }
-        matchTicker = new Timeline(new KeyFrame(Duration.seconds(0.5), e -> {
+        // Run at ~30 FPS for smooth UI updates
+        double tickDuration = 0.033;
+        matchTicker = new Timeline(new KeyFrame(Duration.seconds(tickDuration), e -> {
             if (!paused) {
                 if (controller != null) {
-                    controller.advanceTime(0.5);
+                    controller.advanceTime(tickDuration);
                 } else {
-                    match.advanceTime(0.5);
+                    match.advanceTime(tickDuration);
                 }
                 updateElixirHud();
                 updateClockHud();
@@ -474,17 +476,80 @@ public class LocalPvPGameView {
     }
 
     private void updateElixirHud() {
-        if (bottomPlayer != null && bottomElixirLabel != null && bottomElixirFill != null) {
-            bottomElixirLabel.setText("Elixir: " + bottomPlayer.getCurrentElixir());
-            double ratio = bottomPlayer.getMaxElixir() == 0 ? 0
-                    : (double) bottomPlayer.getCurrentElixir() / bottomPlayer.getMaxElixir();
-            bottomElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * clamp01(ratio));
+        // Precise Elixir Calculation
+        double p1Elixir = (bottomPlayer != null) ? bottomPlayer.getCurrentElixir() : 0;
+        double p2Elixir = (topPlayer != null) ? topPlayer.getCurrentElixir() : 0;
+
+        if (match != null) {
+            p1Elixir += match.getPlayerElixirFraction();
+            p2Elixir += match.getOpponentElixirFraction();
         }
+
+        // Update Bottom HUD
+        if (bottomPlayer != null && bottomElixirLabel != null && bottomElixirFill != null) {
+            bottomElixirLabel.setText("Elixir: " + (int) p1Elixir); // Show integer part
+            double ratio = bottomPlayer.getMaxElixir() == 0 ? 0 : p1Elixir / bottomPlayer.getMaxElixir();
+            bottomElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * clamp01(ratio));
+
+            // Update Card Loading Masks
+            updateDeckLoadingState(true, p1Elixir);
+        }
+
+        // Update Top HUD
         if (topPlayer != null && topElixirLabel != null && topElixirFill != null) {
-            topElixirLabel.setText("Elixir: " + topPlayer.getCurrentElixir());
-            double ratio = topPlayer.getMaxElixir() == 0 ? 0
-                    : (double) topPlayer.getCurrentElixir() / topPlayer.getMaxElixir();
+            topElixirLabel.setText("Elixir: " + (int) p2Elixir);
+            double ratio = topPlayer.getMaxElixir() == 0 ? 0 : p2Elixir / topPlayer.getMaxElixir();
             topElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * clamp01(ratio));
+
+            updateDeckLoadingState(false, p2Elixir);
+        }
+    }
+
+    private void updateDeckLoadingState(boolean isBottom, double currentElixir) {
+        // Traverse to find card slots
+        // Structure: deckSectionContainer(VBox) -> Row(HBox) -> Panel(VBox) ->
+        // DeckRow(HBox) -> HandRow(HBox) -> Slots(StackPane)
+        if (deckSectionContainer.getChildren().isEmpty())
+            return;
+
+        var rowNode = deckSectionContainer.getChildren().get(0);
+        if (!(rowNode instanceof HBox))
+            return;
+        HBox row = (HBox) rowNode;
+        if (row.getChildren().size() < 2)
+            return;
+
+        VBox panel = (VBox) row.getChildren().get(isBottom ? 0 : 1);
+        if (panel.getChildren().size() < 2)
+            return; // Name, DeckRow, Elixir
+
+        var deckRowNode = panel.getChildren().get(1);
+        if (!(deckRowNode instanceof HBox))
+            return;
+        HBox deckRow = (HBox) deckRowNode;
+
+        if (deckRow.getChildren().size() < 2)
+            return;
+        var handRowNode = deckRow.getChildren().get(1); // 0 is Next, 1 is Hand
+        if (!(handRowNode instanceof HBox))
+            return;
+        HBox handRow = (HBox) handRowNode;
+
+        HandState hand = isBottom ? bottomHand : topHand;
+
+        for (int i = 0; i < handRow.getChildren().size(); i++) {
+            var child = handRow.getChildren().get(i);
+            if (child instanceof StackPane && i < hand.handCards.size()) {
+                Card card = hand.handCards.get(i);
+                if (card != null) {
+                    int cost = card.getElixirCost();
+                    // Avoid division by zero
+                    double progress = (cost <= 0) ? 1.0 : (currentElixir / cost);
+                    StartGameUiBits.updateCardLoading((StackPane) child, progress);
+                } else {
+                    StartGameUiBits.updateCardLoading((StackPane) child, 0.0);
+                }
+            }
         }
     }
 
