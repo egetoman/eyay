@@ -3,6 +3,8 @@ package kuroyale.domain;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 
 public class Arena {
 
@@ -247,22 +249,201 @@ public class Arena {
         return best;
     }
 
-    public Position resolvePathTarget(Position from, Position desiredDestination) {
+    /**
+     * Resolves the next path target for a unit moving from 'from' to 'desiredDestination'.
+     * Ground units must use bridges to cross the river.
+     * Flying units can go directly to their destination.
+     * 
+     * @param from Current position
+     * @param desiredDestination Final destination
+     * @param movementType The movement type of the unit (GROUND or FLYING)
+     * @return The next position to move toward
+     */
+    public Position resolvePathTarget(Position from, Position desiredDestination, UnitMovementType movementType) {
         if (from == null || desiredDestination == null) {
             return desiredDestination;
         }
-        if (!requiresBridgeCrossing(from, desiredDestination)) {
+        
+        // Flying units can go directly - no bridge needed
+        if (movementType == UnitMovementType.FLYING) {
             return desiredDestination;
         }
+        
+        // Check if we need bridge pathing:
+        // 1. Crossing from one side to the other
+        // 2. Destination is in the river (need to reach via bridge)
+        // 3. Current position NOT on bridge but destination requires river crossing
+        boolean needsBridgePathing = requiresBridgeCrossing(from, desiredDestination);
+        
+        // Also need bridge pathing if destination is in river and we're not on bridge
+        if (!needsBridgePathing && isRiverTile(desiredDestination)) {
+            needsBridgePathing = !isOnBridge(from);
+        }
+        
+        // If we're not on bridge but trying to move toward river, need bridge pathing
+        if (!needsBridgePathing && !isOnBridge(from)) {
+            // Check if direct path would cross river
+            int fromY = from.getY();
+            int destY = desiredDestination.getY();
+            int riverTop = getRiverTopRow();
+            int riverBottom = getRiverBottomRow();
+            
+            // If path crosses river tiles
+            if ((fromY < riverTop && destY > riverBottom) || (fromY > riverBottom && destY < riverTop)) {
+                needsBridgePathing = true;
+            }
+            // If destination is in river zone
+            if (destY >= riverTop && destY <= riverBottom) {
+                needsBridgePathing = true;
+            }
+        }
+        
+        if (!needsBridgePathing) {
+            return desiredDestination;
+        }
+        
         Bridge bridge = findClosestBridge(from);
         if (bridge == null) {
             return desiredDestination;
         }
+        
         int minX = Math.min(bridge.getStart().getX(), bridge.getEnd().getX());
         int maxX = Math.max(bridge.getStart().getX(), bridge.getEnd().getX());
-        int targetX = clamp(from.getX(), minX, maxX);
-        int targetY = isNorthSide(from) ? getRiverBottomRow() : getRiverTopRow();
-        return new Position(targetX, targetY);
+        int bridgeMinY = Math.min(bridge.getStart().getY(), bridge.getEnd().getY());
+        int bridgeMaxY = Math.max(bridge.getStart().getY(), bridge.getEnd().getY());
+        
+        int fromX = from.getX();
+        int fromY = from.getY();
+        
+        // #region agent log
+        try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"C,E\",\"location\":\"Arena.java:317\",\"message\":\"Bridge pathing engaged\",\"data\":{\"fromX\":" + fromX + ",\"fromY\":" + fromY + ",\"destX\":" + desiredDestination.getX() + ",\"destY\":" + desiredDestination.getY() + ",\"bridgeMinX\":" + minX + ",\"bridgeMaxX\":" + maxX + ",\"bridgeMinY\":" + bridgeMinY + ",\"bridgeMaxY\":" + bridgeMaxY + ",\"bridgeWidth\":" + bridge.getWidth() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+        // #endregion
+        
+        // Step 1: If not at bridge X range, move horizontally to the bridge first
+        if (fromX < minX) {
+            // #region agent log
+            Position result = new Position(minX, fromY);
+            try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"E\",\"location\":\"Arena.java:322\",\"message\":\"PathTarget: move right to bridge\",\"data\":{\"resultX\":" + result.getX() + ",\"resultY\":" + result.getY() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+            return result;
+            // #endregion
+        }
+        if (fromX > maxX) {
+            // #region agent log
+            Position result = new Position(maxX, fromY);
+            try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"E\",\"location\":\"Arena.java:327\",\"message\":\"PathTarget: move left to bridge\",\"data\":{\"resultX\":" + result.getX() + ",\"resultY\":" + result.getY() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+            return result;
+            // #endregion
+        }
+        
+        // Step 2: At correct X position - now move to enter the bridge
+        if (fromY > bridgeMaxY) {
+            // Coming from south, move to bridge entrance (south end of bridge)
+            // #region agent log
+            Position result = new Position(fromX, bridgeMaxY);
+            try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"E\",\"location\":\"Arena.java:335\",\"message\":\"PathTarget: enter bridge from south\",\"data\":{\"resultX\":" + result.getX() + ",\"resultY\":" + result.getY() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+            return result;
+            // #endregion
+        }
+        if (fromY < bridgeMinY) {
+            // Coming from north, move to bridge entrance (north end of bridge)
+            // #region agent log
+            Position result = new Position(fromX, bridgeMinY);
+            try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"E\",\"location\":\"Arena.java:341\",\"message\":\"PathTarget: enter bridge from north\",\"data\":{\"resultX\":" + result.getX() + ",\"resultY\":" + result.getY() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+            return result;
+            // #endregion
+        }
+        
+        // Step 3: Already on the bridge - head toward destination
+        // If destination is also on bridge or in river, go to the closest edge toward it
+        int destY = desiredDestination.getY();
+        if (destY <= bridgeMinY) {
+            // #region agent log
+            Position result = new Position(fromX, bridgeMinY);
+            try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"E\",\"location\":\"Arena.java:349\",\"message\":\"PathTarget: exit bridge north\",\"data\":{\"resultX\":" + result.getX() + ",\"resultY\":" + result.getY() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+            return result;
+            // #endregion
+        } else if (destY >= bridgeMaxY) {
+            // #region agent log
+            Position result = new Position(fromX, bridgeMaxY);
+            try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"E\",\"location\":\"Arena.java:353\",\"message\":\"PathTarget: exit bridge south\",\"data\":{\"resultX\":" + result.getX() + ",\"resultY\":" + result.getY() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+            return result;
+            // #endregion
+        } else {
+            // Destination is within bridge Y range - go directly if on bridge X
+            // #region agent log
+            try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"E\",\"location\":\"Arena.java:357\",\"message\":\"PathTarget: direct to dest on bridge\",\"data\":{\"resultX\":" + desiredDestination.getX() + ",\"resultY\":" + desiredDestination.getY() + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+            // #endregion
+            return desiredDestination;
+        }
+    }
+
+    public Position resolvePathTarget(Position from, Position desiredDestination) {
+        return resolvePathTarget(from, desiredDestination, UnitMovementType.GROUND);
+    }
+
+    /**
+     * Checks if a position is in the river (impassable for ground units).
+     */
+    public boolean isRiverTile(Position position) {
+        if (position == null) {
+            return false;
+        }
+        // Delegate to the precise version for consistent behavior
+        return isRiverTile((double) position.getY());
+    }
+
+    /**
+     * Checks if a position is in the river based on precise Y coordinate.
+     * Uses floor/ceil to ensure units are only blocked when actually IN the river tiles,
+     * not when approaching from either side.
+     */
+    public boolean isRiverTile(double preciseY) {
+        int riverTop = getRiverTopRow();
+        int riverBottom = getRiverBottomRow();
+        // A position is in the river if its precise Y falls within [riverTop, riverBottom+1)
+        // This ensures units at Y=14.9 (approaching from north) are NOT blocked,
+        // but units at Y=15.0+ ARE blocked (actually in river)
+        boolean result = preciseY >= riverTop && preciseY < (riverBottom + 1);
+        // #region agent log
+        if (result) { try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"D-FIX\",\"location\":\"Arena.java:368\",\"message\":\"isRiverTile check (fixed)\",\"data\":{\"preciseY\":" + preciseY + ",\"riverTop\":" + riverTop + ",\"riverBottom\":" + riverBottom + ",\"isRiver\":" + result + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {} }
+        // #endregion
+        return result;
+    }
+
+    /**
+     * Checks if a position is on a bridge (passable even though it's over river).
+     */
+    public boolean isOnBridge(Position position) {
+        if (position == null || bridges == null || bridges.isEmpty()) {
+            return false;
+        }
+        int px = position.getX();
+        int py = position.getY();
+        for (Bridge bridge : bridges) {
+            if (bridge.getStart() == null || bridge.getEnd() == null) {
+                continue;
+            }
+            int minX = Math.min(bridge.getStart().getX(), bridge.getEnd().getX());
+            int maxX = Math.max(bridge.getStart().getX(), bridge.getEnd().getX());
+            int minY = Math.min(bridge.getStart().getY(), bridge.getEnd().getY());
+            int maxY = Math.max(bridge.getStart().getY(), bridge.getEnd().getY());
+            if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if a position is on a bridge based on precise coordinates.
+     */
+    public boolean isOnBridge(double preciseX, double preciseY) {
+        if (bridges == null || bridges.isEmpty()) {
+            return false;
+        }
+        int px = (int) Math.round(preciseX);
+        int py = (int) Math.round(preciseY);
+        return isOnBridge(new Position(px, py));
     }
 
     private boolean requiresBridgeCrossing(Position from, Position destination) {
