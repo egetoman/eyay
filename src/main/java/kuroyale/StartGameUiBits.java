@@ -29,31 +29,73 @@ final class StartGameUiBits {
 
         double arc = large ? 10 : 8;
 
-        // 1. Background Image (Full Fill)
         javafx.scene.image.Image fullImage = CardArt.loadCardImage(card);
         if (fullImage != null) {
-            ImageView bgView = new ImageView(fullImage);
-            bgView.setFitWidth(width);
-            bgView.setFitHeight(height);
-            bgView.setPreserveRatio(false); // Fill the slot completely
+            // 1. Grayscale Background
+            ImageView grayView = new ImageView(fullImage);
+            grayView.setFitWidth(width);
+            grayView.setFitHeight(height);
+            grayView.setPreserveRatio(false);
 
-            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(width, height);
-            clip.setArcWidth(arc);
-            clip.setArcHeight(arc);
-            bgView.setClip(clip);
+            javafx.scene.effect.ColorAdjust desaturate = new javafx.scene.effect.ColorAdjust();
+            desaturate.setSaturation(-1.0);
+            desaturate.setBrightness(-0.3);
+            grayView.setEffect(desaturate);
 
-            tile.getChildren().add(bgView);
+            javafx.scene.shape.Rectangle grayClip = new javafx.scene.shape.Rectangle(width, height);
+            grayClip.setArcWidth(arc);
+            grayClip.setArcHeight(arc);
+            grayView.setClip(grayClip);
+
+            tile.getChildren().add(grayView);
+
+            // 2. Color Foreground (Revealed from bottom up)
+            ImageView colorView = new ImageView(fullImage);
+            colorView.setFitWidth(width);
+            colorView.setFitHeight(height);
+            colorView.setPreserveRatio(false);
+
+            javafx.scene.shape.Rectangle loadingClip = new javafx.scene.shape.Rectangle(width, height);
+            loadingClip.setArcWidth(arc);
+            loadingClip.setArcHeight(arc);
+            loadingClip.setY(height);
+            loadingClip.setHeight(0);
+
+            colorView.setClip(loadingClip);
+            colorView.setUserData("colorView");
+
+            tile.getChildren().add(colorView);
         }
 
         StackPane costChip = buildCostChip(card != null ? card.getElixirCost() : -1, large);
-        // Fix: Prevent the chip from expanding to fill the entire tile (because tile is
-        // a StackPane)
         costChip.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
         StackPane.setAlignment(costChip, Pos.TOP_LEFT);
         StackPane.setMargin(costChip, new Insets(4, 0, 0, 4));
 
         tile.getChildren().add(costChip);
         return tile;
+    }
+
+    static void updateCardLoading(StackPane slot, double progress) {
+        if (slot == null)
+            return;
+
+        for (javafx.scene.Node node : slot.getChildren()) {
+            if (node instanceof ImageView && "colorView".equals(node.getUserData())) {
+                ImageView colorView = (ImageView) node;
+                javafx.scene.Node clipNode = colorView.getClip();
+                if (clipNode instanceof javafx.scene.shape.Rectangle) {
+                    javafx.scene.shape.Rectangle clip = (javafx.scene.shape.Rectangle) clipNode;
+
+                    double totalH = slot.getPrefHeight();
+                    double visibleH = totalH * Math.max(0.0, Math.min(1.0, progress));
+
+                    clip.setY(totalH - visibleH);
+                    clip.setHeight(visibleH);
+                }
+                break;
+            }
+        }
     }
 
     private static void applySlotStyle(StackPane tile, boolean large, boolean highlighted) {
