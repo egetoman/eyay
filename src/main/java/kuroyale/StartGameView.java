@@ -78,7 +78,7 @@ public class StartGameView {
     private final List<Card> handCards = new ArrayList<>();
     private Timeline matchTicker;
     private Label elixirValueLabel;
-    private Region elixirFill;
+    private Rectangle elixirFill;
     private Card nextCard;
     private int selectedHandIndex = -1;
     private boolean paused = false;
@@ -258,18 +258,37 @@ public class StartGameView {
     }
 
     private VBox buildElixirPanel() {
-        elixirFill = new Region();
-        elixirFill.setPrefSize(0, ELIXIR_BAR_HEIGHT);
-        elixirFill.setStyle(
-                "-fx-background-color: linear-gradient(to right, #b259ff, #7a4dff); -fx-background-radius: 10;");
+        elixirFill = new Rectangle(0, ELIXIR_BAR_HEIGHT);
+        elixirFill.setArcWidth(20);
+        elixirFill.setArcHeight(20);
+        elixirFill.setStyle("-fx-fill: linear-gradient(to right, #b259ff, #7a4dff);");
 
         Region track = new Region();
         track.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
+        track.setMaxWidth(ELIXIR_BAR_WIDTH); // Fix: Prevent track expansion
         track.setStyle(
                 "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
 
-        StackPane bar = new StackPane(track, elixirFill);
+        HBox ticks = new HBox();
+        ticks.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
+        ticks.setMaxWidth(ELIXIR_BAR_WIDTH); // Fix: Prevent ticks expansion
+        ticks.setAlignment(Pos.CENTER_LEFT);
+        double segmentWidth = ELIXIR_BAR_WIDTH / 10.0;
+
+        for (int i = 0; i < 9; i++) {
+            Region spacer = new Region();
+            spacer.setPrefWidth(segmentWidth - 1);
+            Region divider = new Region();
+            divider.setPrefSize(1, ELIXIR_BAR_HEIGHT);
+            divider.setStyle("-fx-background-color: rgba(255,255,255,0.2);");
+            ticks.getChildren().addAll(spacer, divider);
+        }
+        ticks.setMouseTransparent(true);
+
+        StackPane bar = new StackPane(track, elixirFill, ticks);
+        bar.setMaxWidth(ELIXIR_BAR_WIDTH); // Fix: Prevent container expansion
         StackPane.setAlignment(elixirFill, Pos.CENTER_LEFT);
+        StackPane.setAlignment(ticks, Pos.CENTER_LEFT);
 
         elixirValueLabel = new Label("0");
         elixirValueLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
@@ -372,12 +391,14 @@ public class StartGameView {
         if (match == null) {
             return;
         }
-        matchTicker = new Timeline(new KeyFrame(Duration.seconds(0.5), e -> {
+        // Run at ~30 FPS for smooth UI updates
+        double tickDuration = 0.033;
+        matchTicker = new Timeline(new KeyFrame(Duration.seconds(tickDuration), e -> {
             if (!paused) {
                 if (controller != null) {
-                    controller.advanceTime(0.5);
+                    controller.advanceTime(tickDuration);
                 } else {
-                    match.advanceTime(0.5);
+                    match.advanceTime(tickDuration);
                 }
                 replayRecorder.capture(match);
                 comboDetector.updateTime(match != null ? match.getElapsedSeconds() : 0.0);
@@ -440,7 +461,8 @@ public class StartGameView {
                 playerCrowns,
                 headline,
                 () -> {
-                    // Play Again -> go back to match preview so user can start another match quickly.
+                    // Play Again -> go back to match preview so user can start another match
+                    // quickly.
                     if (navigator != null) {
                         navigator.showStartGameScreen();
                     }
@@ -462,13 +484,54 @@ public class StartGameView {
     private void updateElixirHud() {
         if (player == null) {
             elixirValueLabel.setText("0");
-            elixirFill.setPrefWidth(0);
+            elixirFill.setWidth(0);
             return;
         }
-        elixirValueLabel.setText(String.valueOf(player.getCurrentElixir()));
-        double ratio = player.getMaxElixir() == 0 ? 0 : (double) player.getCurrentElixir() / player.getMaxElixir();
+
+        double preciseElixir = player.getCurrentElixir();
+        if (match != null) {
+            preciseElixir += match.getPlayerElixirFraction();
+        }
+
+        elixirValueLabel.setText(String.valueOf((int) preciseElixir));
+        double ratio = player.getMaxElixir() == 0 ? 0 : preciseElixir / player.getMaxElixir();
         ratio = Math.min(1.0, Math.max(0.0, ratio));
-        elixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * ratio);
+
+        double width = ELIXIR_BAR_WIDTH * ratio;
+        elixirFill.setWidth(width); // Changed from setPrefWidth/setMaxWidth
+
+        updateDeckLoadingState(preciseElixir);
+    }
+
+    private void updateDeckLoadingState(double currentElixir) {
+        if (deckSectionContainer.getChildren().isEmpty())
+            return;
+
+        var rowNode = deckSectionContainer.getChildren().get(0);
+        if (!(rowNode instanceof HBox))
+            return;
+        HBox deckRow = (HBox) rowNode; // nextColumn(0), handRow(1)
+
+        if (deckRow.getChildren().size() < 2)
+            return;
+        var handRowNode = deckRow.getChildren().get(1);
+        if (!(handRowNode instanceof HBox))
+            return;
+        HBox handRow = (HBox) handRowNode;
+
+        for (int i = 0; i < handRow.getChildren().size(); i++) {
+            var child = handRow.getChildren().get(i);
+            if (child instanceof StackPane && i < handCards.size()) {
+                Card card = handCards.get(i);
+                if (card != null) {
+                    double cost = card.getElixirCost();
+                    double progress = (cost <= 0) ? 1.0 : (currentElixir / cost);
+                    StartGameUiBits.updateCardLoading((StackPane) child, progress);
+                } else {
+                    StartGameUiBits.updateCardLoading((StackPane) child, 0.0);
+                }
+            }
+        }
     }
 
     private void updateClockHud() {
