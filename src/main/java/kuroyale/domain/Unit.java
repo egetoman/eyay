@@ -2,6 +2,8 @@ package kuroyale.domain;
 
 import java.util.List;
 import kuroyale.infrastructure.CardCatalogRepository;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 
 public class Unit {
 
@@ -252,26 +254,92 @@ public class Unit {
             attackingTower = true;
         }
 
-        // Calculate path and distance
-        Position travelTarget = arena.resolvePathTarget(position, targetPosition);
+        // Calculate path and distance - use movement type for bridge/flying logic
+        UnitMovementType moveType = getMovementType();
+        Position travelTarget = arena.resolvePathTarget(position, targetPosition, moveType);
         double dx = travelTarget.getX() - preciseX;
         double dy = travelTarget.getY() - preciseY;
         double distance = Math.sqrt(dx * dx + dy * dy);
         boolean headingToFinalTarget = travelTarget == targetPosition;
-        boolean inRange = headingToFinalTarget && distance <= attackRangeTiles;
+        // #region agent log
+        boolean headingToFinalTargetEquals = travelTarget != null && targetPosition != null && travelTarget.equals(targetPosition);
+        if (headingToFinalTarget != headingToFinalTargetEquals) { try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"B\",\"location\":\"Unit.java:261\",\"message\":\"Reference vs equals mismatch\",\"data\":{\"refEqual\":" + headingToFinalTarget + ",\"valueEqual\":" + headingToFinalTargetEquals + ",\"travelTargetX\":" + (travelTarget != null ? travelTarget.getX() : -1) + ",\"travelTargetY\":" + (travelTarget != null ? travelTarget.getY() : -1) + ",\"targetPosX\":" + (targetPosition != null ? targetPosition.getX() : -1) + ",\"targetPosY\":" + (targetPosition != null ? targetPosition.getY() : -1) + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {} }
+        // #endregion
+        boolean inRange = headingToFinalTargetEquals && distance <= attackRangeTiles;
 
         // MOVEMENT: Move if not in attack range
         if (!inRange) {
             double step = speedTilesPerSecond * deltaSeconds;
-            if (distance <= step) {
-                // Smoothly arrive at target
-                preciseX = travelTarget.getX();
-                preciseY = travelTarget.getY();
-            } else {
-                // Move toward target
-                preciseX += (dx / distance) * step;
-                preciseY += (dy / distance) * step;
+            double newX = preciseX;
+            double newY = preciseY;
+            
+            // For ground units approaching river, use horizontal-first movement to reach bridge
+            boolean useHorizontalFirst = false;
+            if (moveType == UnitMovementType.GROUND) {
+                // Check if we're approaching river (not already in it) and target is across
+                boolean currentlyInRiver = arena.isRiverTile(preciseY);
+                boolean targetInOrAcrossRiver = arena.isRiverTile(travelTarget.getY()) || 
+                    (travelTarget.getY() > preciseY && arena.isRiverTile(preciseY + 1)) ||
+                    (travelTarget.getY() < preciseY && arena.isRiverTile(preciseY - 1));
+                
+                // If we would enter river and not be on bridge, move horizontally first
+                if (!currentlyInRiver && targetInOrAcrossRiver) {
+                    double testY = preciseY + (dy / distance) * step;
+                    if (arena.isRiverTile(testY) && !arena.isOnBridge(preciseX, testY)) {
+                        useHorizontalFirst = true;
+                    }
+                }
             }
+            
+            if (useHorizontalFirst) {
+                // Move only horizontally toward bridge X position first
+                double targetX = travelTarget.getX();
+                double horizontalDist = Math.abs(targetX - preciseX);
+                if (horizontalDist > 0.01) {
+                    double horizontalDir = (targetX - preciseX) / horizontalDist;
+                    newX = preciseX + horizontalDir * step;
+                    // #region agent log
+                    try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"F\",\"location\":\"Unit.java:285\",\"message\":\"Horizontal-first movement to bridge\",\"data\":{\"preciseX\":" + preciseX + ",\"preciseY\":" + preciseY + ",\"targetX\":" + targetX + ",\"newX\":" + newX + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+                    // #endregion
+                } else {
+                    // Already at bridge X, can move vertically
+                    newY = preciseY + (dy / distance) * step;
+                }
+            } else if (distance <= step) {
+                // Smoothly arrive at target
+                newX = travelTarget.getX();
+                newY = travelTarget.getY();
+            } else {
+                // Move toward target (diagonal OK)
+                newX = preciseX + (dx / distance) * step;
+                newY = preciseY + (dy / distance) * step;
+            }
+            
+            // Ground units cannot enter river tiles (unless on a bridge)
+            if (moveType == UnitMovementType.GROUND && arena.isRiverTile(newY)) {
+                if (!arena.isOnBridge(newX, newY)) {
+                    // #region agent log
+                    double originalNewY = newY;
+                    try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"A,D\",\"location\":\"Unit.java:305\",\"message\":\"River blocked movement\",\"data\":{\"preciseX\":" + preciseX + ",\"preciseY\":" + preciseY + ",\"attemptedNewX\":" + newX + ",\"attemptedNewY\":" + originalNewY + ",\"isRiverTile\":true,\"isOnBridge\":false},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+                    // #endregion
+                    // Cannot enter river - stay at safe Y position
+                    newY = preciseY;
+                    
+                    // Move horizontally toward bridge instead
+                    double targetX = travelTarget.getX();
+                    double horizontalDist = Math.abs(targetX - preciseX);
+                    if (horizontalDist > 0.01) {
+                        double horizontalDir = (targetX - preciseX) / horizontalDist;
+                        newX = preciseX + horizontalDir * step;
+                        // #region agent log
+                        try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"A\",\"location\":\"Unit.java:317\",\"message\":\"Horizontal redirect to bridge\",\"data\":{\"targetX\":" + targetX + ",\"newX\":" + newX + ",\"horizontalDir\":" + horizontalDir + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {}
+                        // #endregion
+                    }
+                }
+            }
+            
+            preciseX = newX;
+            preciseY = newY;
         }
 
         // ATTACK: Attack if in range and cooldown ready (independent of movement)
@@ -289,7 +357,8 @@ public class Unit {
                 // Single target attack
                 if (attackingTower) {
                     targetTower.takeDamage(attackDamage);
-                } else if (targetEnemyUnit != null) {
+                } else if (targetEnemyUnit != null && canAttackUnit(targetEnemyUnit)) {
+                    // Re-check canAttackUnit to ensure ground units don't attack flying targets
                     targetEnemyUnit.takeDamage(attackDamage);
                     // Immediately check if target was defeated and try to find new one
                     if (targetEnemyUnit.isDefeated()) {
@@ -301,6 +370,9 @@ public class Unit {
                             targetEnemyUnit = newTarget;
                         }
                     }
+                } else if (targetEnemyUnit != null && !canAttackUnit(targetEnemyUnit)) {
+                    // Can't attack this target (e.g., ground unit vs flying target) - clear and find new target
+                    targetEnemyUnit = null;
                 }
             }
             attackCooldownSeconds = attackIntervalSeconds;
