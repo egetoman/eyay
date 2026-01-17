@@ -450,6 +450,19 @@ public class ArenaBoard {
             gc.setStroke(Color.BLACK);
             gc.setLineWidth(0.5);
             gc.strokeRect(barX, barY, barWidth, barHeight);
+
+            // Unit/Card name label below the unit
+            String unitName = unit.getCard() != null ? unit.getCard().getName() : "Unit";
+            gc.setFill(Color.WHITE);
+            gc.setFont(Font.font("Arial", FontWeight.BOLD, 9));
+            gc.setTextAlign(TextAlignment.CENTER);
+            double nameCenterX = drawX + TILE_SIZE / 2;
+            double nameY = drawY + TILE_SIZE + 10;
+            // Drop shadow for readability
+            gc.setFill(Color.web("#000000", 0.7));
+            gc.fillText(unitName, nameCenterX + 1, nameY + 1);
+            gc.setFill(Color.WHITE);
+            gc.fillText(unitName, nameCenterX, nameY);
         }
     }
 
@@ -474,11 +487,21 @@ public class ArenaBoard {
         st.lastY = unit.getPreciseY();
 
         boolean attacking = false;
+        double unitRange = getUnitRange(unit);
+        boolean isRanged = unitRange > 2.0;
+        
         if (!moving) {
-            boolean inRange = hasEnemyInRange(unit, units, towers);
+            // Find the actual target for ranged attack visualization
+            Position targetPos = findAttackTarget(unit, units, towers);
+            boolean inRange = targetPos != null;
             boolean cooldownReady = (now - st.lastAttackAtMs) >= ATTACK_TRIGGER_COOLDOWN_MILLIS;
             if (inRange && cooldownReady) {
                 st.lastAttackAtMs = now;
+                if (targetPos != null) {
+                    st.targetX = targetPos.getX();
+                    st.targetY = targetPos.getY();
+                    st.hasTarget = true;
+                }
             }
             attacking = inRange && (now - st.lastAttackAtMs) <= ATTACK_HOLD_MILLIS;
         }
@@ -504,6 +527,114 @@ public class ArenaBoard {
         double dy = drawY + (TILE_SIZE - dh) / 2;
 
         gc.drawImage(sheet, sx, sy, sw, sh, dx, dy, dw, dh);
+
+        // Draw projectile for ranged units when attacking
+        if (attacking && isRanged && st.hasTarget) {
+            drawRangedProjectile(gc, unit, drawX, drawY, st, friendly);
+        }
+    }
+
+    private double getUnitRange(Unit unit) {
+        if (unit == null || unit.getCard() == null || unit.getCard().getStats() == null) {
+            return 1.5;
+        }
+        return unit.getCard().getStats().getRange() / 10.0;
+    }
+
+    private Position findAttackTarget(Unit unit, List<Unit> units, List<Tower> towers) {
+        if (unit == null || unit.getOwner() == null || unit.getPosition() == null) {
+            return null;
+        }
+        double range = getUnitRange(unit);
+        TowerOwner myOwner = unit.getOwner();
+        double ux = unit.getPreciseX();
+        double uy = unit.getPreciseY();
+
+        // Find nearest enemy unit in range
+        if (units != null) {
+            for (Unit other : units) {
+                if (other == null || other == unit || other.isDefeated() || other.getOwner() == myOwner) {
+                    continue;
+                }
+                double ddx = other.getPreciseX() - ux;
+                double ddy = other.getPreciseY() - uy;
+                if (Math.sqrt(ddx * ddx + ddy * ddy) <= range) {
+                    return new Position((int) other.getPreciseX(), (int) other.getPreciseY());
+                }
+            }
+        }
+        // Find nearest enemy tower in range
+        if (towers != null) {
+            for (Tower t : towers) {
+                if (t == null || t.isDestroyed() || t.getOwner() == null || t.getPosition() == null
+                        || t.getOwner() == myOwner) {
+                    continue;
+                }
+                double ddx = t.getPosition().getX() - ux;
+                double ddy = t.getPosition().getY() - uy;
+                if (Math.sqrt(ddx * ddx + ddy * ddy) <= range) {
+                    return t.getPosition();
+                }
+            }
+        }
+        return null;
+    }
+
+    private void drawRangedProjectile(GraphicsContext gc, Unit unit, double unitDrawX, double unitDrawY,
+            UnitAnimState st, boolean friendly) {
+        if (gc == null || unit == null || !st.hasTarget) {
+            return;
+        }
+
+        // Calculate projectile animation progress (0 to 1)
+        long now = System.currentTimeMillis();
+        long attackTime = now - st.lastAttackAtMs;
+        double progress = Math.min(1.0, attackTime / (double) ATTACK_HOLD_MILLIS);
+
+        // Source position (center of unit)
+        double srcX = unitDrawX + TILE_SIZE / 2;
+        double srcY = unitDrawY + TILE_SIZE / 2;
+
+        // Target position
+        double targetDrawX = st.targetX * TILE_SIZE + TILE_SIZE / 2;
+        double targetDrawY = convertY(layout, st.targetY) + TILE_SIZE / 2;
+
+        // Interpolate projectile position
+        double projX = srcX + (targetDrawX - srcX) * progress;
+        double projY = srcY + (targetDrawY - srcY) * progress;
+
+        // Draw projectile based on unit type
+        String cardId = unit.getCard() != null ? unit.getCard().getId() : "";
+        
+        if ("card_bomber".equals(cardId) || "card_bomb_tower".equals(cardId)) {
+            // Draw bomb projectile
+            gc.setFill(Color.web("#333333"));
+            gc.fillOval(projX - 5, projY - 5, 10, 10);
+            gc.setFill(Color.web("#ff6600"));
+            gc.fillOval(projX - 2, projY - 6, 4, 4); // Fuse spark
+        } else if ("card_wizard".equals(cardId)) {
+            // Draw fireball
+            gc.setFill(Color.web("#ff4400", 0.8));
+            gc.fillOval(projX - 6, projY - 6, 12, 12);
+            gc.setFill(Color.web("#ffaa00", 0.6));
+            gc.fillOval(projX - 4, projY - 4, 8, 8);
+        } else if ("card_musketeer".equals(cardId) || "card_archers".equals(cardId) 
+                || "card_spear_goblins".equals(cardId)) {
+            // Draw arrow/bullet
+            double angle = Math.atan2(targetDrawY - srcY, targetDrawX - srcX);
+            gc.save();
+            gc.translate(projX, projY);
+            gc.rotate(Math.toDegrees(angle));
+            gc.setFill(friendly ? Color.web("#4a90e2") : Color.web("#e74c3c"));
+            gc.fillRect(-8, -2, 16, 4);
+            gc.setFill(Color.web("#ffd700"));
+            gc.fillPolygon(new double[]{8, 8, 14}, new double[]{-3, 3, 0}, 3);
+            gc.restore();
+        } else {
+            // Default projectile (small circle)
+            gc.setFill(friendly ? Color.web("#4a90e2") : Color.web("#e74c3c"));
+            gc.fillOval(projX - 4, projY - 4, 8, 8);
+        }
     }
 
     private Image pickSheet(boolean friendly, boolean moving, boolean attacking) {
@@ -525,53 +656,6 @@ public class ArenaBoard {
         return ORC_IDLE != null ? ORC_IDLE : ORC_WALK;
     }
 
-    private boolean hasEnemyInRange(Unit unit, List<Unit> units, List<Tower> towers) {
-        if (unit == null || unit.getOwner() == null || unit.getPosition() == null) {
-            return false;
-        }
-        double range = resolveUnitRenderRange(unit);
-        TowerOwner myOwner = unit.getOwner();
-        double ux = unit.getPreciseX();
-        double uy = unit.getPreciseY();
-
-        if (units != null) {
-            for (Unit other : units) {
-                if (other == null || other == unit || other.isDefeated() || other.getOwner() == myOwner) {
-                    continue;
-                }
-                double dx = other.getPreciseX() - ux;
-                double dy = other.getPreciseY() - uy;
-                if (Math.sqrt(dx * dx + dy * dy) <= range) {
-                    return true;
-                }
-            }
-        }
-        if (towers != null) {
-            for (Tower t : towers) {
-                if (t == null || t.isDestroyed() || t.getOwner() == null || t.getPosition() == null
-                        || t.getOwner() == myOwner) {
-                    continue;
-                }
-                double dx = t.getPosition().getX() - ux;
-                double dy = t.getPosition().getY() - uy;
-                if (Math.sqrt(dx * dx + dy * dy) <= range) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private double resolveUnitRenderRange(Unit unit) {
-        // Prefer card stats range when present; otherwise use a sensible default.
-        if (unit != null && unit.getCard() != null && unit.getCard().getStats() != null) {
-            int r = unit.getCard().getStats().getRange();
-            if (r > 0) {
-                return r;
-            }
-        }
-        return 1.5;
-    }
 
     private static Image load(String resourcePath) {
         try (var in = ArenaBoard.class.getResourceAsStream(resourcePath)) {
@@ -588,11 +672,15 @@ public class ArenaBoard {
         private double lastX;
         private double lastY;
         private long lastAttackAtMs;
+        private double targetX;
+        private double targetY;
+        private boolean hasTarget;
 
         private UnitAnimState(double lastX, double lastY) {
             this.lastX = lastX;
             this.lastY = lastY;
             this.lastAttackAtMs = 0;
+            this.hasTarget = false;
         }
     }
 
