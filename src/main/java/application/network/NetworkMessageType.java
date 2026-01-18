@@ -15,6 +15,7 @@ public enum NetworkMessageType {
     REQUEST_SNAPSHOT,
     INPUT_CARD_PLACED,
     STATE_SNAPSHOT,
+    EMOTE_USED,
     DISCONNECT
 }
 

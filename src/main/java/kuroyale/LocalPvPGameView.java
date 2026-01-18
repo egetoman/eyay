@@ -46,6 +46,12 @@ import kuroyale.domain.MatchOutcome;
 import kuroyale.domain.Player;
 import kuroyale.domain.Position;
 import kuroyale.support.Result;
+import kuroyale.emote.EmoteBubbleManager;
+import kuroyale.emote.EmoteLimiter;
+import kuroyale.emote.EmotePanel;
+import kuroyale.emote.EmoteSettings;
+import kuroyale.emote.EmoteSound;
+import kuroyale.emote.EmoteType;
 
 /**
  * Phase 2 Feature 1: Local Player vs Player - Turn-based match screen.
@@ -100,6 +106,12 @@ public class LocalPvPGameView {
     private final Set<String> destroyedTowerKeys = new HashSet<>();
     private int bottomCrowns = 0;
     private int topCrowns = 0;
+    private final EmoteBubbleManager emoteBubbles;
+    private final EmoteLimiter bottomEmoteLimiter = EmoteLimiter.defaultLimiter();
+    private final EmoteLimiter topEmoteLimiter = EmoteLimiter.defaultLimiter();
+    private final EmotePanel emotePanel;
+    private final StackPane emotePanelLayer = new StackPane();
+    private boolean emoteSenderBottom = true;
 
     public LocalPvPGameView(ScreenNavigator navigator, MatchController controller, ArenaLayout selectedLayout) {
         this.navigator = navigator;
@@ -120,6 +132,15 @@ public class LocalPvPGameView {
         effectLayer.prefWidthProperty().bind(root.widthProperty());
         effectLayer.prefHeightProperty().bind(root.heightProperty());
         root.getChildren().addAll(content, effectLayer);
+
+        emotePanel = new EmotePanel(this::handleEmoteSelected);
+        emotePanelLayer.setPickOnBounds(false);
+        emotePanelLayer.getChildren().add(emotePanel.getView());
+        StackPane.setAlignment(emotePanel.getView(), Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(emotePanel.getView(), new Insets(0, 24, 120, 0));
+        root.getChildren().add(emotePanelLayer);
+
+        emoteBubbles = new EmoteBubbleManager(effectLayer);
 
         Label title = new Label("Local PvP");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
@@ -264,6 +285,14 @@ public class LocalPvPGameView {
         name.setTextFill(Color.web("#cbd0d6"));
         name.setFont(Font.font("Arial", FontWeight.BOLD, 13));
 
+        Button emoteButton = new Button("Emote");
+        emoteButton.setOnAction(e -> openEmotePanel(bottomSide));
+
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        HBox header = new HBox(8, name, headerSpacer, emoteButton);
+        header.setAlignment(Pos.CENTER_LEFT);
+
         HBox handRow = new HBox(8);
         handRow.setAlignment(Pos.CENTER_LEFT);
         for (int i = 0; i < 4; i++) {
@@ -287,7 +316,7 @@ public class LocalPvPGameView {
         deckRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox elixir = buildElixirPanel(player, bottomSide);
-        panel.getChildren().addAll(name, deckRow, elixir);
+        panel.getChildren().addAll(header, deckRow, elixir);
         return panel;
     }
 
@@ -661,6 +690,33 @@ public class LocalPvPGameView {
 
         overlayLayer.getChildren().addAll(dim, overlay);
         StackPane.setAlignment(overlay, Pos.CENTER);
+    }
+
+    private void openEmotePanel(boolean bottomSide) {
+        emoteSenderBottom = bottomSide;
+        emotePanel.toggle();
+    }
+
+    private void handleEmoteSelected(EmoteType type) {
+        if (type == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        EmoteLimiter limiter = emoteSenderBottom ? bottomEmoteLimiter : topEmoteLimiter;
+        var result = limiter.tryConsume(now);
+        if (!result.isAllowed()) {
+            showStatus("Emote blocked: " + result.getReason(), true);
+            return;
+        }
+        if (!emoteSenderBottom && EmoteSettings.isMuteOpponentEmotes()) {
+            return;
+        }
+        if (emoteSenderBottom) {
+            emoteBubbles.showForBottom(type);
+        } else {
+            emoteBubbles.showForTop(type);
+        }
+        EmoteSound.play();
     }
 
     private StackPane buildCrownPill(String caption, Label valueLabel, StackPane crownTarget, String accentColor) {
