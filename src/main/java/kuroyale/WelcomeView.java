@@ -206,7 +206,11 @@ public class WelcomeView {
         achievBtn.getStyleClass().add("secondary-button");
         achievBtn.setOnAction(e -> navigator.showAchievementScreen());
 
-        socialView.getChildren().addAll(title, historyBtn, achievBtn);
+        Button settingsBtn = new Button("Settings");
+        settingsBtn.getStyleClass().add("secondary-button");
+        settingsBtn.setOnAction(e -> navigator.showSettingsScreen());
+
+        socialView.getChildren().addAll(title, historyBtn, achievBtn, settingsBtn);
         centerContent.getChildren().clear();
         centerContent.getChildren().add(socialView);
     }

@@ -374,6 +374,13 @@ public class ScreenNavigator {
         primaryStage.setScene(scene);
     }
 
+    public void showSettingsScreen() {
+        SettingsView view = new SettingsView(this);
+        Scene scene = createScene(view.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        primaryStage.setTitle("KU Royale - Settings");
+        primaryStage.setScene(scene);
+    }
+
     public application.QuestService getQuestService() {
         return questService;
     }
