@@ -14,6 +14,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -30,6 +31,11 @@ import kuroyale.domain.Match;
 import kuroyale.domain.Player;
 import kuroyale.domain.Position;
 import kuroyale.support.Result;
+import kuroyale.emote.EmoteBubbleManager;
+import kuroyale.emote.EmoteLimiter;
+import kuroyale.emote.EmotePanel;
+import kuroyale.emote.EmoteSound;
+import kuroyale.emote.EmoteType;
 
 /**
  * Challenge match UI (Phase 2 Feature 4).
@@ -52,6 +58,11 @@ public class ChallengeMatchView {
     private Timeline ticker;
     private boolean completedHandled = false;
     private final StackPane overlayLayer = new StackPane();
+    private final Pane emoteLayer = new Pane();
+    private final EmotePanel emotePanel;
+    private final StackPane emotePanelLayer = new StackPane();
+    private final EmoteLimiter emoteLimiter = EmoteLimiter.defaultLimiter();
+    private final EmoteBubbleManager emoteBubbles;
 
     private final StartGameDeckUi deckUi;
 
@@ -98,10 +109,25 @@ public class ChallengeMatchView {
         arenaBoard.setOnTileSelected(this::handleTileSelection);
         overlayLayer.setVisible(false);
         overlayLayer.setMouseTransparent(true);
-        root.setCenter(new StackPane(arenaBoard.getView(), overlayLayer));
+        emoteLayer.setMouseTransparent(true);
+        emoteLayer.prefWidthProperty().bind(root.widthProperty());
+        emoteLayer.prefHeightProperty().bind(root.heightProperty());
+        root.setCenter(new StackPane(arenaBoard.getView(), emoteLayer, overlayLayer));
 
         deckUi = new StartGameDeckUi(player != null ? player.getDeck() : null);
-        VBox hud = new VBox(10, deckUi.getView(), statusLabel);
+        emotePanel = new EmotePanel(this::handleEmoteSelected);
+        emotePanelLayer.getChildren().add(emotePanel.getView());
+        StackPane.setAlignment(emotePanel.getView(), Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(emotePanel.getView(), new Insets(0, 24, 120, 0));
+        root.getChildren().add(emotePanelLayer);
+        emoteBubbles = new EmoteBubbleManager(emoteLayer);
+
+        Button emoteButton = new Button("Emotes");
+        emoteButton.setOnAction(e -> emotePanel.toggle());
+        HBox controls = new HBox(10, emoteButton);
+        controls.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox hud = new VBox(10, deckUi.getView(), statusLabel, controls);
         hud.setPadding(new Insets(12));
         hud.setStyle("-fx-background-color: #181b22; -fx-border-color: #2d2f36; -fx-border-width: 2 0 0 0;");
         root.setBottom(hud);
@@ -237,6 +263,20 @@ public class ChallengeMatchView {
     private void showStatus(String msg, boolean error) {
         statusLabel.setText(msg);
         statusLabel.setTextFill(error ? Color.web("#f05a5b") : Color.web("#9be564"));
+    }
+
+    private void handleEmoteSelected(EmoteType type) {
+        if (type == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        var result = emoteLimiter.tryConsume(now);
+        if (!result.isAllowed()) {
+            showStatus("Emote blocked: " + result.getReason(), true);
+            return;
+        }
+        emoteBubbles.showForBottom(type);
+        EmoteSound.play();
     }
 
     private void styleMetric(Label l) {

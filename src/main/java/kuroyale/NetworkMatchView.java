@@ -10,12 +10,11 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Window;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -26,14 +25,19 @@ import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Card;
-import kuroyale.domain.Deck;
-import kuroyale.domain.Player;
 import kuroyale.domain.Position;
 import kuroyale.domain.Tower;
 import kuroyale.domain.TowerOwner;
 import kuroyale.domain.TowerType;
 import kuroyale.domain.Unit;
 import kuroyale.infrastructure.CardCatalogRepository;
+import kuroyale.emote.EmoteBubbleManager;
+import kuroyale.emote.EmoteEvent;
+import kuroyale.emote.EmoteLimiter;
+import kuroyale.emote.EmotePanel;
+import kuroyale.emote.EmoteSettings;
+import kuroyale.emote.EmoteSound;
+import kuroyale.emote.EmoteType;
 
 /**
  * Phase 2 Feature 2: Network Multiplayer - Match screen.
@@ -63,7 +67,12 @@ public class NetworkMatchView {
     private Timeline hostTicker;
     private Timeline bootstrapTicker;
     private final StackPane overlayLayer = new StackPane();
+    private final Pane emoteLayer = new Pane();
     private boolean finishedOverlayShown = false;
+    private final EmotePanel emotePanel;
+    private final StackPane emotePanelLayer = new StackPane();
+    private final EmoteLimiter emoteLimiter = EmoteLimiter.defaultLimiter();
+    private final EmoteBubbleManager emoteBubbles;
 
     public NetworkMatchView(ScreenNavigator navigator, NetworkMatchController controller, ArenaLayout layout) {
         this.navigator = navigator;
@@ -120,7 +129,10 @@ public class NetworkMatchView {
         arenaBoard.setOnTileSelected(this::handleTileClick);
         overlayLayer.setVisible(false);
         overlayLayer.setMouseTransparent(true);
-        root.setCenter(new StackPane(arenaBoard.getView(), overlayLayer));
+        emoteLayer.setMouseTransparent(true);
+        emoteLayer.prefWidthProperty().bind(root.widthProperty());
+        emoteLayer.prefHeightProperty().bind(root.heightProperty());
+        root.setCenter(new StackPane(arenaBoard.getView(), emoteLayer, overlayLayer));
 
         // Local deck (client/host sees own deck only)
         List<Card> provided = controller != null ? controller.getLocalDeckCards() : null;
@@ -134,6 +146,14 @@ public class NetworkMatchView {
         statusLabel.setWrapText(true);
         statusLabel.setText("Select a card and click to deploy. Host is authoritative.");
 
+        emotePanel = new EmotePanel(this::handleEmoteSelected);
+        emotePanelLayer.getChildren().add(emotePanel.getView());
+        StackPane.setAlignment(emotePanel.getView(), Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(emotePanel.getView(), new Insets(0, 24, 120, 0));
+        root.getChildren().add(emotePanelLayer);
+
+        emoteBubbles = new EmoteBubbleManager(emoteLayer);
+
         Button back = new Button("Exit to Menu");
         back.setOnAction(e -> {
             stopHostTicker();
@@ -146,7 +166,10 @@ public class NetworkMatchView {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox elixirRow = new HBox(12, p1ElixirLabel, p2ElixirLabel, spacer, back);
+        Button emoteButton = new Button("Emotes");
+        emoteButton.setOnAction(e -> emotePanel.toggle());
+
+        HBox elixirRow = new HBox(12, p1ElixirLabel, p2ElixirLabel, spacer, emoteButton, back);
         elixirRow.setAlignment(Pos.CENTER_LEFT);
         p1ElixirLabel.setTextFill(Color.web("#cbd0d6"));
         p2ElixirLabel.setTextFill(Color.web("#cbd0d6"));
@@ -159,6 +182,7 @@ public class NetworkMatchView {
         // Wire controller callbacks
         controller.setOnConnectionInfo(text -> Platform.runLater(() -> connectionLabel.setText(text)));
         controller.setOnSnapshot(snap -> Platform.runLater(() -> applySnapshot(snap)));
+        controller.setOnEmote(event -> Platform.runLater(() -> handleRemoteEmote(event)));
 
         // Reconnect scenario: we may already have a snapshot cached before callbacks
         // were attached.
@@ -331,6 +355,38 @@ public class NetworkMatchView {
             finishedOverlayShown = true;
             showFinishedOverlay(snap);
         }
+    }
+
+    private void handleEmoteSelected(EmoteType type) {
+        if (type == null || controller == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        var result = emoteLimiter.tryConsume(now);
+        if (!result.isAllowed()) {
+            statusLabel.setTextFill(Color.web("#f05a5b"));
+            statusLabel.setText("Emote blocked: " + result.getReason());
+            return;
+        }
+        emoteBubbles.showForBottom(type);
+        EmoteSound.play();
+        controller.sendEmote(type);
+    }
+
+    private void handleRemoteEmote(EmoteEvent event) {
+        if (event == null || event.getEmoteType() == null || controller == null) {
+            return;
+        }
+        boolean isLocal = event.getPlayerId() == controller.getLocalPlayerId();
+        if (!isLocal && EmoteSettings.isMuteOpponentEmotes()) {
+            return;
+        }
+        if (isLocal) {
+            emoteBubbles.showForBottom(event.getEmoteType());
+        } else {
+            emoteBubbles.showForTop(event.getEmoteType());
+        }
+        EmoteSound.play();
     }
 
     private void showFinishedOverlay(NetworkSnapshot snap) {
