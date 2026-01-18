@@ -156,3 +156,46 @@
     -fx-font-weight: bold;
     -fx-font-size: 14px;
 }
+
+/* Emote UI */
+.emote-panel {
+    -fx-background-color: rgba(15, 18, 26, 0.95);
+    -fx-background-radius: 16;
+    -fx-border-color: rgba(255, 255, 255, 0.15);
+    -fx-border-radius: 16;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.6), 12, 0, 0, 6);
+}
+
+.emote-tile {
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 12;
+    -fx-padding: 8;
+    -fx-cursor: hand;
+}
+
+.emote-tile:hover {
+    -fx-border-color: #f39c12;
+}
+
+.emote-label {
+    -fx-text-fill: #cbd0d6;
+    -fx-font-size: 11px;
+}
+
+.emote-bubble {
+    -fx-background-color: rgba(20, 23, 32, 0.92);
+    -fx-background-radius: 18;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-radius: 18;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.7), 12, 0, 0, 6);
+}
+
+.emote-bubble-text {
+    -fx-text-fill: #ffd54f;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
+}

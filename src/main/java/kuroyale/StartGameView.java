@@ -49,6 +49,11 @@ import kuroyale.domain.MatchOutcome;
 import kuroyale.domain.Player;
 import kuroyale.domain.Position;
 import kuroyale.support.Result;
+import kuroyale.emote.EmoteBubbleManager;
+import kuroyale.emote.EmoteLimiter;
+import kuroyale.emote.EmotePanel;
+import kuroyale.emote.EmoteSound;
+import kuroyale.emote.EmoteType;
 
 public class StartGameView {
 
@@ -93,6 +98,10 @@ public class StartGameView {
     private final Set<String> destroyedTowerKeys = new HashSet<>();
     private int playerCrowns = 0;
     private int opponentCrowns = 0;
+    private final EmoteBubbleManager emoteBubbles;
+    private final EmoteLimiter playerEmoteLimiter = EmoteLimiter.defaultLimiter();
+    private final EmotePanel emotePanel;
+    private final StackPane emotePanelLayer = new StackPane();
 
     public StartGameView(ScreenNavigator navigator, MatchController controller, ArenaLayout selectedLayout) {
         this.navigator = navigator;
@@ -116,6 +125,16 @@ public class StartGameView {
         effectLayer.prefWidthProperty().bind(root.widthProperty());
         effectLayer.prefHeightProperty().bind(root.heightProperty());
         root.getChildren().addAll(content, effectLayer);
+
+        emotePanel = new EmotePanel(this::handleEmoteSelected);
+        emotePanelLayer.setPickOnBounds(false);
+        emotePanelLayer.setMouseTransparent(false);
+        emotePanelLayer.getChildren().add(emotePanel.getView());
+        StackPane.setAlignment(emotePanel.getView(), Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(emotePanel.getView(), new Insets(0, 24, 120, 0));
+        root.getChildren().add(emotePanelLayer);
+
+        emoteBubbles = new EmoteBubbleManager(effectLayer);
 
         Label title = new Label("Battlefield: " + selectedLayout.getName());
         title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
@@ -220,11 +239,14 @@ public class StartGameView {
         Button pauseButton = new Button("Pause");
         pauseButton.setOnAction(e -> togglePause());
 
+        Button emoteButton = new Button("Emotes");
+        emoteButton.setOnAction(e -> emotePanel.toggle());
+
         HBox controls = new HBox();
         controls.setAlignment(Pos.CENTER_RIGHT);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        controls.getChildren().addAll(spacer, pauseButton);
+        controls.getChildren().addAll(spacer, emoteButton, pauseButton);
 
         container.getChildren().addAll(deckSectionContainer, elixirPanel, statusLabel, controls);
         return container;
@@ -656,6 +678,20 @@ public class StartGameView {
             }
         }));
         comboMessageTimer.play();
+    }
+
+    private void handleEmoteSelected(EmoteType type) {
+        if (type == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        var result = playerEmoteLimiter.tryConsume(now);
+        if (!result.isAllowed()) {
+            showStatus("Emote blocked: " + result.getReason(), true);
+            return;
+        }
+        emoteBubbles.showForBottom(type);
+        EmoteSound.play();
     }
 
     private void updateComboCounter() {

@@ -20,6 +20,8 @@ import kuroyale.domain.TowerOwner;
 import kuroyale.domain.Unit;
 import kuroyale.infrastructure.CardCatalogRepository;
 import kuroyale.support.Result;
+import kuroyale.emote.EmoteEvent;
+import kuroyale.emote.EmoteType;
 
 /**
  * Controls a networked match.
@@ -46,6 +48,7 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
 
     private Consumer<NetworkSnapshot> onSnapshot;
     private Consumer<String> onConnectionInfo;
+    private Consumer<EmoteEvent> onEmote;
 
     // Disconnect / reconnect handling (Phase 2 requirement)
     private volatile Instant opponentDisconnectedAt;
@@ -77,6 +80,10 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
 
     public void setOnConnectionInfo(Consumer<String> onConnectionInfo) {
         this.onConnectionInfo = onConnectionInfo;
+    }
+
+    public void setOnEmote(Consumer<EmoteEvent> onEmote) {
+        this.onEmote = onEmote;
     }
 
     public int getLocalPlayerId() {
@@ -157,6 +164,13 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
         String data = card.getId() + "," + position.getX() + "," + position.getY();
         adapter.send(new NetworkMessage(NetworkMessageType.INPUT_CARD_PLACED, localPlayerId, data, nowStamp()));
         return Result.ok(null);
+    }
+
+    public void sendEmote(EmoteType type) {
+        if (type == null) {
+            return;
+        }
+        adapter.send(new NetworkMessage(NetworkMessageType.EMOTE_USED, localPlayerId, type.getId(), nowStamp()));
     }
 
     public void setReconnectTarget(String host, int port) {
@@ -300,10 +314,17 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
                 handleRemoteDeploy(message);
                 return;
             }
+            if (message.getType() == NetworkMessageType.EMOTE_USED) {
+                handleRemoteEmote(message);
+                return;
+            }
             return;
         }
         if (message.getType() == NetworkMessageType.STATE_SNAPSHOT) {
             handleSnapshot(message.getData());
+        }
+        if (message.getType() == NetworkMessageType.EMOTE_USED) {
+            handleRemoteEmote(message);
         }
     }
 
@@ -370,6 +391,19 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
             return;
         }
         hostMatch.deployCard(acting, card, new Position(x, y));
+    }
+
+    private void handleRemoteEmote(NetworkMessage message) {
+        if (message == null) {
+            return;
+        }
+        EmoteType type = EmoteType.fromId(message.getData());
+        if (type == null) {
+            return;
+        }
+        if (onEmote != null) {
+            onEmote.accept(new EmoteEvent(message.getPlayerId(), type, parseTimestamp(message.getTimestamp())));
+        }
     }
 
     private boolean isAllowedForPlayer(int playerId, String cardId) {
@@ -476,6 +510,14 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
 
     private String nowStamp() {
         return String.valueOf(Instant.now().toEpochMilli());
+    }
+
+    private long parseTimestamp(String stamp) {
+        try {
+            return Long.parseLong(stamp);
+        } catch (Exception e) {
+            return Instant.now().toEpochMilli();
+        }
     }
 }
 
