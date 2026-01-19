@@ -27,6 +27,12 @@ public class Unit {
     private double lifetimeSeconds;
     private double elixirGenerationCooldownSeconds;
 
+    // --- Combo modifiers (permanent until unit dies) ---
+    private double damageMultiplier = 1.0;
+    private double speedMultiplier = 1.0;
+    private int hpBonus = 0;
+    private double rangeBonus = 0.0;
+
     public Unit() {
         this.speedTilesPerSecond = DEFAULT_SPEED_TILES_PER_SECOND;
         this.attackRangeTiles = 1.5;
@@ -37,6 +43,10 @@ public class Unit {
         this.spawnCooldownSeconds = 0;
         this.lifetimeSeconds = 0;
         this.elixirGenerationCooldownSeconds = 0;
+        this.damageMultiplier = 1.0;
+        this.speedMultiplier = 1.0;
+        this.hpBonus = 0;
+        this.rangeBonus = 0.0;
     }
 
     public Unit(Card card, Position position, int currentHP, TowerOwner owner) {
@@ -55,6 +65,10 @@ public class Unit {
         this.spawnCooldownSeconds = 0;
         this.lifetimeSeconds = 0;
         this.elixirGenerationCooldownSeconds = 0;
+        this.damageMultiplier = 1.0;
+        this.speedMultiplier = 1.0;
+        this.hpBonus = 0;
+        this.rangeBonus = 0.0;
     }
 
     public Card getCard() {
@@ -85,6 +99,46 @@ public class Unit {
 
     public void setCurrentHP(int currentHP) {
         this.currentHP = currentHP;
+    }
+
+    public int getMaxHP() {
+        if (card == null || card.getStats() == null) {
+            return currentHP;
+        }
+        return Math.max(1, card.getStats().getHp() + hpBonus);
+    }
+
+    public void applyHPBonus(int bonus) {
+        if (bonus <= 0) {
+            return;
+        }
+        // Increase both max and current HP by the same amount (simple + deterministic).
+        hpBonus += bonus;
+        currentHP += bonus;
+    }
+
+    public int getEffectiveDamage() {
+        return (int) Math.round(attackDamage * damageMultiplier);
+    }
+
+    public double getEffectiveSpeed() {
+        return speedTilesPerSecond * speedMultiplier;
+    }
+
+    public double getEffectiveRange() {
+        return attackRangeTiles + rangeBonus;
+    }
+
+    public void setDamageMultiplier(double multiplier) {
+        this.damageMultiplier = Math.max(1.0, multiplier);
+    }
+
+    public void setSpeedMultiplier(double multiplier) {
+        this.speedMultiplier = Math.max(1.0, multiplier);
+    }
+
+    public void setRangeBonus(double bonus) {
+        this.rangeBonus = Math.max(0.0, bonus);
     }
 
     public TowerOwner getOwner() {
@@ -191,18 +245,20 @@ public class Unit {
             
             // Buildings can still attack if they have attack capabilities
             attackCooldownSeconds = Math.max(0, attackCooldownSeconds - deltaSeconds);
-            if (attackDamage > 0 && attackCooldownSeconds <= 0 && attackRangeTiles > 0) {
+            double effectiveRange = getEffectiveRange();
+            if (attackDamage > 0 && attackCooldownSeconds <= 0 && effectiveRange > 0) {
                 // Find nearest enemy in range (respecting ground/flying restrictions)
-                Unit nearestEnemy = arena.findNearestEnemyUnit(owner, position, attackRangeTiles, this);
+                Unit nearestEnemy = arena.findNearestEnemyUnit(owner, position, effectiveRange, this);
                 if (nearestEnemy != null) {
+                    int effectiveDamage = getEffectiveDamage();
                     // Check if this building has area of effect attacks
                     double splashRadius = getSplashRadius();
                     if (splashRadius > 0) {
                         // AoE attack - damage all enemies in splash radius around the target
-                        performAoEAttack(arena, nearestEnemy.getPosition(), splashRadius);
+                        performAoEAttack(arena, nearestEnemy.getPosition(), splashRadius, effectiveDamage);
                     } else {
                         // Single target attack
-                        nearestEnemy.takeDamage(attackDamage);
+                        nearestEnemy.takeDamage(effectiveDamage);
                     }
                     attackCooldownSeconds = attackIntervalSeconds;
                 }
@@ -227,7 +283,7 @@ public class Unit {
             double dx = targetTower.getPosition().getX() - preciseX;
             double dy = targetTower.getPosition().getY() - preciseY;
             double distanceToTower = Math.sqrt(dx * dx + dy * dy);
-            lockedOntoTower = (distanceToTower <= attackRangeTiles);
+            lockedOntoTower = (distanceToTower <= getEffectiveRange());
         }
 
         // Only acquire new targets if NOT locked onto a tower
@@ -265,11 +321,11 @@ public class Unit {
         boolean headingToFinalTargetEquals = travelTarget != null && targetPosition != null && travelTarget.equals(targetPosition);
         if (headingToFinalTarget != headingToFinalTargetEquals) { try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"B\",\"location\":\"Unit.java:261\",\"message\":\"Reference vs equals mismatch\",\"data\":{\"refEqual\":" + headingToFinalTarget + ",\"valueEqual\":" + headingToFinalTargetEquals + ",\"travelTargetX\":" + (travelTarget != null ? travelTarget.getX() : -1) + ",\"travelTargetY\":" + (travelTarget != null ? travelTarget.getY() : -1) + ",\"targetPosX\":" + (targetPosition != null ? targetPosition.getX() : -1) + ",\"targetPosY\":" + (targetPosition != null ? targetPosition.getY() : -1) + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {} }
         // #endregion
-        boolean inRange = headingToFinalTargetEquals && distance <= attackRangeTiles;
+        boolean inRange = headingToFinalTargetEquals && distance <= getEffectiveRange();
 
         // MOVEMENT: Move if not in attack range
         if (!inRange) {
-            double step = speedTilesPerSecond * deltaSeconds;
+            double step = getEffectiveSpeed() * deltaSeconds;
             double newX = preciseX;
             double newY = preciseY;
             
@@ -344,6 +400,7 @@ public class Unit {
 
         // ATTACK: Attack if in range and cooldown ready (independent of movement)
         if (inRange && attackCooldownSeconds <= 0 && attackDamage > 0) {
+            int effectiveDamage = getEffectiveDamage();
             // Check if this unit has area of effect attacks
             double splashRadius = getSplashRadius();
             if (splashRadius > 0) {
@@ -351,20 +408,20 @@ public class Unit {
                 Position attackPosition = attackingTower && targetTower != null ? targetTower.getPosition() 
                     : (targetEnemyUnit != null ? targetEnemyUnit.getPosition() : position);
                 if (attackPosition != null) {
-                    performAoEAttack(arena, attackPosition, splashRadius);
+                    performAoEAttack(arena, attackPosition, splashRadius, effectiveDamage);
                 }
             } else {
                 // Single target attack
                 if (attackingTower) {
-                    targetTower.takeDamage(attackDamage);
+                    targetTower.takeDamage(effectiveDamage);
                 } else if (targetEnemyUnit != null && canAttackUnit(targetEnemyUnit)) {
                     // Re-check canAttackUnit to ensure ground units don't attack flying targets
-                    targetEnemyUnit.takeDamage(attackDamage);
+                    targetEnemyUnit.takeDamage(effectiveDamage);
                     // Immediately check if target was defeated and try to find new one
                     if (targetEnemyUnit.isDefeated()) {
                         targetEnemyUnit = null;
                         // Try to immediately acquire a new enemy unit (respecting ground/flying restrictions)
-                        double detectionRadius = Math.max(attackRangeTiles * 1.5, 2.5);
+                        double detectionRadius = Math.max(getEffectiveRange() * 1.5, 2.5);
                         Unit newTarget = arena.findNearestEnemyUnit(owner, position, detectionRadius, this);
                         if (newTarget != null) {
                             targetEnemyUnit = newTarget;
@@ -447,7 +504,7 @@ public class Unit {
 
         // Normal targeting logic for units that can attack troops
         // Reduced detection radius for more natural engagement (1.5x instead of 2x)
-        double detectionRadius = Math.max(attackRangeTiles * 1.5, 2.5);
+        double detectionRadius = Math.max(getEffectiveRange() * 1.5, 2.5);
         if (targetEnemyUnit == null || targetEnemyUnit.isDefeated()) {
             Unit candidate = arena.findNearestEnemyUnit(owner, position, detectionRadius, this);
             if (candidate != null) {
@@ -646,7 +703,7 @@ public class Unit {
     /**
      * Performs an area of effect attack, damaging all enemies within the splash radius.
      */
-    private void performAoEAttack(Arena arena, Position center, double splashRadius) {
+    private void performAoEAttack(Arena arena, Position center, double splashRadius, int damage) {
         if (arena == null || center == null || splashRadius <= 0) {
             return;
         }
@@ -657,7 +714,7 @@ public class Unit {
             if (unit != null && !unit.isDefeated() && unit.getOwner() != owner) {
                 // Check if we can attack this unit (respects ground/flying restrictions)
                 if (canAttackUnit(unit)) {
-                    unit.takeDamage(attackDamage);
+                    unit.takeDamage(damage);
                 }
             }
         }
@@ -667,7 +724,7 @@ public class Unit {
             List<Tower> towersInRadius = arena.findTowersInRadius(center, splashRadius);
             for (Tower tower : towersInRadius) {
                 if (tower != null && !tower.isDestroyed() && tower.getOwner() != owner) {
-                    tower.takeDamage(attackDamage);
+                    tower.takeDamage(damage);
                 }
             }
         }

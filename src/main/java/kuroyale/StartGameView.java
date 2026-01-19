@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import application.ComboDetector;
+import application.ComboEffectApplier;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.ParallelTransition;
@@ -49,6 +50,9 @@ import kuroyale.domain.Match;
 import kuroyale.domain.MatchOutcome;
 import kuroyale.domain.Player;
 import kuroyale.domain.Position;
+import kuroyale.domain.Unit;
+import kuroyale.infrastructure.PlayerProfileRepository;
+import kuroyale.infrastructure.GameEventLogger;
 import kuroyale.support.Result;
 import kuroyale.emote.EmoteBubbleManager;
 import kuroyale.emote.EmoteLimiter;
@@ -114,8 +118,11 @@ public class StartGameView {
         this.comboDetector = new ComboDetector();
         this.comboDetector.setListener((comboType, comboName, effectDescription) -> {
             showComboMessage(comboName, effectDescription);
+            GameEventLogger.log("COMBO_TRIGGERED type=" + comboType + " name=\"" + comboName + "\"");
         });
         initializeDeckState(resolveDeckCards());
+        GameEventLogger.resetForMatch();
+        GameEventLogger.log("MATCH_START arena=" + (selectedLayout != null ? selectedLayout.getName() : "unknown"));
 
         root = new StackPane();
         content = new BorderPane();
@@ -357,12 +364,15 @@ public class StartGameView {
             showStatus("Selected slot is empty.", true);
             return;
         }
-        Result<?> result = controller != null ? controller.deployCard(player, card, tile)
+        Result<Unit> result = controller != null ? controller.deployCard(player, card, tile)
                 : Result.fail("Match controller missing.");
         if (!result.isSuccess()) {
             showStatus(result.getMessage(), true);
             return;
         }
+
+        Unit deployedUnit = result.getData();
+        GameEventLogger.log("CARD_PLAY id=" + card.getId() + " name=\"" + card.getName() + "\" pos=(" + tile.getX() + "," + tile.getY() + ")");
 
         // Record spell cast for visual effects
         if (card.getType() == CardType.SPELL) {
@@ -371,8 +381,23 @@ public class StartGameView {
 
         // Record card play for combo detection
         double currentTime = match != null ? match.getElapsedSeconds() : 0.0;
-        comboDetector.recordCardPlay(card, currentTime);
+        var triggeredCombo = comboDetector.recordCardPlay(card, currentTime);
         updateComboCounter();
+        
+        // Apply combo effects + Spell Synergy refund immediately on trigger
+        if (triggeredCombo != null && match != null && match.getArena() != null) {
+            ComboEffectApplier.apply(
+                    triggeredCombo,
+                    match.getArena(),
+                    kuroyale.domain.TowerOwner.PLAYER,
+                    card,
+                    deployedUnit,
+                    player);
+            if (triggeredCombo == kuroyale.domain.ComboType.SPELL_SYNERGY) {
+                GameEventLogger.log("ELIXIR_REFUND amount=1 reason=SPELL_SYNERGY");
+                updateElixirHud(); // immediate bar update for refund
+            }
+        }
 
         cycleCard(selectedHandIndex);
         showStatus(card.getName() + " deployed at (" + tile.getX() + ", " + tile.getY() + ").", false);
@@ -481,6 +506,19 @@ public class StartGameView {
                 : "Opponent";
         String bottomName = (player != null && player.getName() != null) ? player.getName() : "You";
 
+        int comboCount = comboDetector.getTriggeredComboCount(); // unique combos triggered in match
+        int comboGold = comboCount * 10;
+        // Persist rewards to player profile
+        try {
+            PlayerProfileRepository repo = new PlayerProfileRepository();
+            var profile = repo.load();
+            profile.addGold(comboGold);
+            repo.save(profile);
+        } catch (Exception e) {
+            System.err.println("Failed to award combo gold: " + e.getMessage());
+        }
+        GameEventLogger.log("MATCH_END outcome=" + headline + " combos=" + comboCount + " comboGold=" + comboGold);
+
         MatchEndOverlay.show(
                 overlayLayer,
                 topName,
@@ -499,7 +537,9 @@ public class StartGameView {
                     if (navigator != null) {
                         navigator.showWelcomeScreen();
                     }
-                });
+                },
+                comboCount,
+                comboGold);
     }
 
     private void stopTicker() {
