@@ -26,6 +26,7 @@ import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 import kuroyale.domain.Arena;
 import kuroyale.domain.ArenaLayout;
+import kuroyale.domain.CardType;
 import kuroyale.domain.ElixirPhase;
 import kuroyale.domain.Match;
 import kuroyale.domain.Player;
@@ -155,6 +156,12 @@ public class ChallengeMatchView {
             showStatus(result.getMessage(), true);
             return;
         }
+        
+        // Record spell cast for visual effects
+        if (selected.getType() == CardType.SPELL) {
+            arenaBoard.recordSpellCast(selected.getId(), tile);
+        }
+        
         deckUi.onCardPlayed();
         showStatus("Deployed " + selected.getName() + ".", false);
         renderArena();

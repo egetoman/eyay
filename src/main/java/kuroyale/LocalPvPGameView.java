@@ -40,6 +40,7 @@ import application.MatchController;
 import kuroyale.domain.Arena;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Card;
+import kuroyale.domain.CardType;
 import kuroyale.domain.ElixirPhase;
 import kuroyale.domain.Match;
 import kuroyale.domain.MatchOutcome;
@@ -385,6 +386,11 @@ public class LocalPvPGameView {
         if (!result.isSuccess()) {
             showStatus(result.getMessage(), true);
             return;
+        }
+
+        // Record spell cast for visual effects
+        if (card.getType() == CardType.SPELL) {
+            arenaBoard.recordSpellCast(card.getId(), tile);
         }
 
         hand.cycle(selectedIndex);

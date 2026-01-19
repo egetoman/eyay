@@ -1,6 +1,8 @@
 package kuroyale;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -52,6 +54,7 @@ public class ArenaBoard {
     private final boolean flipVertical;
     private List<Tower> currentTowers = Collections.emptyList();
     private final Map<Unit, UnitAnimState> animByUnit = new WeakHashMap<>();
+    private final List<SpellEffect> activeSpellEffects = new ArrayList<>();
 
     public ArenaBoard(ArenaLayout layout) {
         this(layout, false);
@@ -110,6 +113,19 @@ public class ArenaBoard {
         currentTowers = layout.getTowers();
         drawArena(gc, layout);
         drawUnits(gc, layout, units);
+        drawSpellEffects(gc);
+    }
+
+    /**
+     * Records a spell cast for visual effect rendering.
+     * @param spellId The ID of the spell card (e.g., "card_fireball", "card_arrows")
+     * @param position The target position where the spell was cast
+     */
+    public void recordSpellCast(String spellId, Position position) {
+        if (spellId == null || position == null) {
+            return;
+        }
+        activeSpellEffects.add(new SpellEffect(spellId, position, System.currentTimeMillis()));
     }
 
     public void render(Arena arena) {
@@ -122,6 +138,7 @@ public class ArenaBoard {
         currentTowers = arena.getTowers() != null ? arena.getTowers() : layout.getTowers();
         drawLiveTowers(gc, layout, currentTowers);
         drawUnits(gc, layout, arena.getUnits());
+        drawSpellEffects(gc);
     }
 
     private void handleCanvasClick(MouseEvent event) {
@@ -696,5 +713,514 @@ public class ArenaBoard {
             return gridY * TILE_SIZE;
         }
         return (layout.getHeight() - gridY - 1) * TILE_SIZE;
+    }
+
+    private void drawSpellEffects(GraphicsContext gc) {
+        if (gc == null || activeSpellEffects.isEmpty()) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        Iterator<SpellEffect> it = activeSpellEffects.iterator();
+        
+        while (it.hasNext()) {
+            SpellEffect effect = it.next();
+            long age = now - effect.castTime;
+            
+            // Remove effects older than 1.5 seconds
+            if (age > 1500) {
+                it.remove();
+                continue;
+            }
+            
+            // Calculate position in pixels
+            double centerX = effect.position.getX() * TILE_SIZE + TILE_SIZE / 2.0;
+            double centerY = convertY(layout, effect.position.getY()) + TILE_SIZE / 2.0;
+            
+            // Draw spell effect based on type
+            drawSpellEffect(gc, effect.spellId, centerX, centerY, age);
+        }
+    }
+
+    private void drawSpellEffect(GraphicsContext gc, String spellId, double centerX, double centerY, long ageMs) {
+        if (gc == null || spellId == null) {
+            return;
+        }
+        
+        // Calculate animation progress (0 to 1)
+        double progress = Math.min(1.0, ageMs / 1500.0);
+        double fadeOut = 1.0 - progress; // Fade out over time
+        
+        if ("card_fireball".equals(spellId)) {
+            drawFireballEffect(gc, centerX, centerY, ageMs, fadeOut);
+        } else if ("card_arrows".equals(spellId)) {
+            drawArrowsEffect(gc, centerX, centerY, ageMs, fadeOut);
+        } else if ("card_zap".equals(spellId)) {
+            drawZapEffect(gc, centerX, centerY, ageMs, fadeOut);
+        } else if ("card_rocket".equals(spellId)) {
+            drawRocketEffect(gc, centerX, centerY, ageMs, fadeOut);
+        }
+    }
+
+    private void drawFireballEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
+        // Advanced multi-layered fireball explosion with particles, shockwaves, and animated effects
+        
+        // Phase 1: Initial flash (0-100ms)
+        if (ageMs < 100) {
+            double flashIntensity = 1.0 - (ageMs / 100.0);
+            gc.setFill(Color.web("#ffffff", flashIntensity * 0.9 * fadeOut));
+            gc.fillOval(centerX - 25, centerY - 25, 50, 50);
+        }
+        
+        // Shockwave rings (expanding outward)
+        double shockwaveSpeed = 0.8;
+        for (int ring = 0; ring < 3; ring++) {
+            double ringRadius = (ageMs * shockwaveSpeed) - (ring * 30);
+            if (ringRadius > 0 && ringRadius < 60) {
+                double ringAlpha = Math.max(0, 0.4 * (1.0 - ringRadius / 60.0) * fadeOut);
+                gc.setStroke(Color.web("#ff8800", ringAlpha));
+                gc.setLineWidth(3 - ring);
+                gc.strokeOval(centerX - ringRadius, centerY - ringRadius, ringRadius * 2, ringRadius * 2);
+            }
+        }
+        
+        // Main explosion - expanding with easing
+        double easeOut = 1.0 - Math.pow(1.0 - Math.min(ageMs / 800.0, 1.0), 3);
+        double radius = 8 + (easeOut * 35);
+        
+        // Outer fire ring with gradient effect
+        for (int layer = 0; layer < 5; layer++) {
+            double layerRadius = radius * (1.0 - layer * 0.15);
+            double layerAlpha = (0.5 - layer * 0.08) * fadeOut;
+            Color layerColor = Color.web(
+                String.format("#ff%02x00", 68 - layer * 8),
+                layerAlpha
+            );
+            gc.setFill(layerColor);
+            gc.fillOval(centerX - layerRadius, centerY - layerRadius, layerRadius * 2, layerRadius * 2);
+        }
+        
+        // Inner core with pulsating effect
+        double pulse = 0.8 + 0.2 * Math.sin(ageMs / 30.0);
+        double coreRadius = radius * 0.35 * pulse;
+        gc.setFill(Color.web("#ffff00", 0.95 * fadeOut));
+        gc.fillOval(centerX - coreRadius, centerY - coreRadius, coreRadius * 2, coreRadius * 2);
+        
+        // Bright white center
+        gc.setFill(Color.web("#ffffff", 0.8 * fadeOut));
+        gc.fillOval(centerX - coreRadius * 0.5, centerY - coreRadius * 0.5, coreRadius, coreRadius);
+        
+        // Particle sparks with varying sizes and velocities
+        if (ageMs < 500) {
+            int numParticles = 16;
+            for (int i = 0; i < numParticles; i++) {
+                double angle = (i * Math.PI * 2 / numParticles) + (ageMs / 80.0);
+                double particleSpeed = 0.3 + (i % 3) * 0.1;
+                double particleDist = radius * 0.6 + (ageMs * particleSpeed);
+                double particleX = centerX + Math.cos(angle) * particleDist;
+                double particleY = centerY + Math.sin(angle) * particleDist;
+                
+                // Varying particle sizes
+                double particleSize = 2 + (i % 3);
+                double particleFade = Math.max(0, 1.0 - (particleDist / 50.0)) * fadeOut;
+                
+                // Color gradient from yellow to orange
+                Color particleColor = Color.web(
+                    i % 2 == 0 ? "#ffff00" : "#ff8800",
+                    particleFade * 0.8
+                );
+                gc.setFill(particleColor);
+                gc.fillOval(particleX - particleSize, particleY - particleSize, particleSize * 2, particleSize * 2);
+            }
+        }
+        
+        // Smoke/debris particles (appear after initial explosion)
+        if (ageMs > 150 && ageMs < 800) {
+            int numSmoke = 8;
+            for (int i = 0; i < numSmoke; i++) {
+                double angle = (i * Math.PI * 2 / numSmoke) + (ageMs / 120.0);
+                double smokeDist = radius * 0.4 + ((ageMs - 150) * 0.15);
+                double smokeX = centerX + Math.cos(angle) * smokeDist;
+                double smokeY = centerY + Math.sin(angle) * smokeDist;
+                double smokeSize = 4 + (ageMs / 100.0);
+                double smokeAlpha = Math.max(0, 0.4 * (1.0 - (ageMs - 150) / 650.0) * fadeOut);
+                
+                gc.setFill(Color.web("#333333", smokeAlpha));
+                gc.fillOval(smokeX - smokeSize, smokeY - smokeSize, smokeSize * 2, smokeSize * 2);
+            }
+        }
+    }
+
+    private void drawArrowsEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
+        // Advanced arrows rain effect with multiple impact points, trails, and debris
+        
+        // Expanding impact radius
+        double easeOut = 1.0 - Math.pow(1.0 - Math.min(ageMs / 600.0, 1.0), 2);
+        double radius = 12 + (easeOut * 28);
+        
+        // Number of arrow impacts (more arrows = more coverage)
+        int numArrows = 8;
+        
+        // Draw arrow impacts with staggered timing
+        for (int i = 0; i < numArrows; i++) {
+            double angle = (i * Math.PI * 2 / numArrows);
+            double staggerDelay = i * 20; // Stagger each arrow by 20ms
+            double adjustedAge = Math.max(0, ageMs - staggerDelay);
+            
+            if (adjustedAge < 0) continue;
+            
+            // Arrow impact position (spread in circular pattern)
+            double dist = radius * (0.4 + (i % 3) * 0.2);
+            double arrowX = centerX + Math.cos(angle) * dist;
+            double arrowY = centerY + Math.sin(angle) * dist;
+            
+            // Arrow trail (visible during first 100ms)
+            if (adjustedAge < 100) {
+                double trailLength = 12 + (adjustedAge / 5.0);
+                double trailEndX = arrowX - Math.cos(angle) * trailLength;
+                double trailEndY = arrowY - Math.sin(angle) * trailLength;
+                
+                // Trail with gradient
+                gc.setStroke(Color.web("#ffaa00", 0.6 * fadeOut));
+                gc.setLineWidth(2);
+                gc.strokeLine(trailEndX, trailEndY, arrowX, arrowY);
+                
+                // Trail glow
+                gc.setStroke(Color.web("#ffff00", 0.3 * fadeOut));
+                gc.setLineWidth(4);
+                gc.strokeLine(trailEndX, trailEndY, arrowX, arrowY);
+            }
+            
+            // Impact flash (brief bright circle)
+            if (adjustedAge < 80) {
+                double flashSize = 6 + (adjustedAge / 10.0);
+                double flashAlpha = (1.0 - adjustedAge / 80.0) * fadeOut;
+                gc.setFill(Color.web("#ffffff", flashAlpha));
+                gc.fillOval(arrowX - flashSize, arrowY - flashSize, flashSize * 2, flashSize * 2);
+            }
+            
+            // Impact circle (expanding then fading)
+            double impactSize = 3 + Math.min(adjustedAge / 15.0, 6);
+            double impactAlpha = Math.max(0, (1.0 - adjustedAge / 300.0) * 0.7 * fadeOut);
+            gc.setFill(Color.web("#ffaa00", impactAlpha));
+            gc.fillOval(arrowX - impactSize, arrowY - impactSize, impactSize * 2, impactSize * 2);
+            
+            // Debris particles (small sparks flying outward)
+            if (adjustedAge < 200) {
+                for (int j = 0; j < 3; j++) {
+                    double debrisAngle = angle + (j - 1) * 0.3;
+                    double debrisDist = impactSize + (adjustedAge * 0.2);
+                    double debrisX = arrowX + Math.cos(debrisAngle) * debrisDist;
+                    double debrisY = arrowY + Math.sin(debrisAngle) * debrisDist;
+                    double debrisAlpha = (1.0 - adjustedAge / 200.0) * fadeOut;
+                    
+                    gc.setFill(Color.web("#ffff00", debrisAlpha * 0.6));
+                    gc.fillOval(debrisX - 1.5, debrisY - 1.5, 3, 3);
+                }
+            }
+        }
+        
+        // Central impact zone (larger area effect)
+        double centralRadius = 6 + (easeOut * 12);
+        double centralAlpha = Math.max(0, (1.0 - ageMs / 500.0) * 0.5 * fadeOut);
+        
+        // Outer ring
+        gc.setFill(Color.web("#ffaa00", centralAlpha));
+        gc.fillOval(centerX - centralRadius, centerY - centralRadius, centralRadius * 2, centralRadius * 2);
+        
+        // Inner bright core
+        double coreRadius = centralRadius * 0.5;
+        gc.setFill(Color.web("#ffff00", centralAlpha * 1.5));
+        gc.fillOval(centerX - coreRadius, centerY - coreRadius, coreRadius * 2, coreRadius * 2);
+        
+        // Shockwave ring
+        if (ageMs < 400) {
+            double shockwaveRadius = radius * 0.8 + (ageMs * 0.2);
+            double shockwaveAlpha = Math.max(0, 0.3 * (1.0 - ageMs / 400.0) * fadeOut);
+            gc.setStroke(Color.web("#ffaa00", shockwaveAlpha));
+            gc.setLineWidth(2);
+            gc.strokeOval(centerX - shockwaveRadius, centerY - shockwaveRadius, shockwaveRadius * 2, shockwaveRadius * 2);
+        }
+    }
+
+    private void drawZapEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
+        // Advanced lightning zap effect with multiple bolts, electric arcs, and pulsing energy
+        
+        // Phase 1: Initial bright flash (0-50ms)
+        if (ageMs < 50) {
+            double flashIntensity = 1.0 - (ageMs / 50.0);
+            gc.setFill(Color.web("#ffffff", flashIntensity * fadeOut));
+            gc.fillOval(centerX - 20, centerY - 20, 40, 40);
+        }
+        
+        // Pulsing central core
+        double pulse = 0.7 + 0.3 * Math.sin(ageMs / 25.0);
+        double coreRadius = 8 * pulse;
+        
+        // Bright yellow-white core
+        gc.setFill(Color.web("#ffff00", 0.95 * fadeOut));
+        gc.fillOval(centerX - coreRadius, centerY - coreRadius, coreRadius * 2, coreRadius * 2);
+        
+        // White hot center
+        gc.setFill(Color.web("#ffffff", 0.9 * fadeOut));
+        gc.fillOval(centerX - coreRadius * 0.5, centerY - coreRadius * 0.5, coreRadius, coreRadius);
+        
+        // Electric field rings (expanding outward)
+        for (int ring = 0; ring < 4; ring++) {
+            double ringRadius = 10 + (ageMs * 0.15) + (ring * 8);
+            if (ringRadius < 35) {
+                double ringAlpha = Math.max(0, 0.4 * (1.0 - ringRadius / 35.0) * fadeOut);
+                double ringPhase = (ageMs / 30.0) + (ring * Math.PI / 4);
+                
+                // Animated electric ring with segments
+                gc.setStroke(Color.web("#00ffff", ringAlpha));
+                gc.setLineWidth(2);
+                
+                // Draw segmented ring (electric arcs)
+                int segments = 8;
+                for (int seg = 0; seg < segments; seg++) {
+                    double segAngle1 = (seg * Math.PI * 2 / segments) + ringPhase;
+                    double segAngle2 = ((seg + 1) * Math.PI * 2 / segments) + ringPhase;
+                    double x1 = centerX + Math.cos(segAngle1) * ringRadius;
+                    double y1 = centerY + Math.sin(segAngle1) * ringRadius;
+                    double x2 = centerX + Math.cos(segAngle2) * ringRadius;
+                    double y2 = centerY + Math.sin(segAngle2) * ringRadius;
+                    
+                    // Only draw some segments (flickering effect)
+                    if ((seg + (int)(ageMs / 50)) % 2 == 0) {
+                        gc.strokeLine(x1, y1, x2, y2);
+                    }
+                }
+            }
+        }
+        
+        // Main lightning bolts (zigzag patterns radiating outward)
+        if (ageMs < 350) {
+            int numBolts = 6;
+            for (int i = 0; i < numBolts; i++) {
+                double angle = (i * Math.PI * 2 / numBolts) + (ageMs / 100.0);
+                double boltLength = 15 + (ageMs * 0.1);
+                double endX = centerX + Math.cos(angle) * boltLength;
+                double endY = centerY + Math.sin(angle) * boltLength;
+                
+                // Main bolt (bright white)
+                drawLightningBolt(gc, centerX, centerY, endX, endY, Color.web("#ffffff", fadeOut), 2.5);
+                
+                // Secondary bolt (cyan, slightly offset)
+                double offsetAngle = angle + 0.2;
+                double offsetEndX = centerX + Math.cos(offsetAngle) * boltLength * 0.8;
+                double offsetEndY = centerY + Math.sin(offsetAngle) * boltLength * 0.8;
+                drawLightningBolt(gc, centerX, centerY, offsetEndX, offsetEndY, Color.web("#00ffff", fadeOut * 0.6), 1.5);
+            }
+        }
+        
+        // Electric sparks (small particles)
+        if (ageMs < 300) {
+            int numSparks = 12;
+            for (int i = 0; i < numSparks; i++) {
+                double sparkAngle = (i * Math.PI * 2 / numSparks) + (ageMs / 60.0);
+                double sparkDist = 8 + (ageMs * 0.12);
+                double sparkX = centerX + Math.cos(sparkAngle) * sparkDist;
+                double sparkY = centerY + Math.sin(sparkAngle) * sparkDist;
+                double sparkSize = 1.5 + (i % 2) * 0.5;
+                double sparkAlpha = Math.max(0, (1.0 - ageMs / 300.0) * fadeOut);
+                
+                gc.setFill(Color.web("#ffff00", sparkAlpha));
+                gc.fillOval(sparkX - sparkSize, sparkY - sparkSize, sparkSize * 2, sparkSize * 2);
+            }
+        }
+        
+        // Stun effect indicator (pulsing rings)
+        if (ageMs < 500) {
+            double stunRadius = 12 + Math.sin(ageMs / 40.0) * 2;
+            double stunAlpha = Math.max(0, 0.3 * (1.0 - ageMs / 500.0) * fadeOut);
+            gc.setStroke(Color.web("#00ffff", stunAlpha));
+            gc.setLineWidth(2);
+            gc.strokeOval(centerX - stunRadius, centerY - stunRadius, stunRadius * 2, stunRadius * 2);
+        }
+    }
+    
+    private void drawLightningBolt(GraphicsContext gc, double startX, double startY, double endX, double endY, Color color, double lineWidth) {
+        gc.setStroke(color);
+        gc.setLineWidth(lineWidth);
+        
+        // Create jagged lightning path with deterministic "randomness"
+        double distance = Math.sqrt((endX - startX) * (endX - startX) + (endY - startY) * (endY - startY));
+        int segments = Math.max(3, (int)(distance / 4));
+        
+        double prevX = startX;
+        double prevY = startY;
+        double angle = Math.atan2(endY - startY, endX - startX);
+        
+        // Use deterministic pseudo-randomness based on position
+        double seed = (startX + startY) * 17.0 + (endX + endY) * 23.0;
+        
+        for (int i = 1; i <= segments; i++) {
+            double t = i / (double) segments;
+            double baseX = startX + (endX - startX) * t;
+            double baseY = startY + (endY - startY) * t;
+            
+            // Add deterministic offset perpendicular to the line
+            double perpAngle = angle + Math.PI / 2;
+            // Pseudo-random offset using sine of seed + segment
+            double pseudoRandom = Math.sin(seed + i * 7.3) * 0.5 + 0.5;
+            double offset = (pseudoRandom - 0.5) * 4 * (1.0 - t * 0.5); // Less offset near end
+            double x = baseX + Math.cos(perpAngle) * offset;
+            double y = baseY + Math.sin(perpAngle) * offset;
+            
+            gc.strokeLine(prevX, prevY, x, y);
+            prevX = x;
+            prevY = y;
+        }
+        
+        // Final segment to end point
+        gc.strokeLine(prevX, prevY, endX, endY);
+    }
+
+    private void drawRocketEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
+        // Advanced rocket explosion - massive, multi-stage explosion with debris, shockwaves, and smoke
+        
+        // Phase 1: Massive initial flash (0-80ms)
+        if (ageMs < 80) {
+            double flashIntensity = 1.0 - (ageMs / 80.0);
+            gc.setFill(Color.web("#ffffff", flashIntensity * 0.95 * fadeOut));
+            gc.fillOval(centerX - 35, centerY - 35, 70, 70);
+        }
+        
+        // Multiple shockwave rings (expanding rapidly)
+        double shockwaveSpeed = 1.2;
+        for (int wave = 0; wave < 5; wave++) {
+            double waveRadius = (ageMs * shockwaveSpeed) - (wave * 25);
+            if (waveRadius > 0 && waveRadius < 80) {
+                double waveAlpha = Math.max(0, 0.5 * (1.0 - waveRadius / 80.0) * fadeOut);
+                gc.setStroke(Color.web("#ff8800", waveAlpha));
+                gc.setLineWidth(4 - wave);
+                gc.strokeOval(centerX - waveRadius, centerY - waveRadius, waveRadius * 2, waveRadius * 2);
+            }
+        }
+        
+        // Main explosion - massive expanding fireball with easing
+        double easeOut = 1.0 - Math.pow(1.0 - Math.min(ageMs / 1000.0, 1.0), 2);
+        double radius = 15 + (easeOut * 45);
+        
+        // Multi-layered explosion (5 layers for depth)
+        for (int layer = 0; layer < 6; layer++) {
+            double layerRadius = radius * (1.0 - layer * 0.12);
+            double layerAlpha = (0.6 - layer * 0.08) * fadeOut;
+            
+            // Color gradient from white-hot center to orange-red edges
+            int red = 255 - layer * 15;
+            int green = Math.max(100, 255 - layer * 25);
+            Color layerColor = Color.web(
+                String.format("#%02x%02x00", Math.min(255, red), Math.min(255, green)),
+                layerAlpha
+            );
+            gc.setFill(layerColor);
+            gc.fillOval(centerX - layerRadius, centerY - layerRadius, layerRadius * 2, layerRadius * 2);
+        }
+        
+        // Pulsating inner core
+        double pulse = 0.85 + 0.15 * Math.sin(ageMs / 20.0);
+        double coreRadius = radius * 0.4 * pulse;
+        gc.setFill(Color.web("#ffff00", 0.98 * fadeOut));
+        gc.fillOval(centerX - coreRadius, centerY - coreRadius, coreRadius * 2, coreRadius * 2);
+        
+        // Bright white center
+        double whiteCoreRadius = coreRadius * 0.4;
+        gc.setFill(Color.web("#ffffff", 0.95 * fadeOut));
+        gc.fillOval(centerX - whiteCoreRadius, centerY - whiteCoreRadius, whiteCoreRadius * 2, whiteCoreRadius * 2);
+        
+        // Large debris chunks (flying outward)
+        if (ageMs < 600) {
+            int numDebris = 16;
+            for (int i = 0; i < numDebris; i++) {
+                double angle = (i * Math.PI * 2 / numDebris) + (ageMs / 50.0);
+                double debrisSpeed = 0.25 + (i % 4) * 0.08;
+                double debrisDist = radius * 0.5 + (ageMs * debrisSpeed);
+                double debrisX = centerX + Math.cos(angle) * debrisDist;
+                double debrisY = centerY + Math.sin(angle) * debrisDist;
+                
+                // Varying debris sizes
+                double debrisSize = 3 + (i % 3) * 1.5;
+                double debrisFade = Math.max(0, 1.0 - (debrisDist / 70.0)) * fadeOut;
+                
+                // Debris color (orange to dark)
+                Color debrisColor = Color.web(
+                    i % 2 == 0 ? "#ff6600" : "#cc4400",
+                    debrisFade * 0.7
+                );
+                gc.setFill(debrisColor);
+                gc.fillOval(debrisX - debrisSize, debrisY - debrisSize, debrisSize * 2, debrisSize * 2);
+            }
+        }
+        
+        // Massive particle burst (sparks)
+        if (ageMs < 500) {
+            int numSparks = 24;
+            for (int i = 0; i < numSparks; i++) {
+                double angle = (i * Math.PI * 2 / numSparks) + (ageMs / 35.0);
+                double sparkSpeed = 0.4 + (i % 5) * 0.1;
+                double sparkDist = radius * 0.6 + (ageMs * sparkSpeed);
+                double sparkX = centerX + Math.cos(angle) * sparkDist;
+                double sparkY = centerY + Math.sin(angle) * sparkDist;
+                
+                double sparkSize = 2 + (ageMs / 80.0);
+                double sparkFade = Math.max(0, 1.0 - (sparkDist / 65.0)) * fadeOut;
+                
+                gc.setFill(Color.web("#ffff00", sparkFade));
+                gc.fillOval(sparkX - sparkSize, sparkY - sparkSize, sparkSize * 2, sparkSize * 2);
+            }
+        }
+        
+        // Multi-stage smoke clouds (appear after explosion)
+        if (ageMs > 100) {
+            // Primary smoke cloud
+            double smokeAge = ageMs - 100;
+            double smokeRadius = 25 + (smokeAge * 0.3);
+            double smokeAlpha = Math.max(0, 0.5 * (1.0 - smokeAge / 900.0) * fadeOut);
+            
+            // Large dark smoke
+            gc.setFill(Color.web("#222222", smokeAlpha));
+            gc.fillOval(centerX - smokeRadius * 0.9, centerY - smokeRadius * 0.9, smokeRadius * 1.8, smokeRadius * 1.8);
+            
+            // Medium gray smoke
+            gc.setFill(Color.web("#444444", smokeAlpha * 0.7));
+            gc.fillOval(centerX - smokeRadius * 0.7, centerY - smokeRadius * 0.7, smokeRadius * 1.4, smokeRadius * 1.4);
+            
+            // Secondary smoke puffs (smaller clouds)
+            if (smokeAge < 600) {
+                for (int puff = 0; puff < 6; puff++) {
+                    double puffAngle = (puff * Math.PI * 2 / 6) + (smokeAge / 80.0);
+                    double puffDist = smokeRadius * 0.5 + (smokeAge * 0.15);
+                    double puffX = centerX + Math.cos(puffAngle) * puffDist;
+                    double puffY = centerY + Math.sin(puffAngle) * puffDist;
+                    double puffSize = 8 + (smokeAge / 40.0);
+                    double puffAlpha = Math.max(0, 0.3 * (1.0 - smokeAge / 600.0) * fadeOut);
+                    
+                    gc.setFill(Color.web("#333333", puffAlpha));
+                    gc.fillOval(puffX - puffSize, puffY - puffSize, puffSize * 2, puffSize * 2);
+                }
+            }
+        }
+        
+        // Ground impact effect (expanding circle on ground)
+        if (ageMs < 400) {
+            double groundRadius = radius * 0.8 + (ageMs * 0.2);
+            double groundAlpha = Math.max(0, 0.2 * (1.0 - ageMs / 400.0) * fadeOut);
+            gc.setFill(Color.web("#ff6600", groundAlpha));
+            gc.fillOval(centerX - groundRadius, centerY - groundRadius * 0.3, groundRadius * 2, groundRadius * 0.6);
+        }
+    }
+
+    private static final class SpellEffect {
+        final String spellId;
+        final Position position;
+        final long castTime;
+
+        SpellEffect(String spellId, Position position, long castTime) {
+            this.spellId = spellId;
+            this.position = position;
+            this.castTime = castTime;
+        }
     }
 }
