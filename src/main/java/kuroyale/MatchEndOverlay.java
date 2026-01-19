@@ -31,6 +31,20 @@ public final class MatchEndOverlay {
             String headline,
             Runnable onPlayAgain,
             Runnable onOk) {
+        show(overlayLayer, topName, topCrowns, bottomName, bottomCrowns, headline, onPlayAgain, onOk, 0, 0);
+    }
+
+    public static void show(
+            StackPane overlayLayer,
+            String topName,
+            int topCrowns,
+            String bottomName,
+            int bottomCrowns,
+            String headline,
+            Runnable onPlayAgain,
+            Runnable onOk,
+            int comboCount,
+            int comboGold) {
         if (overlayLayer == null) {
             return;
         }
@@ -74,7 +88,14 @@ public final class MatchEndOverlay {
         buttons.setAlignment(Pos.CENTER);
         buttons.setPadding(new Insets(8, 0, 0, 0));
 
-        VBox card = new VBox(14, head, topBanner, vs, bottomBanner, buttons);
+        VBox card = new VBox(14, head, topBanner, vs, bottomBanner);
+        if (comboCount > 0) {
+            Label comboLine = new Label("Combos Triggered: " + comboCount + " (+" + comboGold + " gold)");
+            comboLine.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+            comboLine.setTextFill(Color.web("#ffd54f"));
+            card.getChildren().add(comboLine);
+        }
+        card.getChildren().add(buttons);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(18));
         card.setMaxWidth(440);
