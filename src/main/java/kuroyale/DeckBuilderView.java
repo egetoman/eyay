@@ -58,7 +58,11 @@ public class DeckBuilderView {
         VBox availableBox = new VBox(10);
         Label availTitle = new Label("Available Cards");
         availTitle.getStyleClass().add("section-title");
-        availableBox.getChildren().addAll(availTitle, availableCardsPane);
+        ScrollPane availableScroll = new ScrollPane(availableCardsPane);
+        availableScroll.setFitToWidth(true);
+        availableScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        VBox.setVgrow(availableScroll, Priority.ALWAYS);
+        availableBox.getChildren().addAll(availTitle, availableScroll);
         availableBox.getStyleClass().add("sub-panel");
         availableBox.setPrefWidth(420);
 
@@ -66,7 +70,11 @@ public class DeckBuilderView {
         VBox deckBox = new VBox(10);
         Label deckTitle = new Label("Your Deck (8 cards)");
         deckTitle.getStyleClass().add("section-title");
-        deckBox.getChildren().addAll(deckTitle, deckSlotsPane, statusLabel, buildDeckActions(navigator));
+        ScrollPane deckScroll = new ScrollPane(deckSlotsPane);
+        deckScroll.setFitToWidth(true);
+        deckScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        VBox.setVgrow(deckScroll, Priority.ALWAYS);
+        deckBox.getChildren().addAll(deckTitle, deckScroll, statusLabel, buildDeckActions(navigator));
         deckBox.getStyleClass().add("sub-panel");
         deckBox.setPrefWidth(420);
 
@@ -74,12 +82,7 @@ public class DeckBuilderView {
         content.setAlignment(Pos.CENTER);
         HBox.setHgrow(deckBox, Priority.ALWAYS);
 
-        ScrollPane scrollPane = new ScrollPane(content);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
-        // Make ScrollPane transparent to show background
-        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        root.setCenter(scrollPane);
+        root.setCenter(content);
 
         refreshAvailableCards();
         refreshDeckSlots();
