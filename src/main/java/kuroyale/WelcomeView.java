@@ -12,6 +12,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import kuroyale.infrastructure.GameEventLogger;
 
 public class WelcomeView {
 
@@ -43,6 +44,9 @@ public class WelcomeView {
         HBox navBar = createNavBar();
         root.setBottom(navBar);
 
+        // Ensure log file exists so it is visible from the main menu
+        GameEventLogger.ensureLogFile();
+
         // Default view: Battle
         showBattleTab();
     }
@@ -51,6 +55,15 @@ public class WelcomeView {
         HBox topBar = new HBox();
         topBar.getStyleClass().add("resource-bar");
         topBar.setAlignment(Pos.CENTER);
+
+        Button logBtn = new Button("LOG");
+        logBtn.getStyleClass().add("secondary-button");
+        logBtn.setStyle("-fx-padding: 4 10 4 10; -fx-font-size: 10;");
+        logBtn.setOnAction(e -> {
+            GameEventLogger.ensureLogFile();
+            GameEventLogger.openLogFile();
+            GameEventLogger.log("LOG_OPENED from=main_menu");
+        });
 
         // Mock User Profile
         Label levelLabel = new Label("Level 13");
@@ -66,7 +79,7 @@ public class WelcomeView {
         Label gemLabel = new Label("120 Gems");
         gemLabel.getStyleClass().addAll("resource-item", "gem-text");
 
-        topBar.getChildren().addAll(levelLabel, nameLabel, createSpacer(), goldLabel, gemLabel);
+        topBar.getChildren().addAll(logBtn, levelLabel, nameLabel, createSpacer(), goldLabel, gemLabel);
         return topBar;
     }
 

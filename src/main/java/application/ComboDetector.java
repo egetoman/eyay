@@ -4,8 +4,10 @@ import kuroyale.domain.Card;
 import kuroyale.domain.ComboDefinition;
 import kuroyale.domain.ComboType;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -21,7 +23,15 @@ public class ComboDetector {
 
     private final List<ComboDefinition> comboDefinitions;
     private final List<ComboDefinition.CardPlay> recentPlays;
+    /**
+     * Unique combos triggered at least once in the match. Used for combo counter + rewards.
+     */
     private final Set<ComboType> triggeredCombos;
+    /**
+     * Cooldown per combo type to enforce: "Each combo can only trigger once per 5-second window".
+     * A combo can re-trigger after COMBO_WINDOW_SECONDS has passed since its last trigger.
+     */
+    private final Map<ComboType, Double> lastTriggeredAtByType;
 
     /**
      * Listener interface for combo events.
@@ -36,6 +46,7 @@ public class ComboDetector {
         this.comboDefinitions = ComboDefinition.createAllDefinitions();
         this.recentPlays = new ArrayList<>();
         this.triggeredCombos = new HashSet<>();
+        this.lastTriggeredAtByType = new EnumMap<>(ComboType.class);
     }
 
     /**
@@ -85,6 +96,7 @@ public class ComboDetector {
     public void reset() {
         recentPlays.clear();
         triggeredCombos.clear();
+        lastTriggeredAtByType.clear();
     }
 
     /**
@@ -143,13 +155,15 @@ public class ComboDetector {
 
         // Check each combo definition
         for (ComboDefinition def : comboDefinitions) {
-            // Skip if this combo type was already triggered in this window
-            if (triggeredCombos.contains(def.getType())) {
+            // Enforce "once per 5-second window" (cooldown)
+            Double lastAt = lastTriggeredAtByType.get(def.getType());
+            if (lastAt != null && (timestamp - lastAt) < COMBO_WINDOW_SECONDS) {
                 continue;
             }
 
             if (def.canTrigger(windowPlays)) {
                 triggeredCombos.add(def.getType());
+                lastTriggeredAtByType.put(def.getType(), timestamp);
                 if (listener != null) {
                     listener.onComboTriggered(
                         def.getType(),
