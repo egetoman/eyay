@@ -434,10 +434,12 @@ public class LocalPvPGameView {
             return;
         }
 
-        Result<?> sideCheck = validateDeploySide(activePlayer, tile);
-        if (!sideCheck.isSuccess()) {
-            showStatus(sideCheck.getMessage(), true);
-            return;
+        if (card.getType() != CardType.SPELL) {
+            Result<?> sideCheck = validateDeploySide(activePlayer, tile);
+            if (!sideCheck.isSuccess()) {
+                showStatus(sideCheck.getMessage(), true);
+                return;
+            }
         }
 
         Result<?> result = controller != null ? controller.deployCard(activePlayer, card, tile)
@@ -493,6 +495,7 @@ public class LocalPvPGameView {
      * Effects:
      * - Returns Result.ok(null) if:
      * * All parameters are non-null
+     * * (Note: spells are handled separately and may be placed anywhere)
      * * Position is not on the river (riverTop or riverBottom rows)
      * * Bottom player (Player 1) deploys on bottom side (Y <= riverTop - 1)
      * * Top player (Player 2) deploys on top side (Y >= riverBottom + 1)
@@ -808,6 +811,8 @@ public class LocalPvPGameView {
         Label icon = new Label("♛");
         icon.setFont(Font.font("Arial", FontWeight.BOLD, 16));
         icon.setTextFill(Color.web(accentColor));
+        icon.setStyle("-fx-text-fill: " + accentColor + ";");
+        valueLabel.setTextFill(Color.web(accentColor));
         crownTarget.getChildren().add(icon);
 
         HBox row = new HBox(6, crownTarget, valueLabel);

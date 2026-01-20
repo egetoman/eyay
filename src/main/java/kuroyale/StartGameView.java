@@ -791,6 +791,8 @@ public class StartGameView {
         Label icon = new Label("♛");
         icon.setFont(Font.font("Arial", FontWeight.BOLD, 16));
         icon.setTextFill(Color.web(accentColor));
+        icon.setStyle("-fx-text-fill: " + accentColor + ";");
+        valueLabel.setTextFill(Color.web(accentColor));
         crownTarget.getChildren().add(icon);
 
         HBox row = new HBox(6, crownTarget, valueLabel);

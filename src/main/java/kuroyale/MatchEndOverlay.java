@@ -141,7 +141,9 @@ public final class MatchEndOverlay {
             Label c = new Label("♛");
             c.setFont(Font.font("Arial", FontWeight.BOLD, 20));
             boolean filled = i < crowns;
-            c.setTextFill(filled ? Color.web("#ffd54f") : Color.web("#6b7280"));
+            String fillColor = filled ? "#ffd54f" : "#6b7280";
+            c.setTextFill(Color.web(fillColor));
+            c.setStyle("-fx-text-fill: " + fillColor + ";");
             row.getChildren().add(c);
         }
         return row;
