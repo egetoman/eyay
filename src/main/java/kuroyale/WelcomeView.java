@@ -3,52 +3,156 @@ package kuroyale;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
 import kuroyale.infrastructure.GameEventLogger;
+import java.util.ArrayList;
+import java.util.List;
 
 public class WelcomeView {
 
-    private final BorderPane root;
+    private final StackPane root;
+    private final BorderPane layout;
     private final ScreenNavigator navigator;
     private final StackPane centerContent;
+    private Timeline backgroundAnim;
+    private Timeline trophyRain;
+    private Pane trophyLayer;
+    private StackPane modalLayer;
 
     // Styles are defined in src/main/resources/main_menu.css
     // We will assume the stylesheet is loaded by the Scene or Parent.
 
     public WelcomeView(ScreenNavigator navigator) {
         this.navigator = navigator;
-        root = new BorderPane();
-        root.getStyleClass().add("main-background");
+        root = new StackPane();
+        layout = new BorderPane();
+        layout.getStyleClass().add("main-background");
+        root.getChildren().add(layout);
+        addBackgroundEffects();
 
         // Ensure CSS is loaded
-        root.getStylesheets().add(getClass().getResource("/main_menu.css").toExternalForm());
+        layout.getStylesheets().add(getClass().getResource("/main_menu.css").toExternalForm());
 
         // --- Top Section: Resources ---
         HBox topBar = createTopBar();
-        root.setTop(topBar);
+        layout.setTop(topBar);
 
         // --- Center Section: Dynamic Content ---
         centerContent = new StackPane();
         centerContent.setAlignment(Pos.CENTER);
-        root.setCenter(centerContent);
+        layout.setCenter(centerContent);
 
         // --- Bottom Section: Navigation ---
         HBox navBar = createNavBar();
-        root.setBottom(navBar);
+        layout.setBottom(navBar);
+
+        modalLayer = new StackPane();
+        modalLayer.setVisible(false);
+        modalLayer.setMouseTransparent(true);
+        root.getChildren().add(modalLayer);
 
         // Ensure log file exists so it is visible from the main menu
         GameEventLogger.ensureLogFile();
 
         // Default view: Battle
         showBattleTab();
+    }
+
+    private void addBackgroundEffects() {
+        Pane layer = new Pane();
+        layer.setMouseTransparent(true);
+        layer.prefWidthProperty().bind(layout.widthProperty());
+        layer.prefHeightProperty().bind(layout.heightProperty());
+
+        Circle glowLeft = new Circle(220, Color.web("#3b82f6", 0.2));
+        glowLeft.centerXProperty().bind(layer.widthProperty().multiply(0.2));
+        glowLeft.centerYProperty().bind(layer.heightProperty().multiply(0.25));
+
+        Circle glowRight = new Circle(260, Color.web("#f97316", 0.16));
+        glowRight.centerXProperty().bind(layer.widthProperty().multiply(0.8));
+        glowRight.centerYProperty().bind(layer.heightProperty().multiply(0.15));
+
+        Circle glowBottom = new Circle(240, Color.web("#8b5cf6", 0.18));
+        glowBottom.centerXProperty().bind(layer.widthProperty().multiply(0.65));
+        glowBottom.centerYProperty().bind(layer.heightProperty().multiply(0.85));
+
+        layer.getChildren().addAll(glowLeft, glowRight, glowBottom);
+        layout.getChildren().add(0, layer);
+
+        trophyLayer = new Pane();
+        trophyLayer.setMouseTransparent(true);
+        trophyLayer.setPickOnBounds(false);
+        trophyLayer.prefWidthProperty().bind(root.widthProperty());
+        trophyLayer.prefHeightProperty().bind(root.heightProperty());
+        root.getChildren().add(1, trophyLayer);
+        addTrophyRain(trophyLayer);
+
+        backgroundAnim = new Timeline(
+                new KeyFrame(Duration.ZERO,
+                        new KeyValue(glowLeft.translateXProperty(), -40),
+                        new KeyValue(glowLeft.opacityProperty(), 0.55),
+                        new KeyValue(glowRight.translateXProperty(), 30),
+                        new KeyValue(glowRight.opacityProperty(), 0.45),
+                        new KeyValue(glowBottom.translateYProperty(), 20),
+                        new KeyValue(glowBottom.opacityProperty(), 0.5)),
+                new KeyFrame(Duration.seconds(16),
+                        new KeyValue(glowLeft.translateXProperty(), 40),
+                        new KeyValue(glowLeft.opacityProperty(), 0.75),
+                        new KeyValue(glowRight.translateXProperty(), -30),
+                        new KeyValue(glowRight.opacityProperty(), 0.7),
+                        new KeyValue(glowBottom.translateYProperty(), -20),
+                        new KeyValue(glowBottom.opacityProperty(), 0.7))
+        );
+        backgroundAnim.setAutoReverse(true);
+        backgroundAnim.setCycleCount(Timeline.INDEFINITE);
+        backgroundAnim.play();
+    }
+
+    private void addTrophyRain(Pane layer) {
+        List<Label> trophies = new ArrayList<>();
+        int count = 10;
+        for (int i = 0; i < count; i++) {
+            Label trophy = new Label("🏆");
+            trophy.setStyle("-fx-font-size: 18px;");
+            trophy.setTextFill(Color.web("#f5c542", 0.7));
+            trophy.setTranslateX(Math.random() * 800);
+            trophy.setTranslateY(-Math.random() * 600);
+            trophies.add(trophy);
+            layer.getChildren().add(trophy);
+        }
+
+        trophyRain = new Timeline(new KeyFrame(Duration.millis(40), e -> {
+            double width = layer.getWidth();
+            double height = layer.getHeight();
+            for (int i = 0; i < trophies.size(); i++) {
+                Label t = trophies.get(i);
+                double speed = 0.6 + (i % 5) * 0.25;
+                t.setTranslateY(t.getTranslateY() + speed);
+                t.setTranslateX(t.getTranslateX() + Math.sin((t.getTranslateY() + i * 30) * 0.01) * 0.4);
+                if (t.getTranslateY() > height + 30) {
+                    t.setTranslateY(-20 - Math.random() * 200);
+                    t.setTranslateX(Math.random() * Math.max(200, width - 40));
+                }
+            }
+        }));
+        trophyRain.setCycleCount(Timeline.INDEFINITE);
+        trophyRain.play();
     }
 
     private HBox createTopBar() {
@@ -153,7 +257,7 @@ public class WelcomeView {
 
         Button quitBtn = new Button("Quit");
         quitBtn.getStyleClass().add("secondary-button");
-        quitBtn.setOnAction(e -> Platform.exit());
+        quitBtn.setOnAction(e -> confirmQuit());
 
         subModes.getChildren().addAll(pvpBtn, networkBtn, quitBtn);
 
@@ -258,6 +362,46 @@ public class WelcomeView {
         javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         return new HBox(spacer);
+    }
+
+    private void confirmQuit() {
+        modalLayer.getChildren().clear();
+        modalLayer.setVisible(true);
+        modalLayer.setMouseTransparent(false);
+
+        Rectangle dim = new Rectangle();
+        dim.widthProperty().bind(root.widthProperty());
+        dim.heightProperty().bind(root.heightProperty());
+        dim.setFill(Color.color(0, 0, 0, 0.6));
+
+        Label title = new Label("Exit Game");
+        title.setStyle("-fx-font-size: 20px; -fx-text-fill: white; -fx-font-weight: bold;");
+        Label body = new Label("Your current session will be closed.");
+        body.setStyle("-fx-text-fill: #cbd0d6;");
+
+        Button cancel = new Button("Cancel");
+        cancel.getStyleClass().add("secondary-button");
+        cancel.setOnAction(e -> {
+            modalLayer.setVisible(false);
+            modalLayer.setMouseTransparent(true);
+        });
+
+        Button exit = new Button("Exit");
+        exit.getStyleClass().add("danger-button");
+        exit.setOnAction(e -> Platform.exit());
+
+        HBox actions = new HBox(12, cancel, exit);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox card = new VBox(12, title, body, actions);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setMaxWidth(360);
+        card.setStyle("-fx-background-color: rgba(20, 22, 28, 0.96); -fx-background-radius: 14; -fx-padding: 16; -fx-border-color: rgba(255,255,255,0.12); -fx-border-radius: 14;");
+
+        StackPane wrapper = new StackPane(card);
+        wrapper.setMaxWidth(400);
+
+        modalLayer.getChildren().addAll(dim, wrapper);
     }
 
     // Original helper methods adapted if needed

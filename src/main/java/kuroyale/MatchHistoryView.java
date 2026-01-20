@@ -10,11 +10,9 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import kuroyale.domain.MatchRecord;
 import kuroyale.domain.MatchStats;
 
@@ -31,13 +29,18 @@ public class MatchHistoryView {
         this.historyService = historyService;
         
         root = new BorderPane();
-        root.setPadding(new Insets(20));
+        root.setPadding(new Insets(16)); // UI-only change: spacing
+        root.getStyleClass().add("history-root"); // UI-only change: visual hierarchy
 
         Label title = new Label("Match History & Stats");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        root.setTop(title);
-        BorderPane.setAlignment(title, Pos.CENTER);
-        BorderPane.setMargin(title, new Insets(0, 0, 20, 0));
+        title.getStyleClass().add("history-title");
+        Label subtitle = new Label("Review recent battles and performance");
+        subtitle.getStyleClass().add("history-subtitle");
+        VBox header = new VBox(4, title, subtitle);
+        header.getStyleClass().add("history-header"); // UI-only change: visual hierarchy
+        root.setTop(header);
+        BorderPane.setAlignment(header, Pos.CENTER_LEFT);
+        BorderPane.setMargin(header, new Insets(0, 0, 12, 0));
 
         // Create tabs for History and Stats
         Tab historyTab = new Tab("History");
@@ -46,6 +49,7 @@ public class MatchHistoryView {
         historyScroll.setFitToWidth(true);
         historyScroll.setFitToHeight(true);
         historyScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        historyScroll.getStyleClass().add("history-scroll");
         historyTab.setContent(historyScroll);
 
         Tab statsTab = new Tab("Stats");
@@ -54,16 +58,20 @@ public class MatchHistoryView {
         statsScroll.setFitToWidth(true);
         statsScroll.setFitToHeight(true);
         statsScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        statsScroll.getStyleClass().add("history-scroll");
         statsTab.setContent(statsScroll);
 
         TabPane tabPane = new TabPane(historyTab, statsTab);
+        tabPane.getStyleClass().add("history-tabs"); // UI-only change: visual hierarchy
         root.setCenter(tabPane);
 
         Button backButton = new Button("Back");
+        backButton.getStyleClass().add("history-back-button");
         backButton.setOnAction(e -> navigator.showWelcomeScreen());
         HBox bottomBar = new HBox(backButton);
         bottomBar.setAlignment(Pos.CENTER_LEFT);
-        bottomBar.setPadding(new Insets(10));
+        bottomBar.setPadding(new Insets(8, 0, 4, 0)); // UI-only change: spacing
+        bottomBar.getStyleClass().add("history-bottom");
         root.setBottom(bottomBar);
 
         refreshHistory();
@@ -76,7 +84,7 @@ public class MatchHistoryView {
         
         if (records.isEmpty()) {
             Label noMatchesLabel = new Label("No matches recorded yet");
-            noMatchesLabel.setFont(Font.font("Arial", 16));
+            noMatchesLabel.getStyleClass().add("history-empty");
             historyPane.getChildren().add(noMatchesLabel);
             return;
         }
@@ -88,26 +96,30 @@ public class MatchHistoryView {
 
     private VBox createMatchRecordTile(MatchRecord record) {
         Label dateLabel = new Label(formatDateTime(record.getDateTime()));
-        dateLabel.setFont(Font.font("Arial", 12));
-        dateLabel.setTextFill(Color.GRAY);
+        dateLabel.getStyleClass().add("history-meta");
         
         Label opponentLabel = new Label("Opponent: " + (record.getOpponentType() != null ? record.getOpponentType() : "Unknown"));
+        opponentLabel.getStyleClass().add("history-meta");
         
         Label resultLabel = new Label("Result: " + (record.getResult() != null ? record.getResult() : "Unknown"));
-        resultLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        resultLabel.getStyleClass().add("history-result");
         if ("Win".equalsIgnoreCase(record.getResult())) {
-            resultLabel.setTextFill(Color.GREEN);
+            resultLabel.getStyleClass().add("history-result-win");
         } else if ("Loss".equalsIgnoreCase(record.getResult())) {
-            resultLabel.setTextFill(Color.RED);
+            resultLabel.getStyleClass().add("history-result-loss");
         }
         
         Label crownsLabel = new Label("Crowns: " + record.getCrowns());
         Label goldLabel = new Label("Gold: " + (record.getGoldChange() >= 0 ? "+" : "") + record.getGoldChange());
-        goldLabel.setTextFill(record.getGoldChange() >= 0 ? Color.GOLD : Color.RED);
+        crownsLabel.getStyleClass().add("history-primary");
+        goldLabel.getStyleClass().add("history-primary");
+        goldLabel.getStyleClass().add(record.getGoldChange() >= 0 ? "history-gold-up" : "history-gold-down");
         
         Label arenaLabel = new Label("Arena: " + (record.getArenaName() != null ? record.getArenaName() : "Unknown"));
+        arenaLabel.getStyleClass().add("history-meta");
 
         Button replayButton = new Button("Watch Replay");
+        replayButton.getStyleClass().add("history-replay-button");
         replayButton.setDisable(record == null || !record.hasReplay());
         replayButton.setOnAction(e -> {
             if (record == null || !record.hasReplay()) {
@@ -116,9 +128,21 @@ public class MatchHistoryView {
             navigator.showReplayScreen(record);
         });
 
-        VBox tile = new VBox(5, dateLabel, opponentLabel, resultLabel, crownsLabel, goldLabel, arenaLabel, replayButton);
-        tile.setPadding(new Insets(15));
-        tile.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
+        HBox topRow = new HBox(10, resultLabel, dateLabel);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+        topRow.getStyleClass().add("history-row");
+
+        HBox metaRow = new HBox(12, opponentLabel, arenaLabel);
+        metaRow.setAlignment(Pos.CENTER_LEFT);
+        metaRow.getStyleClass().add("history-row");
+
+        HBox statsRow = new HBox(12, crownsLabel, goldLabel);
+        statsRow.setAlignment(Pos.CENTER_LEFT);
+        statsRow.getStyleClass().add("history-row");
+
+        VBox tile = new VBox(8, topRow, metaRow, statsRow, replayButton);
+        tile.setPadding(new Insets(14)); // UI-only change: spacing
+        tile.getStyleClass().add("history-card");
         tile.setPrefWidth(600);
         return tile;
     }
@@ -129,7 +153,7 @@ public class MatchHistoryView {
         
         if (stats.getTotalMatches() == 0) {
             Label noStatsLabel = new Label("No statistics available yet");
-            noStatsLabel.setFont(Font.font("Arial", 16));
+            noStatsLabel.getStyleClass().add("history-empty");
             statsPane.getChildren().add(noStatsLabel);
             return;
         }
@@ -141,19 +165,45 @@ public class MatchHistoryView {
         Label totalCrownsLabel = createStatLabel("Total Crowns", String.valueOf(stats.getTotalCrowns()));
         Label totalGoldLabel = createStatLabel("Total Gold Earned", String.valueOf(stats.getTotalGoldEarned()));
         Label avgCrownsLabel = createStatLabel("Average Crowns per Match", String.format("%.2f", stats.getAverageCrownsPerMatch()));
-        
-        statsPane.getChildren().addAll(
-            totalMatchesLabel, winsLabel, lossesLabel, winRateLabel,
-            totalCrownsLabel, totalGoldLabel, avgCrownsLabel
-        );
-        statsPane.setPadding(new Insets(20));
+
+        winsLabel.getStyleClass().add("history-stat-positive");
+        lossesLabel.getStyleClass().add("history-stat-muted");
+        winRateLabel.getStyleClass().add("history-stat-accent");
+
+        Label overviewTitle = new Label("Overview");
+        overviewTitle.getStyleClass().add("history-section-title");
+        FlowPane overviewGrid = new FlowPane(12, 12, totalMatchesLabel, winsLabel, lossesLabel, winRateLabel);
+        overviewGrid.getStyleClass().add("history-stat-grid"); // UI-only change: stat grouping
+
+        Label performanceTitle = new Label("Performance");
+        performanceTitle.getStyleClass().add("history-section-title");
+        FlowPane performanceGrid = new FlowPane(12, 12, totalCrownsLabel, avgCrownsLabel);
+        performanceGrid.getStyleClass().add("history-stat-grid");
+
+        Label economyTitle = new Label("Economy");
+        economyTitle.getStyleClass().add("history-section-title");
+        FlowPane economyGrid = new FlowPane(12, 12, totalGoldLabel);
+        economyGrid.getStyleClass().add("history-stat-grid");
+
+        VBox statsContent = new VBox(14, overviewTitle, overviewGrid, performanceTitle, performanceGrid, economyTitle, economyGrid);
+        statsContent.getStyleClass().add("history-stats-content"); // UI-only change: visual hierarchy
+
+        statsPane.getChildren().add(statsContent);
+        statsPane.setPadding(new Insets(16)); // UI-only change: spacing
         statsPane.setAlignment(Pos.TOP_LEFT);
     }
 
     private Label createStatLabel(String label, String value) {
-        Label statLabel = new Label(label + ": " + value);
-        statLabel.setFont(Font.font("Arial", 16));
-        statLabel.setPadding(new Insets(5));
+        Label title = new Label(label);
+        title.getStyleClass().add("history-stat-title");
+        Label valueLabel = new Label(value);
+        valueLabel.getStyleClass().add("history-stat-value");
+        HBox row = new HBox(8, title, valueLabel);
+        row.getStyleClass().add("history-stat-row"); // UI-only change: visual hierarchy
+        Label statLabel = new Label();
+        statLabel.setGraphic(row);
+        statLabel.setContentDisplay(javafx.scene.control.ContentDisplay.GRAPHIC_ONLY);
+        statLabel.getStyleClass().add("history-stat-tile");
         return statLabel;
     }
 

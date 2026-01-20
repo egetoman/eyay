@@ -160,6 +160,8 @@ public class ChallengeMatchView {
         // Record spell cast for visual effects
         if (selected.getType() == CardType.SPELL) {
             arenaBoard.recordSpellCast(selected.getId(), tile);
+        } else {
+            arenaBoard.recordDeployEffect(kuroyale.domain.TowerOwner.PLAYER, tile);
         }
         
         deckUi.onCardPlayed();

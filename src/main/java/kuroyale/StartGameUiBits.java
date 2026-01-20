@@ -3,8 +3,10 @@ package kuroyale;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import kuroyale.domain.Card;
@@ -25,7 +27,7 @@ final class StartGameUiBits {
 
         StackPane tile = new StackPane();
         tile.setPrefSize(width, height);
-        applySlotStyle(tile, large, highlighted);
+        applySlotStyle(tile, card, large, highlighted);
 
         double arc = large ? 10 : 8;
 
@@ -73,6 +75,12 @@ final class StartGameUiBits {
         StackPane.setMargin(costChip, new Insets(4, 0, 0, 4));
 
         tile.getChildren().add(costChip);
+        Label typeBadge = buildTypeBadge(card);
+        if (typeBadge != null) {
+            StackPane.setAlignment(typeBadge, Pos.BOTTOM_RIGHT);
+            StackPane.setMargin(typeBadge, new Insets(0, 4, 4, 0));
+            tile.getChildren().add(typeBadge);
+        }
         return tile;
     }
 
@@ -96,9 +104,22 @@ final class StartGameUiBits {
                 break;
             }
         }
+        applyReadyGlow(slot, progress);
     }
 
-    private static void applySlotStyle(StackPane tile, boolean large, boolean highlighted) {
+    private static void applyReadyGlow(StackPane slot, double progress) {
+        if (progress >= 1.0) {
+            DropShadow glow = new DropShadow();
+            glow.setRadius(12);
+            glow.setSpread(0.25);
+            glow.setColor(Color.web("#ffd54f", 0.7));
+            slot.setEffect(glow);
+        } else {
+            slot.setEffect(null);
+        }
+    }
+
+    private static void applySlotStyle(StackPane tile, Card card, boolean large, boolean highlighted) {
         StringBuilder style = new StringBuilder();
         style.append("-fx-background-color: linear-gradient(#2a2f45, #1c1f2e);");
         if (large) {
@@ -106,10 +127,11 @@ final class StartGameUiBits {
         } else {
             style.append("-fx-background-radius: 8; -fx-border-radius: 8;");
         }
+        String rarityColor = rarityColor(card);
         if (highlighted) {
             style.append("-fx-border-color: #ffd54f; -fx-border-width: 3;");
         } else {
-            style.append("-fx-border-color: #404459; -fx-border-width: 1;");
+            style.append("-fx-border-color: ").append(rarityColor).append("; -fx-border-width: 2;");
         }
         tile.setStyle(style.toString());
     }
@@ -118,11 +140,42 @@ final class StartGameUiBits {
         String text = cost >= 0 ? String.valueOf(cost) : "-";
         Label label = new Label(text);
         label.setFont(Font.font("Arial", FontWeight.BOLD, large ? 14 : 12));
-        label.setStyle("-fx-text-fill: white;");
+        label.setTextFill(Color.web("#b259ff"));
+        DropShadow textGlow = new DropShadow();
+        textGlow.setRadius(6);
+        textGlow.setSpread(0.2);
+        textGlow.setColor(Color.web("#b259ff", 0.6));
+        label.setEffect(textGlow);
 
         StackPane chip = new StackPane(label);
-        chip.setPadding(new Insets(4, 10, 4, 10));
-        chip.setStyle("-fx-background-color: #b259ff; -fx-background-radius: 20;");
+        chip.setStyle("-fx-background-color: rgba(0,0,0,0.25); -fx-background-radius: 10; -fx-padding: 2 6 2 6;");
         return chip;
+    }
+
+    private static String rarityColor(Card card) {
+        kuroyale.domain.Rarity rarity = kuroyale.domain.CardRarityCatalog
+                .rarityForCardId(card != null ? card.getId() : null);
+        return switch (rarity) {
+            case RARE -> "#4a90e2";
+            case EPIC -> "#b259ff";
+            case LEGENDARY -> "#f5c542";
+            case COMMON -> "#8f94a3";
+        };
+    }
+
+    private static Label buildTypeBadge(Card card) {
+        if (card == null || card.getType() == null) {
+            return null;
+        }
+        String text = switch (card.getType()) {
+            case SPELL -> "SPELL";
+            case BUILDING -> "BLDG";
+            case TROOP -> "TROOP";
+        };
+        Label badge = new Label(text);
+        badge.setFont(Font.font("Arial", FontWeight.BOLD, 9));
+        badge.setTextFill(Color.WHITE);
+        badge.setStyle("-fx-background-color: rgba(0,0,0,0.55); -fx-background-radius: 10; -fx-padding: 2 6 2 6;");
+        return badge;
     }
 }

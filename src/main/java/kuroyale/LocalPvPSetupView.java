@@ -15,9 +15,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Card;
 import kuroyale.domain.Deck;
@@ -40,19 +37,20 @@ public class LocalPvPSetupView {
         root = new VBox(14);
         root.setPadding(new Insets(20));
         root.setAlignment(Pos.TOP_CENTER);
-        root.setStyle("-fx-background-color: #0f1216;");
+        root.getStyleClass().add("setup-root");
 
         Label title = new Label("Local PvP Setup");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 30));
-        title.setTextFill(Color.WHITE);
+        title.getStyleClass().add("screen-title");
 
         Label hint = new Label("Choose decks for both players. This mode is turn-based: each deploy ends your turn.");
-        hint.setTextFill(Color.web("#cbd0d6"));
+        hint.getStyleClass().add("setup-hint");
 
         TextField p1Name = new TextField("Player 1");
         TextField p2Name = new TextField("Player 2");
         p1Name.setPrefWidth(220);
         p2Name.setPrefWidth(220);
+        p1Name.getStyleClass().add("setup-field");
+        p2Name.getStyleClass().add("setup-field");
 
         ComboBox<String> p1DeckChoice = new ComboBox<>();
         ComboBox<String> p2DeckChoice = new ComboBox<>();
@@ -60,19 +58,28 @@ public class LocalPvPSetupView {
         p2DeckChoice.getItems().addAll("Saved Deck", "Default Deck", "Random Deck");
         p1DeckChoice.setValue("Saved Deck");
         p2DeckChoice.setValue("Random Deck");
+        p1DeckChoice.getStyleClass().add("setup-field");
+        p2DeckChoice.getStyleClass().add("setup-field");
 
-        VBox left = new VBox(8, new Label("Player 1 Name"), p1Name, new Label("Player 1 Deck"), p1DeckChoice);
-        VBox right = new VBox(8, new Label("Player 2 Name"), p2Name, new Label("Player 2 Deck"), p2DeckChoice);
+        Label p1NameLabel = new Label("Player 1 Name");
+        Label p1DeckLabel = new Label("Player 1 Deck");
+        Label p2NameLabel = new Label("Player 2 Name");
+        Label p2DeckLabel = new Label("Player 2 Deck");
+
+        VBox left = new VBox(8, p1NameLabel, p1Name, p1DeckLabel, p1DeckChoice);
+        VBox right = new VBox(8, p2NameLabel, p2Name, p2DeckLabel, p2DeckChoice);
         styleFormColumn(left);
         styleFormColumn(right);
         HBox form = new HBox(30, left, right);
         form.setAlignment(Pos.CENTER);
+        form.getStyleClass().addAll("sub-panel", "setup-card");
 
         Label error = new Label();
-        error.setTextFill(Color.web("#f05a5b"));
         error.setWrapText(true);
+        error.getStyleClass().add("setup-error");
 
         Button start = new Button("Start Local PvP");
+        start.getStyleClass().add("game-button");
         start.setOnAction(e -> {
             Deck deck1 = resolveDeck(deckController, p1DeckChoice.getValue());
             Deck deck2 = resolveDeck(deckController, p2DeckChoice.getValue());
@@ -97,10 +104,12 @@ public class LocalPvPSetupView {
         });
 
         Button back = new Button("Back");
+        back.getStyleClass().add("secondary-button");
         back.setOnAction(e -> navigator.showWelcomeScreen());
 
         HBox buttons = new HBox(12, back, start);
         buttons.setAlignment(Pos.CENTER);
+        buttons.getStyleClass().add("setup-actions");
 
         root.getChildren().addAll(title, hint, form, error, buttons);
     }
@@ -109,7 +118,7 @@ public class LocalPvPSetupView {
         box.setAlignment(Pos.TOP_LEFT);
         box.getChildren().stream()
             .filter(node -> node instanceof Label)
-            .forEach(node -> ((Label) node).setTextFill(Color.web("#cbd0d6")));
+            .forEach(node -> node.getStyleClass().add("setup-label"));
     }
 
     private Deck resolveDeck(DeckController deckController, String choice) {
