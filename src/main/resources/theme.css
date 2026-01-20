@@ -1103,6 +1103,107 @@
     /* UI-only change: disabled readability */
 }
 
+/* Deck Builder */
+.deck-builder-root {
+    -fx-background-color: #0b0e12;
+}
+
+.deck-builder-title {
+    -fx-text-fill: #f3f4f6;
+}
+
+.deck-builder-content {
+    -fx-padding: 4 0 0 0;
+}
+
+.deck-builder-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
+
+.deck-builder-deck {
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.35), 10, 0, 0, 3);
+}
+
+.deck-builder-scroll {
+    -fx-background-color: transparent;
+}
+
+.deck-builder-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.deck-card-tile {
+    -fx-background-color: rgba(17, 24, 39, 0.9);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}
+
+.deck-card-tile:hover {
+    -fx-background-color: rgba(30, 41, 59, 0.9);
+}
+
+.deck-card-name {
+    -fx-text-fill: #f8fafc;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.deck-card-cost {
+    -fx-text-fill: #fde047;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.deck-card-type {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 10px;
+}
+
+.deck-card-add {
+    -fx-background-color: rgba(148, 163, 184, 0.2);
+    -fx-text-fill: #e5e7eb;
+    -fx-background-radius: 8;
+    -fx-padding: 6 10 6 10;
+}
+
+.deck-card-add:hover {
+    -fx-background-color: rgba(148, 163, 184, 0.3);
+}
+
+.deck-card-remove {
+    -fx-background-color: rgba(148, 163, 184, 0.18);
+    -fx-text-fill: #e5e7eb;
+    -fx-background-radius: 8;
+    -fx-padding: 6 10 6 10;
+}
+
+.deck-card-remove:disabled {
+    -fx-background-color: rgba(148, 163, 184, 0.12);
+    -fx-text-fill: #9aa3ad;
+}
+
+.deck-builder-status {
+    -fx-text-fill: #cbd5e1;
+    -fx-font-size: 12px;
+}
+
+.deck-actions {
+    -fx-padding: 6 0 0 0;
+}
+
+.deck-action-primary,
+.deck-action-secondary,
+.deck-action-danger,
+.deck-action-neutral {
+    -fx-min-height: 34;
+}
+
 .arena-field:focused,
 .arena-combo:focused {
     -fx-border-color: #5eead4;

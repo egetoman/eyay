@@ -17,7 +17,6 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import kuroyale.domain.Card;
 import kuroyale.domain.Deck;
 
@@ -38,10 +37,12 @@ public class DeckBuilderView {
         this.currentDeck = new Deck(deckController.loadDeck().getCards());
 
         root = new BorderPane();
-        root.setPadding(new Insets(20));
+        root.setPadding(new Insets(18)); // UI-only change: spacing
+        root.getStyleClass().add("deck-builder-root"); // UI-only change: panel hierarchy
 
         Label title = new Label("Deck Builder");
         title.getStyleClass().add("screen-title");
+        title.getStyleClass().add("deck-builder-title");
         root.setTop(title);
         BorderPane.setAlignment(title, Pos.CENTER);
         BorderPane.setMargin(title, new Insets(0, 0, 20, 0));
@@ -61,9 +62,10 @@ public class DeckBuilderView {
         ScrollPane availableScroll = new ScrollPane(availableCardsPane);
         availableScroll.setFitToWidth(true);
         availableScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        availableScroll.getStyleClass().add("deck-builder-scroll");
         VBox.setVgrow(availableScroll, Priority.ALWAYS);
         availableBox.getChildren().addAll(availTitle, availableScroll);
-        availableBox.getStyleClass().add("sub-panel");
+        availableBox.getStyleClass().addAll("sub-panel", "deck-builder-panel", "deck-builder-available");
         availableBox.setPrefWidth(420);
 
         // --- Current Deck Panel ---
@@ -73,13 +75,16 @@ public class DeckBuilderView {
         ScrollPane deckScroll = new ScrollPane(deckSlotsPane);
         deckScroll.setFitToWidth(true);
         deckScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        deckScroll.getStyleClass().add("deck-builder-scroll");
         VBox.setVgrow(deckScroll, Priority.ALWAYS);
         deckBox.getChildren().addAll(deckTitle, deckScroll, statusLabel, buildDeckActions(navigator));
-        deckBox.getStyleClass().add("sub-panel");
+        deckBox.getStyleClass().addAll("sub-panel", "deck-builder-panel", "deck-builder-deck");
         deckBox.setPrefWidth(420);
+        statusLabel.getStyleClass().add("deck-builder-status");
 
         HBox content = new HBox(20, availableBox, deckBox);
         content.setAlignment(Pos.CENTER);
+        content.getStyleClass().add("deck-builder-content");
         HBox.setHgrow(deckBox, Priority.ALWAYS);
 
         root.setCenter(content);
@@ -91,10 +96,12 @@ public class DeckBuilderView {
     private HBox buildDeckActions(ScreenNavigator navigator) {
         Button saveButton = new Button("Save Deck");
         saveButton.getStyleClass().add("game-button");
+        saveButton.getStyleClass().add("deck-action-primary");
         saveButton.setOnAction(e -> saveDeck());
 
         Button resetButton = new Button("Reset");
         resetButton.getStyleClass().add("secondary-button");
+        resetButton.getStyleClass().add("deck-action-secondary");
         resetButton.setOnAction(e -> {
             currentDeck = new Deck(deckController.loadDeck().getCards());
             refreshDeckSlots();
@@ -102,6 +109,7 @@ public class DeckBuilderView {
 
         Button clearButton = new Button("Clear");
         clearButton.getStyleClass().add("danger-button");
+        clearButton.getStyleClass().add("deck-action-danger");
         clearButton.setOnAction(e -> {
             currentDeck.clear();
             refreshDeckSlots();
@@ -109,10 +117,12 @@ public class DeckBuilderView {
 
         Button backButton = new Button("Back");
         backButton.getStyleClass().add("secondary-button");
+        backButton.getStyleClass().add("deck-action-neutral");
         backButton.setOnAction(e -> navigator.showWelcomeScreen());
 
         HBox box = new HBox(10, saveButton, resetButton, clearButton, backButton);
-        box.setAlignment(Pos.CENTER_LEFT);
+        box.setAlignment(Pos.CENTER_RIGHT);
+        box.getStyleClass().add("deck-actions"); // UI-only change: button emphasis
         return box;
     }
 
@@ -126,14 +136,15 @@ public class DeckBuilderView {
     private VBox createCardTile(Card card) {
         ImageView portrait = CardArt.buildCardPortrait(card, 40);
         Label name = new Label(card.getName());
-        name.setStyle("-fx-font-weight: bold;");
+        name.getStyleClass().add("deck-card-name");
         Label cost = new Label("Elixir: " + card.getElixirCost());
-        cost.setTextFill(Color.web("#ffd700"));
+        cost.getStyleClass().add("deck-card-cost");
         Label type = new Label(card.getType().name());
-        type.setStyle("-fx-font-size: 10px;");
+        type.getStyleClass().add("deck-card-type");
 
         Button addButton = new Button("Add");
         addButton.getStyleClass().add("secondary-button");
+        addButton.getStyleClass().add("deck-card-add");
         addButton.setMaxWidth(Double.MAX_VALUE);
         addButton.setOnAction(e -> {
             if (currentDeck.containsCard(card)) {
@@ -150,7 +161,7 @@ public class DeckBuilderView {
         VBox tile = portrait != null
                 ? new VBox(5, portrait, name, cost, type, addButton)
                 : new VBox(5, name, cost, type, addButton);
-        tile.getStyleClass().add("card-tile");
+        tile.getStyleClass().addAll("card-tile", "deck-card-tile", "deck-card-available");
         tile.setPrefWidth(140);
         return tile;
     }
@@ -168,9 +179,11 @@ public class DeckBuilderView {
     private VBox createDeckSlot(Card card) {
         ImageView portrait = CardArt.buildCardPortrait(card, 40);
         Label label = new Label(card != null ? card.getName() : "Empty");
+        label.getStyleClass().add("deck-card-name");
 
         Button actionButton = new Button(card != null ? "Remove" : "-");
         actionButton.getStyleClass().add("secondary-button");
+        actionButton.getStyleClass().add("deck-card-remove");
         actionButton.setDisable(card == null);
         actionButton.setOnAction(e -> {
             if (card != null) {
@@ -182,7 +195,7 @@ public class DeckBuilderView {
         VBox slot = portrait != null
                 ? new VBox(5, portrait, label, actionButton)
                 : new VBox(5, label, actionButton);
-        slot.getStyleClass().add("card-tile");
+        slot.getStyleClass().addAll("card-tile", "deck-card-tile", "deck-card-slot");
         slot.setPrefWidth(130);
         return slot;
     }
