@@ -218,6 +218,7 @@ public class Arena {
      * Finds the nearest enemy unit that can be attacked by the attacker.
      * Respects ground/flying restrictions: ground units with GROUND target cannot attack flying units.
      * Also prevents units on different bridges from attacking each other.
+     * Ground units will not target enemies across the river unless the target is reachable.
      * 
      * @param requester The owner of the unit seeking targets
      * @param fromPosition The position to search from
@@ -235,6 +236,7 @@ public class Arena {
         // Determine if attacker is on a bridge and which bridge
         boolean attackerOnBridge = false;
         Bridge attackerBridge = null;
+        boolean attackerIsGround = attacker != null && attacker.getMovementType() == UnitMovementType.GROUND;
         if (attacker != null && attacker.getPosition() != null) {
             attackerBridge = getBridgeAt(attacker.getPosition());
             attackerOnBridge = (attackerBridge != null);
@@ -249,15 +251,58 @@ public class Arena {
                 continue;
             }
             
+            Position targetPos = unit.getPosition();
+            if (targetPos == null) {
+                continue;
+            }
+            
             // Prevent units on different bridges from attacking each other
             // (but allow all other attack scenarios: bridge-to-land, land-to-bridge, land-to-land)
-            if (attacker != null && attackerOnBridge && unit.getPosition() != null) {
-                Bridge targetBridge = getBridgeAt(unit.getPosition());
-                boolean targetOnBridge = (targetBridge != null);
-                
+            Bridge targetBridge = getBridgeAt(targetPos);
+            boolean targetOnBridge = (targetBridge != null);
+            
+            if (attacker != null && attackerOnBridge) {
                 // Only prevent attack if both are on bridges but DIFFERENT bridges
                 if (targetOnBridge && !isSameBridge(attackerBridge, targetBridge)) {
                     continue;
+                }
+                
+                // For ground units ON a bridge: only target enemies that are reachable
+                // (on same bridge, or on land within X distance of the bridge's footprint)
+                if (attackerIsGround && !targetOnBridge) {
+                    // Target is on land - check if it's near the bridge the attacker is on
+                    int bridgeMinX = Math.min(attackerBridge.getStart().getX(), attackerBridge.getEnd().getX());
+                    int bridgeMaxX = Math.max(attackerBridge.getStart().getX(), attackerBridge.getEnd().getX());
+                    int targetX = targetPos.getX();
+                    
+                    // Only target if within 3 tiles horizontally of the bridge
+                    // This prevents units on a bridge from targeting enemies far across the arena
+                    if (targetX < bridgeMinX - 3 || targetX > bridgeMaxX + 3) {
+                        continue;
+                    }
+                }
+            }
+            
+            // For ground units NOT on a bridge: check if target is across river and unreachable
+            // Ground units should not target enemies across the river unless they're
+            // within attack range OR on a direct bridge path
+            if (attackerIsGround && !attackerOnBridge) {
+                boolean attackerNorthSide = isNorthSide(fromPosition);
+                boolean targetNorthSide = isNorthSide(targetPos);
+                
+                // If on opposite sides of the river, only target if very close to a bridge
+                if (attackerNorthSide != targetNorthSide) {
+                    // Check if attacker is close enough to a bridge to justify cross-river targeting
+                    Bridge nearestBridge = findClosestBridge(fromPosition);
+                    if (nearestBridge != null) {
+                        double distToBridge = distanceToBridge(nearestBridge, fromPosition);
+                        // Only allow cross-river targeting if very close to a bridge (within 2 tiles)
+                        // This prevents units far from bridges from getting stuck trying to reach
+                        // enemies across the river
+                        if (distToBridge > 2.0) {
+                            continue;
+                        }
+                    }
                 }
             }
             

@@ -32,6 +32,12 @@ public class Unit {
     private double speedMultiplier = 1.0;
     private int hpBonus = 0;
     private double rangeBonus = 0.0;
+    
+    // --- Target locking (prevents retargeting mid-combat) ---
+    private boolean engagedWithTarget = false; // True once we've started attacking our current target
+    
+    // --- Threat tracking (for responding to attackers) ---
+    private Unit lastAttacker = null; // The unit that last attacked us
 
     public Unit() {
         this.speedTilesPerSecond = DEFAULT_SPEED_TILES_PER_SECOND;
@@ -204,6 +210,28 @@ public class Unit {
         }
         currentHP = Math.max(0, currentHP - amount);
     }
+    
+    /**
+     * Records damage from another unit, enabling threat response.
+     * Units will prioritize targeting their attackers.
+     */
+    public void takeDamageFrom(int amount, Unit attacker) {
+        takeDamage(amount);
+        if (attacker != null && !attacker.isDefeated()) {
+            this.lastAttacker = attacker;
+        }
+    }
+    
+    /**
+     * Gets the last unit that attacked this unit.
+     */
+    public Unit getLastAttacker() {
+        // Clear if attacker is dead
+        if (lastAttacker != null && lastAttacker.isDefeated()) {
+            lastAttacker = null;
+        }
+        return lastAttacker;
+    }
 
     public void applyStun(double durationSeconds) {
         if (durationSeconds > 0) {
@@ -277,17 +305,31 @@ public class Unit {
         
         attackCooldownSeconds = Math.max(0, attackCooldownSeconds - deltaSeconds);
 
-        // Check if we're currently locked onto a tower (in range and attacking it)
+        // Check if we're currently locked onto a tower (engaged = has started attacking it)
         boolean lockedOntoTower = false;
         if (targetTower != null && !targetTower.isDestroyed() && targetTower.getPosition() != null) {
             double dx = targetTower.getPosition().getX() - preciseX;
             double dy = targetTower.getPosition().getY() - preciseY;
             double distanceToTower = Math.sqrt(dx * dx + dy * dy);
-            lockedOntoTower = (distanceToTower <= getEffectiveRange());
+            boolean inTowerRange = (distanceToTower <= getEffectiveRange());
+            // Lock onto tower once we've engaged (started attacking) it
+            // If not yet engaged but in range, we can still be distracted by new threats
+            lockedOntoTower = engagedWithTarget && inTowerRange;
+        }
+        
+        // Check if we're locked onto an enemy unit (engaged and target still alive)
+        boolean lockedOntoUnit = false;
+        if (targetEnemyUnit != null && !targetEnemyUnit.isDefeated()) {
+            // Stay locked if we've engaged this target (started attacking it)
+            lockedOntoUnit = engagedWithTarget;
+        } else if (targetEnemyUnit != null && targetEnemyUnit.isDefeated()) {
+            // Target died - reset engagement
+            targetEnemyUnit = null;
+            engagedWithTarget = false;
         }
 
-        // Only acquire new targets if NOT locked onto a tower
-        if (!lockedOntoTower) {
+        // Only acquire new targets if NOT engaged with current target
+        if (!lockedOntoTower && !lockedOntoUnit) {
             acquireTargets(arena);
         }
 
@@ -315,13 +357,17 @@ public class Unit {
         Position travelTarget = arena.resolvePathTarget(position, targetPosition, moveType);
         double dx = travelTarget.getX() - preciseX;
         double dy = travelTarget.getY() - preciseY;
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        boolean headingToFinalTarget = travelTarget == targetPosition;
-        // #region agent log
+        double distanceToWaypoint = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate direct distance to actual target (for attack range check)
+        double dxTarget = targetPosition.getX() - preciseX;
+        double dyTarget = targetPosition.getY() - preciseY;
+        double distanceToTarget = Math.sqrt(dxTarget * dxTarget + dyTarget * dyTarget);
+        
+        // Ranged units can attack if within range of the actual target, even if pathing elsewhere
+        // Melee units need to be close to their target (waypoint == target)
         boolean headingToFinalTargetEquals = travelTarget != null && targetPosition != null && travelTarget.equals(targetPosition);
-        if (headingToFinalTarget != headingToFinalTargetEquals) { try (PrintWriter pw = new PrintWriter(new FileWriter("/Users/ozanozak/eyay/.cursor/debug.log", true))) { pw.println("{\"hypothesisId\":\"B\",\"location\":\"Unit.java:261\",\"message\":\"Reference vs equals mismatch\",\"data\":{\"refEqual\":" + headingToFinalTarget + ",\"valueEqual\":" + headingToFinalTargetEquals + ",\"travelTargetX\":" + (travelTarget != null ? travelTarget.getX() : -1) + ",\"travelTargetY\":" + (travelTarget != null ? travelTarget.getY() : -1) + ",\"targetPosX\":" + (targetPosition != null ? targetPosition.getX() : -1) + ",\"targetPosY\":" + (targetPosition != null ? targetPosition.getY() : -1) + "},\"timestamp\":" + System.currentTimeMillis() + "}"); } catch (Exception e) {} }
-        // #endregion
-        boolean inRange = headingToFinalTargetEquals && distance <= getEffectiveRange();
+        boolean inRange = distanceToTarget <= getEffectiveRange();
 
         // MOVEMENT: Move if not in attack range
         if (!inRange) {
@@ -339,8 +385,8 @@ public class Unit {
                     (travelTarget.getY() < preciseY && arena.isRiverTile(preciseY - 1));
                 
                 // If we would enter river and not be on bridge, move horizontally first
-                if (!currentlyInRiver && targetInOrAcrossRiver) {
-                    double testY = preciseY + (dy / distance) * step;
+                if (!currentlyInRiver && targetInOrAcrossRiver && distanceToWaypoint > 0.01) {
+                    double testY = preciseY + (dy / distanceToWaypoint) * step;
                     if (arena.isRiverTile(testY) && !arena.isOnBridge(preciseX, testY)) {
                         useHorizontalFirst = true;
                     }
@@ -359,16 +405,16 @@ public class Unit {
                     // #endregion
                 } else {
                     // Already at bridge X, can move vertically
-                    newY = preciseY + (dy / distance) * step;
+                    newY = preciseY + (dy / distanceToWaypoint) * step;
                 }
-            } else if (distance <= step) {
+            } else if (distanceToWaypoint <= step) {
                 // Smoothly arrive at target
                 newX = travelTarget.getX();
                 newY = travelTarget.getY();
             } else {
                 // Move toward target (diagonal OK)
-                newX = preciseX + (dx / distance) * step;
-                newY = preciseY + (dy / distance) * step;
+                newX = preciseX + (dx / distanceToWaypoint) * step;
+                newY = preciseY + (dy / distanceToWaypoint) * step;
             }
             
             // Ground units cannot enter river tiles (unless on a bridge)
@@ -401,6 +447,9 @@ public class Unit {
         // ATTACK: Attack if in range and cooldown ready (independent of movement)
         if (inRange && attackCooldownSeconds <= 0 && attackDamage > 0) {
             int effectiveDamage = getEffectiveDamage();
+            // Mark as engaged once we start attacking - prevents retargeting mid-combat
+            engagedWithTarget = true;
+            
             // Check if this unit has area of effect attacks
             double splashRadius = getSplashRadius();
             if (splashRadius > 0) {
@@ -416,12 +465,15 @@ public class Unit {
                     targetTower.takeDamage(effectiveDamage);
                 } else if (targetEnemyUnit != null && canAttackUnit(targetEnemyUnit)) {
                     // Re-check canAttackUnit to ensure ground units don't attack flying targets
-                    targetEnemyUnit.takeDamage(effectiveDamage);
+                    // Use takeDamageFrom to enable threat tracking - target will know we attacked them
+                    targetEnemyUnit.takeDamageFrom(effectiveDamage, this);
                     // Immediately check if target was defeated and try to find new one
                     if (targetEnemyUnit.isDefeated()) {
                         targetEnemyUnit = null;
+                        engagedWithTarget = false; // Reset engagement when target dies
                         // Try to immediately acquire a new enemy unit (respecting ground/flying restrictions)
-                        double detectionRadius = Math.max(getEffectiveRange() * 1.5, 2.5);
+                        // Reduced detection radius (1.2x range, min 1.5 tiles) to prevent targeting unreachable enemies
+                        double detectionRadius = Math.max(getEffectiveRange() * 1.2, 1.5);
                         Unit newTarget = arena.findNearestEnemyUnit(owner, position, detectionRadius, this);
                         if (newTarget != null) {
                             targetEnemyUnit = newTarget;
@@ -430,6 +482,7 @@ public class Unit {
                 } else if (targetEnemyUnit != null && !canAttackUnit(targetEnemyUnit)) {
                     // Can't attack this target (e.g., ground unit vs flying target) - clear and find new target
                     targetEnemyUnit = null;
+                    engagedWithTarget = false;
                 }
             }
             attackCooldownSeconds = attackIntervalSeconds;
@@ -503,9 +556,21 @@ public class Unit {
         }
 
         // Normal targeting logic for units that can attack troops
-        // Reduced detection radius for more natural engagement (1.5x instead of 2x)
-        double detectionRadius = Math.max(getEffectiveRange() * 1.5, 2.5);
+        // Detection radius scales with range, with a reasonable minimum
+        double detectionRadius = Math.max(getEffectiveRange() * 1.2, 1.5);
+        
         if (targetEnemyUnit == null || targetEnemyUnit.isDefeated()) {
+            // Priority 1: Target our attacker if we can attack them (threat response)
+            // This allows melee units to respond to ranged attackers
+            Unit attacker = getLastAttacker();
+            if (attacker != null && !attacker.isDefeated() && canAttackUnit(attacker)) {
+                targetEnemyUnit = attacker;
+                targetTower = null;
+                engagedWithTarget = false; // Will engage when we start attacking
+                return;
+            }
+            
+            // Priority 2: Find nearest enemy within detection radius
             Unit candidate = arena.findNearestEnemyUnit(owner, position, detectionRadius, this);
             if (candidate != null) {
                 targetEnemyUnit = candidate;
@@ -515,12 +580,15 @@ public class Unit {
             // Check if current target can still be attacked (e.g., ground unit cannot attack flying)
             if (!canAttackUnit(targetEnemyUnit)) {
                 targetEnemyUnit = null;
+                engagedWithTarget = false;
             } else {
                 double dx = targetEnemyUnit.getPreciseX() - preciseX;
                 double dy = targetEnemyUnit.getPreciseY() - preciseY;
                 double distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance > detectionRadius * 1.5) {
+                // Disengage if target moves too far away (1.3x detection radius for hysteresis)
+                if (distance > detectionRadius * 1.3) {
                     targetEnemyUnit = null;
+                    engagedWithTarget = false;
                 }
             }
         }
