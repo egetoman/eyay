@@ -4,8 +4,6 @@ import application.DeckController;
 import application.NetworkService;
 import application.network.NetworkConfig;
 import application.network.NetworkLobbyController;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -34,7 +32,6 @@ public class NetworkMenuView {
         title.getStyleClass().add("screen-title");
 
         NetworkConfig config = networkService != null ? networkService.loadConfig() : application.network.NetworkConfig.defaults();
-        Gson gson = new GsonBuilder().create();
 
         Label subtitle = new Label("Host a match or join by IP. Lobby shows names, deck preview, and ready status.");
         subtitle.getStyleClass().add("network-subtitle");
@@ -66,7 +63,11 @@ public class NetworkMenuView {
             Deck deck = resolveDeck(deckController, deckChoice.getValue());
             NetworkLobbyController lobby = networkService.createHostLobby(nameField.getText(), deck);
             int port = parsePort(portField.getText(), config.getDefaultPort());
-            lobby.setStartPayload(activeLayout != null ? gson.toJson(activeLayout) : "");
+            // For network matches, send the layout identifier as the start payload so
+            // the client can resolve the same layout locally. This is more robust than
+            // shipping the entire layout JSON and avoids deserialization issues.
+            String layoutId = activeLayout != null ? activeLayout.getId() : "";
+            lobby.setStartPayload(layoutId);
             navigator.showNetworkLobbyScreen(lobby);
             lobby.startHost(port);
         });

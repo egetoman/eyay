@@ -148,10 +148,24 @@ public class ScreenNavigator {
         }
         Gson gson = new GsonBuilder().create();
         ArenaLayout layout = null;
-        if (startPayload != null && !startPayload.isBlank()) {
-            try {
-                layout = gson.fromJson(startPayload, ArenaLayout.class);
-            } catch (Exception ignored) {
+        String payload = startPayload != null ? startPayload.trim() : "";
+
+        // New protocol: startPayload is primarily the layout ID so both host and client
+        // can resolve the same arena via ArenaLayoutService. For backwards
+        // compatibility, we still support the older format where the full ArenaLayout
+        // JSON was sent instead.
+        if (!payload.isEmpty()) {
+            // First, try to interpret payload as a layout ID.
+            layout = arenaLayoutService.findById(payload).orElse(null);
+
+            // If that fails and the payload looks like JSON, fall back to deserializing
+            // the full layout (legacy behavior).
+            if (layout == null && payload.startsWith("{")) {
+                try {
+                    layout = gson.fromJson(payload, ArenaLayout.class);
+                } catch (Exception ignored) {
+                    // If deserialization fails, we'll fall back to the active layout below.
+                }
             }
         }
         if (layout == null) {

@@ -217,6 +217,7 @@ public class Arena {
     /**
      * Finds the nearest enemy unit that can be attacked by the attacker.
      * Respects ground/flying restrictions: ground units with GROUND target cannot attack flying units.
+     * Also prevents units on different bridges from attacking each other.
      * 
      * @param requester The owner of the unit seeking targets
      * @param fromPosition The position to search from
@@ -230,6 +231,15 @@ public class Arena {
         }
         double bestDistance = maxDistance <= 0 ? Double.MAX_VALUE : maxDistance;
         Unit best = null;
+        
+        // Determine if attacker is on a bridge and which bridge
+        boolean attackerOnBridge = false;
+        Bridge attackerBridge = null;
+        if (attacker != null && attacker.getPosition() != null) {
+            attackerBridge = getBridgeAt(attacker.getPosition());
+            attackerOnBridge = (attackerBridge != null);
+        }
+        
         for (Unit unit : units) {
             if (unit == null || unit.getOwner() == requester || unit.isDefeated()) {
                 continue;
@@ -238,6 +248,19 @@ public class Arena {
             if (attacker != null && !attacker.canAttackUnit(unit)) {
                 continue;
             }
+            
+            // Prevent units on different bridges from attacking each other
+            // (but allow all other attack scenarios: bridge-to-land, land-to-bridge, land-to-land)
+            if (attacker != null && attackerOnBridge && unit.getPosition() != null) {
+                Bridge targetBridge = getBridgeAt(unit.getPosition());
+                boolean targetOnBridge = (targetBridge != null);
+                
+                // Only prevent attack if both are on bridges but DIFFERENT bridges
+                if (targetOnBridge && !isSameBridge(attackerBridge, targetBridge)) {
+                    continue;
+                }
+            }
+            
             double dx = unit.getPreciseX() - fromPosition.getX();
             double dy = unit.getPreciseY() - fromPosition.getY();
             double distance = Math.sqrt(dx * dx + dy * dy);
@@ -444,6 +467,50 @@ public class Arena {
         int px = (int) Math.round(preciseX);
         int py = (int) Math.round(preciseY);
         return isOnBridge(new Position(px, py));
+    }
+
+    /**
+     * Gets the bridge that a position is on, or null if not on any bridge.
+     */
+    private Bridge getBridgeAt(Position position) {
+        if (position == null || bridges == null || bridges.isEmpty()) {
+            return null;
+        }
+        int px = position.getX();
+        int py = position.getY();
+        for (Bridge bridge : bridges) {
+            if (bridge.getStart() == null || bridge.getEnd() == null) {
+                continue;
+            }
+            int minX = Math.min(bridge.getStart().getX(), bridge.getEnd().getX());
+            int maxX = Math.max(bridge.getStart().getX(), bridge.getEnd().getX());
+            int minY = Math.min(bridge.getStart().getY(), bridge.getEnd().getY());
+            int maxY = Math.max(bridge.getStart().getY(), bridge.getEnd().getY());
+            if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+                return bridge;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Checks if two bridges are the same bridge by comparing their positions.
+     */
+    private boolean isSameBridge(Bridge bridge1, Bridge bridge2) {
+        if (bridge1 == null || bridge2 == null) {
+            return false;
+        }
+        if (bridge1 == bridge2) {
+            return true;
+        }
+        // Compare by position coordinates
+        if (bridge1.getStart() == null || bridge1.getEnd() == null ||
+            bridge2.getStart() == null || bridge2.getEnd() == null) {
+            return false;
+        }
+        // Two bridges are the same if their start and end positions match
+        return (bridge1.getStart().equals(bridge2.getStart()) && bridge1.getEnd().equals(bridge2.getEnd())) ||
+               (bridge1.getStart().equals(bridge2.getEnd()) && bridge1.getEnd().equals(bridge2.getStart()));
     }
 
     private boolean requiresBridgeCrossing(Position from, Position destination) {
