@@ -88,7 +88,7 @@ public class LocalPvPGameView {
     private final StackPane topCrownPill;
     private final StackPane bottomCrownPill;
     private final Label statusLabel = new Label();
-    private final VBox deckSectionContainer = new VBox();
+    private final VBox dashboardContainer = new VBox();
     private Timeline matchTicker;
 
     private final HandState bottomHand;
@@ -96,10 +96,11 @@ public class LocalPvPGameView {
     private int selectedBottomIndex = -1;
     private int selectedTopIndex = -1;
 
-    private Label bottomElixirLabel;
-    private Region bottomElixirFill;
-    private Label topElixirLabel;
-    private Region topElixirFill;
+    private Label draggingCardLabel;
+    private Label activeElixirLabel;
+    private Region activeElixirFill;
+    private StackPane nextCardSlot;
+    private HBox handCardContainer;
 
     private boolean paused = false;
     private final StackPane overlayLayer = new StackPane();
@@ -170,177 +171,215 @@ public class LocalPvPGameView {
                 buildMetricPill("Time", timerLabel));
         metricsRow.setAlignment(Pos.CENTER_RIGHT);
 
-        Region crownSpacer = new Region();
-        HBox.setHgrow(crownSpacer, Priority.ALWAYS);
-        HBox crownRow = new HBox(14, topCrownPill, crownSpacer, metricsRow, bottomCrownPill);
-        crownRow.setAlignment(Pos.CENTER_LEFT);
+        // Top Left Stats (Enemy Crowns + My Crowns)
+        HBox leftStats = new HBox(8, topCrownPill, bottomCrownPill);
+        leftStats.setAlignment(Pos.CENTER_LEFT);
+        leftStats.setPickOnBounds(false);
 
-        VBox header = new VBox(6, title, crownRow);
-        header.setPadding(new Insets(10, 10, 15, 10));
-        content.setTop(header);
+        // Top Right Stats (Metrics)
+        HBox rightStats = new HBox(8,
+                buildMetricPill("Turn", turnLabel),
+                buildMetricPill("Phase", phaseLabel),
+                buildMetricPill("Time", timerLabel));
+        rightStats.setAlignment(Pos.CENTER_RIGHT);
+        rightStats.setPickOnBounds(false);
+
+        BorderPane topOverlay = new BorderPane();
+        topOverlay.setLeft(leftStats);
+        topOverlay.setRight(rightStats);
+        topOverlay.setPadding(new Insets(10));
+        topOverlay.setPickOnBounds(false);
 
         arenaBoard = new ArenaBoard(selectedLayout);
         arenaBoard.setOnTileSelected(this::handleTileSelection);
         overlayLayer.setVisible(false);
         overlayLayer.setMouseTransparent(true);
-        StackPane boardLayer = new StackPane(arenaBoard.getView(), overlayLayer);
-        content.setCenter(boardLayer);
+        // Arena is added to root below
 
         if (match != null && match.getArena() != null) {
             arenaBoard.render(match.getArena());
         }
 
-        VBox hud = buildHudSection();
-        content.setBottom(hud);
+        VBox hud = buildDashboard();
+        // Overlay HUD on top of the board for main arena space
+        StackPane.setAlignment(hud, Pos.BOTTOM_CENTER);
+
+        // Re-structure: Root is StackPane. Layer 1: Arena. Layer 2: UI Overlay
+        root.getChildren().clear();
+        root.getChildren().add(new StackPane(arenaBoard.getView(), overlayLayer));
+
+        BorderPane uiLayer = new BorderPane();
+        uiLayer.setPickOnBounds(false); // Let clicks pass through empty parts
+        uiLayer.setTop(topOverlay);
+        uiLayer.setBottom(hud);
+        uiLayer.setRight(emotePanelLayer);
+        uiLayer.setRight(emotePanelLayer); // Move emote layer into UI structure
+
+        root.getChildren().add(uiLayer);
+        root.getChildren().add(effectLayer);
 
         refreshTurnHud();
+        refreshDashboard();
         updateElixirHud();
         updateClockHud();
         startTicker();
     }
 
-    private VBox buildHudSection() {
-        VBox container = new VBox(10);
-        container.setPadding(new Insets(15));
-        container.setStyle("-fx-background-color: #181b22; -fx-border-color: #2d2f36; -fx-border-width: 2 0 0 0;");
+    private VBox buildDashboard() {
+        VBox dashboard = new VBox(0);
+        dashboard.setPickOnBounds(true); // Catch clicks on the dashboard itself
+        dashboard.setMaxHeight(Region.USE_PREF_SIZE);
+        dashboard.setStyle("-fx-background-color: #181b22; -fx-border-color: #2d2f36; -fx-border-width: 2 0 0 0;");
+        dashboard.setPadding(new Insets(10, 16, 10, 16));
 
-        deckSectionContainer.setSpacing(6);
-        refreshDeckSection();
+        // Top Row: Next Card (Left) | Hand (Center) | Status + Controls (Right)
 
-        statusLabel.setTextFill(Color.web("#d2d7e5"));
-        statusLabel.setWrapText(true);
-        statusLabel.setText("Select a card, then click a valid tile on your side.");
+        // Next Card Section
+        VBox nextSection = new VBox(4);
+        nextSection.setAlignment(Pos.CENTER);
+        Label nextLabel = new Label("Next");
+        nextLabel.setTextFill(Color.web("#8f94a3"));
+        nextLabel.setFont(Font.font("Arial", FontWeight.BOLD, 10));
+
+        nextCardSlot = new StackPane(); // Placeholder, filled in refreshDashboard
+        nextCardSlot.setPrefSize(44, 58);
+
+        nextSection.getChildren().addAll(nextLabel, nextCardSlot);
+
+        // Hand Section (Center)
+        handCardContainer = new HBox(12);
+        handCardContainer.setAlignment(Pos.CENTER);
+
+        // Controls / Status (Right)
+        VBox controlsBox = new VBox(8);
+        controlsBox.setAlignment(Pos.CENTER_RIGHT);
+
+        Button emoteButton = new Button("Emotes");
+        emoteButton.setOnAction(e -> openEmotePanel(activePlayer == bottomPlayer));
 
         Button pauseButton = new Button("Pause");
         pauseButton.setOnAction(e -> togglePause());
 
-        HBox controls = new HBox();
-        controls.setAlignment(Pos.CENTER_RIGHT);
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        controls.getChildren().addAll(spacer, pauseButton);
+        HBox buttonRow = new HBox(8, emoteButton, pauseButton);
+        buttonRow.setAlignment(Pos.CENTER_RIGHT);
 
-        container.getChildren().addAll(deckSectionContainer, statusLabel, controls);
-        return container;
+        statusLabel.setTextFill(Color.web("#d2d7e5"));
+        statusLabel.setWrapText(false);
+        statusLabel.setFont(Font.font("Arial", 11));
+        statusLabel.setText("Ready.");
+
+        controlsBox.getChildren().addAll(statusLabel, buttonRow);
+
+        // Assemble Top Row
+        HBox topRow = new HBox(16);
+        topRow.setAlignment(Pos.CENTER);
+
+        Region leftSpacer = new Region();
+        HBox.setHgrow(leftSpacer, Priority.ALWAYS);
+
+        Region rightSpacer = new Region();
+        HBox.setHgrow(rightSpacer, Priority.ALWAYS);
+
+        topRow.getChildren().addAll(nextSection, leftSpacer, handCardContainer, rightSpacer, controlsBox);
+
+        // Bottom Row: Elixir Bar
+        // We'll make a nice full-width or centered elixir bar
+        VBox elixirSection = buildUnifiedElixirBar();
+
+        dashboard.getChildren().addAll(topRow, elixirSection);
+        return dashboard;
     }
 
-    private VBox buildElixirPanel(Player p, boolean bottom) {
+    private VBox buildUnifiedElixirBar() {
+        // Clash Royale style: long bar at bottom
         Region fill = new Region();
-        fill.setPrefSize(0, ELIXIR_BAR_HEIGHT);
+        fill.setPrefHeight(ELIXIR_BAR_HEIGHT + 4);
         fill.setStyle("-fx-background-color: linear-gradient(to right, #b259ff, #7a4dff); -fx-background-radius: 10;");
 
         Region track = new Region();
-        track.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
-        track.setMaxWidth(ELIXIR_BAR_WIDTH);
-        track.setMinWidth(ELIXIR_BAR_WIDTH);
+        track.setPrefHeight(ELIXIR_BAR_HEIGHT + 4);
         track.setStyle(
-                "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
+                "-fx-background-color: #0d1016; -fx-background-radius: 10; -fx-border-color: #3b3f55; -fx-border-radius: 10;");
 
         HBox ticks = new HBox();
-        ticks.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
-        ticks.setMaxWidth(ELIXIR_BAR_WIDTH);
-        ticks.setMinWidth(ELIXIR_BAR_WIDTH);
         ticks.setAlignment(Pos.CENTER_LEFT);
-        double segmentWidth = ELIXIR_BAR_WIDTH / 10.0;
+        // We want the bar to stretch, so we bind widths later or use a dedicated layout
+        // For simplicity, let's fix the width to be wide but reasonable
+        double barWidth = 600;
+        track.setMaxWidth(barWidth);
+        track.setMinWidth(barWidth);
+
+        // Create ticks
+        double segmentWidth = barWidth / 10.0;
         for (int i = 0; i < 9; i++) {
             Region spacer = new Region();
             spacer.setPrefWidth(segmentWidth - 1);
             spacer.setMinWidth(segmentWidth - 1);
             Region divider = new Region();
-            divider.setPrefSize(1, ELIXIR_BAR_HEIGHT);
-            divider.setStyle("-fx-background-color: rgba(255,255,255,0.2);");
+            divider.setPrefSize(1, ELIXIR_BAR_HEIGHT + 4);
+            divider.setStyle("-fx-background-color: rgba(255,255,255,0.15);");
             ticks.getChildren().addAll(spacer, divider);
         }
         ticks.setMouseTransparent(true);
+        ticks.setMaxWidth(barWidth);
 
-        StackPane bar = new StackPane(track, fill, ticks);
-        bar.setPrefWidth(ELIXIR_BAR_WIDTH);
-        bar.setMaxWidth(ELIXIR_BAR_WIDTH);
+        StackPane barStack = new StackPane(track, fill, ticks);
+        barStack.setMaxWidth(barWidth);
         StackPane.setAlignment(fill, Pos.CENTER_LEFT);
         StackPane.setAlignment(ticks, Pos.CENTER_LEFT);
 
-        Label name = new Label(p != null ? p.getName() : (bottom ? "Player 1" : "Player 2"));
-        name.setTextFill(Color.web("#cbd0d6"));
-        name.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+        Label label = new Label("0");
+        label.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        label.setTextFill(Color.web("#d18bff"));
+        label.setEffect(new javafx.scene.effect.DropShadow(5, Color.BLACK));
 
-        Label value = new Label("0");
-        value.setFont(Font.font("Arial", FontWeight.BOLD, 16));
-        value.setTextFill(Color.WHITE);
+        activeElixirLabel = label;
+        activeElixirFill = fill;
 
-        if (bottom) {
-            bottomElixirFill = fill;
-            bottomElixirLabel = value;
-        } else {
-            topElixirFill = fill;
-            topElixirLabel = value;
+        // Container with label dropping on top or side?
+        // Let's put label inside the bar on the right? Or separate.
+        // Standard is number on the bar or next to it.
+        StackPane.setAlignment(label, Pos.CENTER);
+        barStack.getChildren().add(label);
+
+        VBox container = new VBox(6, barStack);
+        container.setPadding(new Insets(8, 0, 4, 0));
+        container.setAlignment(Pos.CENTER);
+        return container;
+    }
+
+    private void refreshDashboard() {
+        if (activePlayer == null || nextCardSlot == null || handCardContainer == null) {
+            return;
         }
 
-        VBox panel = new VBox(4, name, bar, value);
-        panel.setAlignment(Pos.CENTER_LEFT);
-        return panel;
-    }
+        boolean isBottom = (activePlayer == bottomPlayer);
+        HandState hand = isBottom ? bottomHand : topHand;
+        int selectedIndex = isBottom ? selectedBottomIndex : selectedTopIndex;
 
-    private void refreshDeckSection() {
-        deckSectionContainer.getChildren().clear();
-        VBox bottomPanel = buildDeckPanel(bottomPlayer, bottomHand, true, activePlayer == bottomPlayer,
-                selectedBottomIndex);
-        VBox topPanel = buildDeckPanel(topPlayer, topHand, false, activePlayer == topPlayer, selectedTopIndex);
-        HBox row = new HBox(18, bottomPanel, topPanel);
-        row.setAlignment(Pos.CENTER_LEFT);
-        deckSectionContainer.getChildren().add(row);
-    }
+        // Update Next Card
+        nextCardSlot.getChildren().clear();
+        StackPane nextCard = StartGameUiBits.createCardSlot(hand.nextCard, false, false);
+        nextCardSlot.getChildren().add(nextCard);
 
-    private VBox buildDeckPanel(Player player,
-            HandState hand,
-            boolean bottomSide,
-            boolean isActive,
-            int selectedIndex) {
-        VBox panel = new VBox(8);
-        panel.setAlignment(Pos.TOP_LEFT);
-        panel.setPadding(new Insets(10));
-        panel.setPrefWidth(360);
-        panel.setStyle(isActive
-                ? "-fx-background-color: #1c1f2a; -fx-background-radius: 10; -fx-border-color: #ffd54f; -fx-border-radius: 10; -fx-border-width: 2;"
-                : "-fx-background-color: #1c1f2a; -fx-background-radius: 10; -fx-border-color: #2d2f36; -fx-border-radius: 10; -fx-border-width: 1;");
-
-        String displayName = player != null ? player.getName() : (bottomSide ? "Player 1" : "Player 2");
-        Label name = new Label(displayName);
-        name.setTextFill(Color.web("#cbd0d6"));
-        name.setFont(Font.font("Arial", FontWeight.BOLD, 13));
-
-        Button emoteButton = new Button("Emote");
-        emoteButton.setOnAction(e -> openEmotePanel(bottomSide));
-
-        Region headerSpacer = new Region();
-        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
-        HBox header = new HBox(8, name, headerSpacer, emoteButton);
-        header.setAlignment(Pos.CENTER_LEFT);
-
-        HBox handRow = new HBox(6); // Reduced spacing
-        handRow.setAlignment(Pos.CENTER_LEFT);
+        // Update Hand Cards
+        handCardContainer.getChildren().clear();
         for (int i = 0; i < 4; i++) {
             Card card = i < hand.handCards.size() ? hand.handCards.get(i) : null;
-            boolean highlighted = isActive && i == selectedIndex;
+            boolean highlighted = (i == selectedIndex);
+
+            // Use LARGE slots for the active hand
             StackPane slot = StartGameUiBits.createCardSlot(card, true, highlighted);
+
+            // Interaction
             final int index = i;
-            slot.setOnMouseClicked(event -> selectHandIndex(player, bottomSide, index, slot));
-            handRow.getChildren().add(slot);
+            slot.setOnMouseClicked(event -> selectHandIndex(activePlayer, isBottom, index, slot));
+
+            handCardContainer.getChildren().add(slot);
         }
 
-        StackPane nextSlot = StartGameUiBits.createCardSlot(hand.nextCard, false, false);
-        VBox nextColumn = new VBox(2); // Reduced spacing
-        nextColumn.setAlignment(Pos.CENTER);
-        Label nextLabel = new Label("Next");
-        nextLabel.setTextFill(Color.web("#8f94a3"));
-        nextLabel.setFont(Font.font("Arial", FontWeight.BOLD, 10)); // Smaller font
-        nextColumn.getChildren().addAll(nextLabel, nextSlot);
-
-        HBox deckRow = new HBox(10, nextColumn, handRow); // Reduced spacing
-        deckRow.setAlignment(Pos.CENTER_LEFT);
-
-        VBox elixir = buildElixirPanel(player, bottomSide);
-        panel.getChildren().addAll(header, deckRow, elixir);
-        return panel;
+        // Update Elixir Bar Label immediately (optional, mainly handled by ticker)
+        updateElixirHud();
     }
 
     private void selectHandIndex(Player clickedPlayer, boolean bottomSide, int index, StackPane slot) {
@@ -359,7 +398,7 @@ public class LocalPvPGameView {
             } else {
                 selectedTopIndex = -1;
             }
-            refreshDeckSection();
+            refreshDashboard();
             return;
         }
         Card candidate = hand.handCards.get(index);
@@ -375,7 +414,7 @@ public class LocalPvPGameView {
             selectedTopIndex = index;
             selectedBottomIndex = -1;
         }
-        refreshDeckSection();
+        refreshDashboard();
         Card selected = hand.handCards.get(index);
         if (selected != null) {
             showStatus(activePlayer.getName() + " selected: " + selected.getName(), false);
@@ -459,7 +498,7 @@ public class LocalPvPGameView {
         hand.cycle(selectedIndex);
         selectedBottomIndex = -1;
         selectedTopIndex = -1;
-        refreshDeckSection();
+        refreshDashboard();
         refreshTurnHud();
 
         showStatus(activePlayer.getName() + " deployed " + card.getName() + " at (" + tile.getX() + ", " + tile.getY()
@@ -474,7 +513,7 @@ public class LocalPvPGameView {
         // End turn after a successful deploy
         activePlayer = (activePlayer == bottomPlayer) ? topPlayer : bottomPlayer;
         refreshTurnHud();
-        refreshDeckSection();
+        refreshDashboard();
     }
 
     /**
@@ -575,81 +614,45 @@ public class LocalPvPGameView {
     }
 
     private void updateElixirHud() {
-        // Precise Elixir Calculation
-        double p1Elixir = (bottomPlayer != null) ? bottomPlayer.getCurrentElixir() : 0;
-        double p2Elixir = (topPlayer != null) ? topPlayer.getCurrentElixir() : 0;
-
-        if (match != null) {
-            p1Elixir += match.getPlayerElixirFraction();
-            p2Elixir += match.getOpponentElixirFraction();
+        if (activePlayer == null || activeElixirLabel == null || activeElixirFill == null) {
+            return;
         }
 
-        // Update Bottom HUD
-        if (bottomPlayer != null && bottomElixirLabel != null && bottomElixirFill != null) {
-            bottomElixirLabel.setText("Elixir: " + (int) p1Elixir); // Show integer part
-            double ratio = bottomPlayer.getMaxElixir() == 0 ? 0 : p1Elixir / bottomPlayer.getMaxElixir();
-            setElixirFillWidth(bottomElixirFill, ratio);
+        // Only update current player's elixir
+        double currentElixir;
+        double maxElixir = activePlayer.getMaxElixir();
 
-            // Update Card Loading Masks
-            updateDeckLoadingState(true, p1Elixir);
+        if (activePlayer == bottomPlayer) {
+            currentElixir = bottomPlayer.getCurrentElixir() + (match != null ? match.getPlayerElixirFraction() : 0);
+        } else {
+            currentElixir = topPlayer.getCurrentElixir() + (match != null ? match.getOpponentElixirFraction() : 0);
         }
 
-        // Update Top HUD
-        if (topPlayer != null && topElixirLabel != null && topElixirFill != null) {
-            topElixirLabel.setText("Elixir: " + (int) p2Elixir);
-            double ratio = topPlayer.getMaxElixir() == 0 ? 0 : p2Elixir / topPlayer.getMaxElixir();
-            setElixirFillWidth(topElixirFill, ratio);
+        activeElixirLabel.setText(String.valueOf((int) currentElixir));
+        double ratio = (maxElixir == 0) ? 0 : currentElixir / maxElixir;
 
-            updateDeckLoadingState(false, p2Elixir);
-        }
-    }
+        // 600 matches buildUnifiedElixirBar width
+        double totalWidth = 600;
+        double width = totalWidth * clamp01(ratio);
+        activeElixirFill.setPrefWidth(width);
+        activeElixirFill.setMinWidth(width);
+        activeElixirFill.setMaxWidth(width);
 
-    private void setElixirFillWidth(Region fill, double ratio) {
-        double width = ELIXIR_BAR_WIDTH * clamp01(ratio);
-        fill.setPrefWidth(width);
-        fill.setMinWidth(width);
-        fill.setMaxWidth(width);
+        updateDeckLoadingState(activePlayer == bottomPlayer, currentElixir);
     }
 
     private void updateDeckLoadingState(boolean isBottom, double currentElixir) {
-        // Traverse to find card slots
-        // Structure: deckSectionContainer(VBox) -> Row(HBox) -> Panel(VBox) ->
-        // DeckRow(HBox) -> HandRow(HBox) -> Slots(StackPane)
-        if (deckSectionContainer.getChildren().isEmpty())
+        if (handCardContainer == null)
             return;
-
-        var rowNode = deckSectionContainer.getChildren().get(0);
-        if (!(rowNode instanceof HBox))
-            return;
-        HBox row = (HBox) rowNode;
-        if (row.getChildren().size() < 2)
-            return;
-
-        VBox panel = (VBox) row.getChildren().get(isBottom ? 0 : 1);
-        if (panel.getChildren().size() < 2)
-            return; // Name, DeckRow, Elixir
-
-        var deckRowNode = panel.getChildren().get(1);
-        if (!(deckRowNode instanceof HBox))
-            return;
-        HBox deckRow = (HBox) deckRowNode;
-
-        if (deckRow.getChildren().size() < 2)
-            return;
-        var handRowNode = deckRow.getChildren().get(1); // 0 is Next, 1 is Hand
-        if (!(handRowNode instanceof HBox))
-            return;
-        HBox handRow = (HBox) handRowNode;
 
         HandState hand = isBottom ? bottomHand : topHand;
 
-        for (int i = 0; i < handRow.getChildren().size(); i++) {
-            var child = handRow.getChildren().get(i);
+        for (int i = 0; i < handCardContainer.getChildren().size(); i++) {
+            var child = handCardContainer.getChildren().get(i);
             if (child instanceof StackPane && i < hand.handCards.size()) {
                 Card card = hand.handCards.get(i);
                 if (card != null) {
                     int cost = card.getElixirCost();
-                    // Avoid division by zero
                     double progress = (cost <= 0) ? 1.0 : (currentElixir / cost);
                     StartGameUiBits.updateCardLoading((StackPane) child, progress);
                 } else {
