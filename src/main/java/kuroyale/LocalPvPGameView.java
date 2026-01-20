@@ -316,7 +316,7 @@ public class LocalPvPGameView {
         HBox header = new HBox(8, name, headerSpacer, emoteButton);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        HBox handRow = new HBox(8);
+        HBox handRow = new HBox(6); // Reduced spacing
         handRow.setAlignment(Pos.CENTER_LEFT);
         for (int i = 0; i < 4; i++) {
             Card card = i < hand.handCards.size() ? hand.handCards.get(i) : null;
@@ -328,14 +328,14 @@ public class LocalPvPGameView {
         }
 
         StackPane nextSlot = StartGameUiBits.createCardSlot(hand.nextCard, false, false);
-        VBox nextColumn = new VBox(4);
+        VBox nextColumn = new VBox(2); // Reduced spacing
         nextColumn.setAlignment(Pos.CENTER);
         Label nextLabel = new Label("Next");
         nextLabel.setTextFill(Color.web("#8f94a3"));
-        nextLabel.setFont(Font.font("Arial", FontWeight.BOLD, 11));
+        nextLabel.setFont(Font.font("Arial", FontWeight.BOLD, 10)); // Smaller font
         nextColumn.getChildren().addAll(nextLabel, nextSlot);
 
-        HBox deckRow = new HBox(12, nextColumn, handRow);
+        HBox deckRow = new HBox(10, nextColumn, handRow); // Reduced spacing
         deckRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox elixir = buildElixirPanel(player, bottomSide);

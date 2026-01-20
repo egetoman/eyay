@@ -282,7 +282,7 @@ public class NetworkMatchView {
 
     private void refreshDeckUI() {
         deckBox.getChildren().clear();
-        HBox row = new HBox(8);
+        HBox row = new HBox(6); // Reduced spacing
         for (int i = 0; i < 4; i++) {
             Card c = i < handCards.size() ? handCards.get(i) : null;
             StackPane slot = StartGameUiBits.createCardSlot(c, true, i == selectedIndex);

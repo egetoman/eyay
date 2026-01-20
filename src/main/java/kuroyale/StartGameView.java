@@ -62,8 +62,8 @@ import kuroyale.emote.EmoteType;
 
 public class StartGameView {
 
-    private static final double ELIXIR_BAR_WIDTH = 460;
-    private static final double ELIXIR_BAR_HEIGHT = 18;
+    private static final double ELIXIR_BAR_WIDTH = 360;
+    private static final double ELIXIR_BAR_HEIGHT = 14;
     private static final double CROWN_ANIM_DURATION_SECONDS = 0.7;
     private static final double CROWN_ICON_SIZE = 26;
 
@@ -126,7 +126,7 @@ public class StartGameView {
 
         root = new StackPane();
         content = new BorderPane();
-        content.setPadding(new Insets(10)); // UI-only change: spacing
+        content.setPadding(new Insets(6)); // Reduced for more arena space
         content.setStyle("-fx-background-color: #0f1216;");
         content.getStyleClass().add("match-content");
         root.getStyleClass().add("match-root"); // UI-only change: visual hierarchy
@@ -178,8 +178,8 @@ public class StartGameView {
         crownRow.setAlignment(Pos.CENTER_LEFT);
         crownRow.getStyleClass().add("match-crown-row");
 
-        VBox header = new VBox(6, title, subtitle, crownRow);
-        header.setPadding(new Insets(8, 10, 12, 10)); // UI-only change: spacing
+        VBox header = new VBox(4, title, subtitle, crownRow);
+        header.setPadding(new Insets(6, 10, 8, 10)); // Reduced padding for more arena space
         header.getStyleClass().add("match-header");
         content.setTop(header);
 
@@ -241,12 +241,12 @@ public class StartGameView {
     }
 
     private VBox buildHudSection() {
-        VBox container = new VBox(14);
-        container.setPadding(new Insets(14)); // UI-only change: spacing
+        VBox container = new VBox(8); // Reduced spacing
+        container.setPadding(new Insets(8, 14, 8, 14)); // Reduced vertical padding
         container.setStyle("-fx-background-color: #181b22; -fx-border-color: #2d2f36; -fx-border-width: 2 0 0 0;");
         container.getStyleClass().add("match-hud");
 
-        deckSectionContainer.setSpacing(6);
+        deckSectionContainer.setSpacing(4); // Reduced spacing
         deckSectionContainer.getStyleClass().add("match-hand-tray");
         refreshDeckSection();
 
@@ -280,7 +280,7 @@ public class StartGameView {
     private void refreshDeckSection() {
         deckSectionContainer.getChildren().clear();
 
-        HBox handRow = new HBox(8);
+        HBox handRow = new HBox(6); // Reduced spacing
         handRow.setAlignment(Pos.CENTER_LEFT);
         handRow.getStyleClass().add("match-hand-row");
         for (int i = 0; i < 4; i++) {
@@ -292,18 +292,18 @@ public class StartGameView {
         }
 
         StackPane nextSlot = StartGameUiBits.createCardSlot(nextCard, false, false);
-        VBox nextColumn = new VBox(4);
+        VBox nextColumn = new VBox(2); // Reduced spacing
         nextColumn.setAlignment(Pos.CENTER);
         nextColumn.getStyleClass().add("match-next-column");
         Label nextLabel = new Label("Next");
         nextLabel.setTextFill(Color.web("#8f94a3"));
-        nextLabel.setFont(Font.font("Arial", FontWeight.BOLD, 11));
+        nextLabel.setFont(Font.font("Arial", FontWeight.BOLD, 10)); // Smaller font
         nextLabel.getStyleClass().add("match-next-label");
         nextColumn.getChildren().addAll(nextLabel, nextSlot);
 
-        HBox deckRow = new HBox(12, nextColumn, handRow);
+        HBox deckRow = new HBox(10, nextColumn, handRow); // Reduced spacing
         deckRow.setAlignment(Pos.CENTER_LEFT);
-        deckRow.getStyleClass().add("match-deck-row"); // UI-only change: hand tray styling
+        deckRow.getStyleClass().add("match-deck-row");
 
         deckSectionContainer.getChildren().add(deckRow);
     }

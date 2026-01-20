@@ -22,8 +22,9 @@ final class StartGameUiBits {
     }
 
     static StackPane createCardSlot(Card card, boolean large, boolean highlighted) {
-        double width = large ? 70 : 54;
-        double height = large ? 90 : 70;
+        // Reduced card sizes to minimize deck panel height
+        double width = large ? 58 : 44;
+        double height = large ? 75 : 58;
 
         StackPane tile = new StackPane();
         tile.setPrefSize(width, height);

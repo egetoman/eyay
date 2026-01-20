@@ -32,7 +32,7 @@ import kuroyale.domain.Unit;
 
 public class ArenaBoard {
 
-    private static final double TILE_SIZE = 20.0;
+    private static final double DEFAULT_TILE_SIZE = 26.0;
     private static final int SPRITE_FRAME_SIZE = 100; // Tiny RPG pack frames are 100x100
     private static final boolean ENABLE_UNIT_SPRITES = true;
     private static final long ATTACK_HOLD_MILLIS = 450;
@@ -48,7 +48,9 @@ public class ArenaBoard {
 
     private final ArenaLayout layout;
     private final Canvas canvas;
+    private final StackPane canvasContainer;
     private final ScrollPane root;
+    private double tileSize = DEFAULT_TILE_SIZE;
     private final Pane overlayLayer;
     private Consumer<Position> tileSelectionListener;
     private final boolean flipVertical;
@@ -68,7 +70,8 @@ public class ArenaBoard {
     public ArenaBoard(ArenaLayout layout, boolean flipVertical) {
         this.layout = layout;
         this.flipVertical = flipVertical;
-        this.canvas = new Canvas(layout.getWidth() * TILE_SIZE, layout.getHeight() * TILE_SIZE);
+        this.tileSize = DEFAULT_TILE_SIZE;
+        this.canvas = new Canvas(layout.getWidth() * tileSize, layout.getHeight() * tileSize);
         this.overlayLayer = new Pane();
         this.overlayLayer.setPickOnBounds(false);
         this.overlayLayer.setMouseTransparent(true);
@@ -77,15 +80,50 @@ public class ArenaBoard {
         renderUnits(Collections.emptyList());
         this.canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
 
-        StackPane canvasContainer = new StackPane(canvas, overlayLayer);
-        canvasContainer.setPadding(new Insets(15));
+        this.canvasContainer = new StackPane(canvas, overlayLayer);
+        canvasContainer.setPadding(new Insets(8));
         canvasContainer.setStyle("-fx-background-color: #1b1e24;");
 
         ScrollPane scrollPane = new ScrollPane(canvasContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         this.root = scrollPane;
+        
+        // Auto-resize arena to fit available space when viewport changes
+        scrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
+            if (newBounds != null && newBounds.getHeight() > 100) {
+                resizeToFit(newBounds.getWidth(), newBounds.getHeight());
+            }
+        });
+    }
+    
+    /**
+     * Resizes the arena to fit within the given dimensions while maintaining aspect ratio.
+     */
+    private void resizeToFit(double availableWidth, double availableHeight) {
+        // Account for padding (8px on each side)
+        double usableHeight = availableHeight - 16;
+        double usableWidth = availableWidth - 16;
+        
+        // Calculate tile size to fit height (height is usually the limiting factor)
+        double tileSizeForHeight = usableHeight / layout.getHeight();
+        double tileSizeForWidth = usableWidth / layout.getWidth();
+        
+        // Use the smaller to ensure it fits both dimensions
+        double newTileSize = Math.min(tileSizeForHeight, tileSizeForWidth);
+        
+        // Clamp to reasonable range (minimum 14 for readability, maximum 32 for performance)
+        newTileSize = Math.max(14.0, Math.min(32.0, newTileSize));
+        
+        // Only resize if change is significant (avoid infinite loops)
+        if (Math.abs(newTileSize - tileSize) > 0.5) {
+            tileSize = newTileSize;
+            canvas.setWidth(layout.getWidth() * tileSize);
+            canvas.setHeight(layout.getHeight() * tileSize);
+        }
     }
 
     public Parent getView() {
@@ -100,8 +138,8 @@ public class ArenaBoard {
         if (position == null) {
             return null;
         }
-        double x = position.getX() * TILE_SIZE + (TILE_SIZE / 2.0);
-        double y = convertY(layout, position.getY()) + (TILE_SIZE / 2.0);
+        double x = position.getX() * tileSize + (tileSize / 2.0);
+        double y = convertY(layout, position.getY()) + (tileSize / 2.0);
         return new Point2D(x, y);
     }
 
@@ -157,14 +195,14 @@ public class ArenaBoard {
         }
         double x = event.getX();
         double y = event.getY();
-        int gridX = (int) Math.floor(x / TILE_SIZE);
+        int gridX = (int) Math.floor(x / tileSize);
         int gridY;
         if (flipVertical) {
             // Opponent perspective: top of screen is global bottom
-            gridY = (int) Math.floor(y / TILE_SIZE);
+            gridY = (int) Math.floor(y / tileSize);
         } else {
             // Normal: top of screen is global top
-            gridY = layout.getHeight() - 1 - (int) Math.floor(y / TILE_SIZE);
+            gridY = layout.getHeight() - 1 - (int) Math.floor(y / tileSize);
         }
         if (gridX < 0 || gridX >= layout.getWidth() || gridY < 0 || gridY >= layout.getHeight()) {
             return;
@@ -173,10 +211,10 @@ public class ArenaBoard {
     }
 
     private void drawArenaBase(GraphicsContext gc, ArenaLayout layout) {
-        double widthPx = layout.getWidth() * TILE_SIZE;
-        double heightPx = layout.getHeight() * TILE_SIZE;
-        double riverTop = (layout.getHeight() / 2.0 - 1) * TILE_SIZE;
-        double riverHeight = TILE_SIZE * 2;
+        double widthPx = layout.getWidth() * tileSize;
+        double heightPx = layout.getHeight() * tileSize;
+        double riverTop = (layout.getHeight() / 2.0 - 1) * tileSize;
+        double riverHeight = tileSize * 2;
 
         // Draw grass background for player side (top/north)
         gc.setFill(new javafx.scene.paint.LinearGradient(
@@ -207,11 +245,11 @@ public class ArenaBoard {
         gc.setStroke(Color.web("#3d7a2e", 0.3));
         gc.setLineWidth(0.5);
         for (int x = 0; x <= layout.getWidth(); x++) {
-            double px = x * TILE_SIZE;
+            double px = x * tileSize;
             gc.strokeLine(px, 0, px, heightPx);
         }
         for (int y = 0; y <= layout.getHeight(); y++) {
-            double py = y * TILE_SIZE;
+            double py = y * tileSize;
             gc.strokeLine(0, py, widthPx, py);
         }
 
@@ -247,10 +285,10 @@ public class ArenaBoard {
         int minY = Math.min(bridge.getStart().getY(), bridge.getEnd().getY());
         int maxY = Math.max(bridge.getStart().getY(), bridge.getEnd().getY());
 
-        double x = minX * TILE_SIZE;
+        double x = minX * tileSize;
         double y = convertY(layout, maxY);
-        double width = (maxX - minX + 1) * TILE_SIZE;
-        double height = (maxY - minY + 1) * TILE_SIZE;
+        double width = (maxX - minX + 1) * tileSize;
+        double height = (maxY - minY + 1) * tileSize;
 
         // Shadow underneath
         gc.setFill(Color.web("#000000", 0.3));
@@ -268,7 +306,7 @@ public class ArenaBoard {
         gc.setStroke(Color.web("#6b4423", 0.4));
         gc.setLineWidth(1);
         for (int i = 1; i < (maxY - minY + 1); i++) {
-            double plankY = y + (i * TILE_SIZE);
+            double plankY = y + (i * tileSize);
             gc.strokeLine(x, plankY, x + width, plankY);
         }
 
@@ -288,28 +326,28 @@ public class ArenaBoard {
             drawDestroyedTower(gc, layout, tower);
             return;
         }
-        double x = position.getX() * TILE_SIZE;
+        double x = position.getX() * tileSize;
         double y = convertY(layout, position.getY());
 
         boolean friendly = (!flipVertical && tower.getOwner() == TowerOwner.PLAYER)
                 || (flipVertical && tower.getOwner() == TowerOwner.OPPONENT);
 
         boolean isKing = tower.getType() == TowerType.KING;
-        double towerWidth = TILE_SIZE * (isKing ? 1.6 : 1.3);
-        double towerHeight = TILE_SIZE * (isKing ? 2.0 : 1.7);
-        double centerX = x + TILE_SIZE / 2;
+        double towerWidth = tileSize * (isKing ? 1.6 : 1.3);
+        double towerHeight = tileSize * (isKing ? 2.0 : 1.7);
+        double centerX = x + tileSize / 2;
         double towerX = centerX - towerWidth / 2;
-        double towerY = y + TILE_SIZE - towerHeight;
+        double towerY = y + tileSize - towerHeight;
 
         // Shadow
         gc.setFill(Color.web("#000000", 0.4));
-        gc.fillOval(towerX - 2, y + TILE_SIZE - 4, towerWidth + 4, 8);
+        gc.fillOval(towerX - 2, y + tileSize - 4, towerWidth + 4, 8);
 
         // Foundation base (wider, darker)
         double baseWidth = towerWidth + 8;
         double baseHeight = 8;
         double baseX = centerX - baseWidth / 2;
-        double baseY = y + TILE_SIZE - baseHeight;
+        double baseY = y + tileSize - baseHeight;
 
         gc.setFill(new javafx.scene.paint.LinearGradient(
                 0, baseY, 0, baseY + baseHeight,
@@ -395,7 +433,7 @@ public class ArenaBoard {
         double barWidth = towerWidth + 4;
         double barHeight = 8;
         double barX = centerX - barWidth / 2;
-        double barY = y + TILE_SIZE + 6;
+        double barY = y + tileSize + 6;
 
         gc.setFill(Color.web("#2a2a2a"));
         gc.fillRoundRect(barX, barY, barWidth, barHeight, 4, 4);
@@ -441,10 +479,10 @@ public class ArenaBoard {
         }
 
         double alpha = 0.9 * (1.0 - (age / 180.0));
-        double startX = tower.getPosition().getX() * TILE_SIZE + TILE_SIZE / 2.0;
-        double startY = convertY(layout, tower.getPosition().getY()) + TILE_SIZE / 2.0;
-        double endX = target.getX() * TILE_SIZE + TILE_SIZE / 2.0;
-        double endY = convertY(layout, target.getY()) + TILE_SIZE / 2.0;
+        double startX = tower.getPosition().getX() * tileSize + tileSize / 2.0;
+        double startY = convertY(layout, tower.getPosition().getY()) + tileSize / 2.0;
+        double endX = target.getX() * tileSize + tileSize / 2.0;
+        double endY = convertY(layout, target.getY()) + tileSize / 2.0;
 
         Color beam = tower.getOwner() == TowerOwner.PLAYER
                 ? Color.web("#6aa7ff", alpha)
@@ -463,17 +501,17 @@ public class ArenaBoard {
             return;
         }
         Position position = tower.getPosition();
-        double x = position.getX() * TILE_SIZE;
+        double x = position.getX() * tileSize;
         double y = convertY(layout, position.getY());
 
         boolean friendly = (!flipVertical && tower.getOwner() == TowerOwner.PLAYER)
                 || (flipVertical && tower.getOwner() == TowerOwner.OPPONENT);
 
-        double rubbleWidth = TILE_SIZE * 1.4;
-        double rubbleHeight = TILE_SIZE * 0.7;
-        double centerX = x + TILE_SIZE / 2;
+        double rubbleWidth = tileSize * 1.4;
+        double rubbleHeight = tileSize * 0.7;
+        double centerX = x + tileSize / 2;
         double rubbleX = centerX - rubbleWidth / 2;
-        double rubbleY = y + TILE_SIZE - rubbleHeight;
+        double rubbleY = y + tileSize - rubbleHeight;
 
         // Shadow
         gc.setFill(Color.web("#000000", 0.35));
@@ -511,7 +549,7 @@ public class ArenaBoard {
             if (position == null) {
                 continue;
             }
-            double drawX = (unit.getPreciseX()) * TILE_SIZE;
+            double drawX = (unit.getPreciseX()) * tileSize;
             double drawY = convertY(layout, unit.getPreciseY());
             boolean friendly = (!flipVertical && unit.getOwner() == TowerOwner.PLAYER)
                     || (flipVertical && unit.getOwner() == TowerOwner.OPPONENT);
@@ -521,10 +559,10 @@ public class ArenaBoard {
             } else {
                 Color fill = friendly ? Color.web("#8bed4a") : Color.web("#ff8a80");
                 gc.setFill(fill);
-                gc.fillOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                gc.fillOval(drawX + 4, drawY + 4, tileSize - 8, tileSize - 8);
                 gc.setStroke(Color.web("#000000"));
                 gc.setLineWidth(0.8);
-                gc.strokeOval(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                gc.strokeOval(drawX + 4, drawY + 4, tileSize - 8, tileSize - 8);
             }
 
             // Health Bar logic
@@ -537,7 +575,7 @@ public class ArenaBoard {
             double hpPercent = (double) unit.getCurrentHP() / maxHp;
             hpPercent = Math.max(0, Math.min(1.0, hpPercent));
 
-            double barWidth = TILE_SIZE;
+            double barWidth = tileSize;
             double barHeight = 4;
             double barX = drawX;
             double barY = drawY - 6;
@@ -560,8 +598,8 @@ public class ArenaBoard {
             gc.setFill(Color.WHITE);
             gc.setFont(Font.font("Arial", FontWeight.BOLD, 9));
             gc.setTextAlign(TextAlignment.CENTER);
-            double nameCenterX = drawX + TILE_SIZE / 2;
-            double nameY = drawY + TILE_SIZE + 10;
+            double nameCenterX = drawX + tileSize / 2;
+            double nameY = drawY + tileSize + 10;
             // Drop shadow for readability
             gc.setFill(Color.web("#000000", 0.7));
             gc.fillText(unitName, nameCenterX + 1, nameY + 1);
@@ -625,10 +663,10 @@ public class ArenaBoard {
         double sh = Math.min(SPRITE_FRAME_SIZE, sheet.getHeight());
 
         // Draw slightly larger than a single tile for readability.
-        double dw = TILE_SIZE * 1.6;
-        double dh = TILE_SIZE * 1.6;
-        double dx = drawX + (TILE_SIZE - dw) / 2;
-        double dy = drawY + (TILE_SIZE - dh) / 2;
+        double dw = tileSize * 1.6;
+        double dh = tileSize * 1.6;
+        double dx = drawX + (tileSize - dw) / 2;
+        double dy = drawY + (tileSize - dh) / 2;
 
         gc.drawImage(sheet, sx, sy, sw, sh, dx, dy, dw, dh);
 
@@ -696,12 +734,12 @@ public class ArenaBoard {
         double progress = Math.min(1.0, attackTime / (double) ATTACK_HOLD_MILLIS);
 
         // Source position (center of unit)
-        double srcX = unitDrawX + TILE_SIZE / 2;
-        double srcY = unitDrawY + TILE_SIZE / 2;
+        double srcX = unitDrawX + tileSize / 2;
+        double srcY = unitDrawY + tileSize / 2;
 
         // Target position
-        double targetDrawX = st.targetX * TILE_SIZE + TILE_SIZE / 2;
-        double targetDrawY = convertY(layout, st.targetY) + TILE_SIZE / 2;
+        double targetDrawX = st.targetX * tileSize + tileSize / 2;
+        double targetDrawY = convertY(layout, st.targetY) + tileSize / 2;
 
         // Interpolate projectile position
         double projX = srcX + (targetDrawX - srcX) * progress;
@@ -816,16 +854,16 @@ public class ArenaBoard {
 
     private double convertY(ArenaLayout layout, int gridY) {
         if (flipVertical) {
-            return gridY * TILE_SIZE;
+            return gridY * tileSize;
         }
-        return (layout.getHeight() - gridY - 1) * TILE_SIZE;
+        return (layout.getHeight() - gridY - 1) * tileSize;
     }
 
     private double convertY(ArenaLayout layout, double gridY) {
         if (flipVertical) {
-            return gridY * TILE_SIZE;
+            return gridY * tileSize;
         }
-        return (layout.getHeight() - gridY - 1) * TILE_SIZE;
+        return (layout.getHeight() - gridY - 1) * tileSize;
     }
 
     private void drawSpellEffects(GraphicsContext gc) {
@@ -847,8 +885,8 @@ public class ArenaBoard {
             }
             
             // Calculate position in pixels
-            double centerX = effect.position.getX() * TILE_SIZE + TILE_SIZE / 2.0;
-            double centerY = convertY(layout, effect.position.getY()) + TILE_SIZE / 2.0;
+            double centerX = effect.position.getX() * tileSize + tileSize / 2.0;
+            double centerY = convertY(layout, effect.position.getY()) + tileSize / 2.0;
             
             // Draw spell effect based on type
             drawSpellEffect(gc, effect.spellId, centerX, centerY, age);
@@ -869,8 +907,8 @@ public class ArenaBoard {
                 continue;
             }
             double progress = Math.min(1.0, age / 650.0);
-            double centerX = effect.position.getX() * TILE_SIZE + TILE_SIZE / 2.0;
-            double centerY = convertY(layout, effect.position.getY()) + TILE_SIZE / 2.0;
+            double centerX = effect.position.getX() * tileSize + tileSize / 2.0;
+            double centerY = convertY(layout, effect.position.getY()) + tileSize / 2.0;
 
             boolean friendly = (!flipVertical && effect.owner == TowerOwner.PLAYER)
                     || (flipVertical && effect.owner == TowerOwner.OPPONENT);
