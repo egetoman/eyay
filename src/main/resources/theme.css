@@ -710,6 +710,276 @@
     -fx-background-color: rgba(148, 163, 184, 0.3);
 }
 
+/* Saved Arenas */
+.saved-arenas-root {
+    -fx-background-color: #0b0e12;
+}
+
+.saved-arenas-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
+
+.saved-arenas-title {
+    -fx-text-fill: #f3f4f6;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.saved-arenas-subtitle {
+    -fx-text-fill: #9aa3ad;
+    -fx-font-size: 12px;
+    -fx-padding: 0 0 6 0;
+}
+
+.saved-arenas-list {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 6;
+}
+
+.saved-arenas-list .list-cell {
+    -fx-background-color: rgba(17, 24, 39, 0.85);
+    -fx-background-radius: 10;
+    -fx-padding: 10 12 10 12;
+    -fx-text-fill: #f8fafc;
+}
+
+.saved-arenas-list .list-cell:filled:selected,
+.saved-arenas-list .list-cell:filled:selected:hover {
+    -fx-background-color: rgba(94, 234, 212, 0.18);
+    -fx-border-color: rgba(94, 234, 212, 0.45);
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}
+
+.saved-arenas-list .list-cell:filled:hover {
+    -fx-background-color: rgba(30, 41, 59, 0.9);
+}
+
+.saved-arenas-list .scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+
+.saved-arenas-list .scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(148, 163, 184, 0.35);
+    -fx-background-radius: 6;
+}
+
+.saved-arenas-actions {
+    -fx-padding: 8 0 0 0;
+}
+
+.saved-arenas-primary {
+    -fx-background-color: linear-gradient(to bottom, #f59e0b, #d97706);
+    -fx-border-color: #b45309;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 16 8 16;
+}
+
+.saved-arenas-primary:hover {
+    -fx-background-color: linear-gradient(to bottom, #fbbf24, #f59e0b);
+}
+
+.saved-arenas-primary:pressed {
+    -fx-translate-y: 1;
+    -fx-border-width: 0;
+}
+
+.saved-arenas-danger {
+    -fx-background-color: linear-gradient(to bottom, #ef4444, #dc2626);
+    -fx-border-color: #b91c1c;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 16 8 16;
+}
+
+.saved-arenas-danger:hover {
+    -fx-background-color: linear-gradient(to bottom, #f87171, #ef4444);
+}
+
+.saved-arenas-danger:pressed {
+    -fx-translate-y: 1;
+    -fx-border-width: 0;
+}
+
+.saved-arenas-secondary {
+    -fx-background-color: rgba(148, 163, 184, 0.2);
+    -fx-text-fill: #e5e7eb;
+    -fx-background-radius: 8;
+    -fx-padding: 8 16 8 16;
+}
+
+.saved-arenas-secondary:hover {
+    -fx-background-color: rgba(148, 163, 184, 0.3);
+}
+
+/* Match Preview / Battle Screen */
+.match-root {
+    -fx-background-color: #0b0e12;
+}
+
+.match-content {
+    -fx-background-color: #0f1216;
+}
+
+.match-header {
+    -fx-background-color: rgba(15, 20, 27, 0.9);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}
+
+.match-title {
+    -fx-text-fill: #f3f4f6;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+.match-subtitle {
+    -fx-text-fill: #9aa3ad;
+    -fx-font-size: 12px;
+}
+
+.match-crown-row,
+.match-metrics-row {
+    -fx-alignment: center-left;
+}
+
+.match-metric-pill,
+.match-crown-pill {
+    -fx-background-color: rgba(28, 31, 42, 0.9);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}
+
+.match-metric-caption,
+.match-crown-caption {
+    -fx-text-fill: #9aa3ad;
+    -fx-font-size: 10px;
+}
+
+.match-metric-value,
+.match-crown-value {
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.match-crown-icon {
+    -fx-text-fill: #fbbf24;
+}
+
+.match-arena-layer {
+    -fx-padding: 8 0 10 0;
+}
+
+.match-arena-frame {
+    -fx-background-color: rgba(255, 255, 255, 0.02);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-padding: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 10, 0, 0, 4);
+}
+
+.match-hud {
+    -fx-background-color: rgba(17, 20, 28, 0.95);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 1 0 0 0;
+}
+
+.match-hand-tray {
+    -fx-background-color: rgba(20, 24, 34, 0.85);
+    -fx-background-radius: 12;
+    -fx-padding: 10 12 10 12;
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
+
+.match-deck-row {
+    -fx-alignment: center-left;
+}
+
+.match-next-label {
+    -fx-text-fill: #9aa3ad;
+    -fx-font-size: 11px;
+}
+
+.match-card-slot {
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.35), 6, 0, 0, 2);
+}
+
+.match-card-slot:hover {
+    -fx-effect: dropshadow(three-pass-box, rgba(94, 234, 212, 0.35), 8, 0, 0, 2);
+}
+
+.match-card-slot-highlighted {
+    -fx-effect: dropshadow(three-pass-box, rgba(253, 224, 71, 0.4), 10, 0, 0, 3);
+}
+
+.match-elixir-panel {
+    -fx-padding: 6 0 0 0;
+}
+
+.match-elixir-bar {
+    -fx-background-color: rgba(0, 0, 0, 0.2);
+    -fx-background-radius: 12;
+    -fx-padding: 4;
+}
+
+.match-elixir-track {
+    -fx-background-color: #141724;
+    -fx-border-color: #3b3f55;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+}
+
+.match-elixir-value {
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.match-elixir-max {
+    -fx-text-fill: #9aa3ad;
+    -fx-font-size: 12px;
+}
+
+.match-status {
+    -fx-text-fill: #cbd5e1;
+    -fx-font-size: 12px;
+}
+
+.match-controls {
+    -fx-padding: 4 0 0 0;
+}
+
+.match-control-button {
+    -fx-background-color: rgba(59, 130, 246, 0.85);
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-padding: 6 14 6 14;
+}
+
+.match-control-button:hover {
+    -fx-background-color: rgba(96, 165, 250, 0.9);
+}
+
+.match-control-button:pressed {
+    -fx-translate-y: 1;
+}
+
 .history-stats-content {
     -fx-padding: 4 6 8 6;
 }
@@ -806,6 +1076,31 @@
     -fx-background-radius: 8;
     -fx-border-radius: 8;
     -fx-padding: 7 10 7 10;
+    /* UI-only change: text contrast */
+}
+
+.arena-combo .list-cell {
+    -fx-text-fill: #f8fafc;
+}
+
+.arena-combo .list-cell:filled:selected,
+.arena-combo .list-cell:filled:selected:hover {
+    -fx-text-fill: #f8fafc;
+    -fx-background-color: rgba(94, 234, 212, 0.2);
+}
+
+.arena-combo .list-cell:filled:hover {
+    -fx-background-color: rgba(148, 163, 184, 0.2);
+}
+
+.arena-combo:disabled,
+.arena-field:disabled {
+    -fx-opacity: 1.0;
+    -fx-text-fill: #9aa3ad;
+    -fx-prompt-text-fill: #7c8591;
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-border-color: rgba(255, 255, 255, 0.12);
+    /* UI-only change: disabled readability */
 }
 
 .arena-field:focused,

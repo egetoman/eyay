@@ -27,6 +27,10 @@ final class StartGameUiBits {
 
         StackPane tile = new StackPane();
         tile.setPrefSize(width, height);
+        tile.getStyleClass().add("match-card-slot"); // UI-only change: hand tray styling
+        if (highlighted) {
+            tile.getStyleClass().add("match-card-slot-highlighted");
+        }
         applySlotStyle(tile, card, large, highlighted);
 
         double arc = large ? 10 : 8;

@@ -33,6 +33,7 @@ public class LayoutLibraryView {
         refresh();
 
         ListView<ArenaLayout> listView = new ListView<>(layouts);
+        listView.getStyleClass().add("saved-arenas-list"); // UI-only change: list styling
         listView.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(ArenaLayout item, boolean empty) {
@@ -48,6 +49,9 @@ public class LayoutLibraryView {
         Button previewButton = new Button("Preview");
         Button deleteButton = new Button("Delete");
         Button backButton = new Button("Back");
+        previewButton.getStyleClass().add("saved-arenas-primary");
+        deleteButton.getStyleClass().add("saved-arenas-danger");
+        backButton.getStyleClass().add("saved-arenas-secondary");
 
         previewButton.setOnAction(e -> {
             ArenaLayout selected = listView.getSelectionModel().getSelectedItem();
@@ -73,15 +77,21 @@ public class LayoutLibraryView {
         HBox buttons = new HBox(10, previewButton, deleteButton, backButton);
         buttons.setAlignment(Pos.CENTER_RIGHT);
         buttons.setPadding(new Insets(10));
+        buttons.getStyleClass().add("saved-arenas-actions"); // UI-only change: button hierarchy
 
-        VBox left = new VBox(10);
-        left.setPadding(new Insets(20));
+        VBox left = new VBox(12);
+        left.setPadding(new Insets(18)); // UI-only change: spacing
         javafx.scene.control.Label title = new javafx.scene.control.Label("Saved Arenas");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
-        left.getChildren().addAll(title, listView, buttons);
+        title.getStyleClass().add("saved-arenas-title");
+        javafx.scene.control.Label subtitle = new javafx.scene.control.Label("Select an arena to preview or delete");
+        subtitle.getStyleClass().add("saved-arenas-subtitle");
+        left.getStyleClass().add("saved-arenas-panel"); // UI-only change: panel styling
+        left.getChildren().addAll(title, subtitle, listView, buttons);
 
         root = new BorderPane();
         root.setCenter(left);
+        root.getStyleClass().add("saved-arenas-root");
     }
 
     private void refresh() {
