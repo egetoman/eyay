@@ -175,13 +175,19 @@ public class ArenaDesignerView {
         return new HBox(box);
     }
 
-    private HBox buildButtons() {
+    private VBox buildButtons() {
         Button saveButton = new Button("Save Layout");
         Button resetButton = new Button("Reset to Active Layout");
         Button backButton = new Button("Back");
         saveButton.getStyleClass().add("arena-primary-button");
         resetButton.getStyleClass().add("arena-secondary-button");
         backButton.getStyleClass().add("arena-tertiary-button");
+        saveButton.setMaxWidth(Double.MAX_VALUE);
+        resetButton.setMaxWidth(Double.MAX_VALUE);
+        backButton.setMaxWidth(Double.MAX_VALUE);
+        saveButton.setWrapText(true);
+        resetButton.setWrapText(true);
+        backButton.setWrapText(true);
 
         saveButton.setOnAction(e -> saveLayout());
         resetButton.setOnAction(e -> {
@@ -190,8 +196,8 @@ public class ArenaDesignerView {
         });
         backButton.setOnAction(e -> handleBackNavigation());
 
-        HBox actions = new HBox(10, saveButton, resetButton, backButton);
-        actions.getStyleClass().add("arena-actions");
+        VBox actions = new VBox(8, saveButton, resetButton, backButton);
+        actions.getStyleClass().add("arena-actions"); // UI-only change: button layout
         return actions;
     }
 

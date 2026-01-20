@@ -126,8 +126,10 @@ public class StartGameView {
 
         root = new StackPane();
         content = new BorderPane();
-        content.setPadding(new Insets(10));
+        content.setPadding(new Insets(10)); // UI-only change: spacing
         content.setStyle("-fx-background-color: #0f1216;");
+        content.getStyleClass().add("match-content");
+        root.getStyleClass().add("match-root"); // UI-only change: visual hierarchy
         effectLayer = new Pane();
         effectLayer.setMouseTransparent(true);
         effectLayer.prefWidthProperty().bind(root.widthProperty());
@@ -145,11 +147,10 @@ public class StartGameView {
         emoteBubbles = new EmoteBubbleManager(effectLayer);
 
         Label title = new Label("Battlefield: " + selectedLayout.getName());
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
-        title.setTextFill(Color.web("#f5f5f5"));
+        title.getStyleClass().add("match-title"); // UI-only change: title styling
 
         Label subtitle = new Label("Select a card and click the arena to deploy it.");
-        subtitle.setTextFill(Color.web("#cbd0d6"));
+        subtitle.getStyleClass().add("match-subtitle");
 
         timerLabel = createMetricLabel(formatTime(match != null ? match.getRemainingSeconds() : 0));
         phaseLabel = createMetricLabel(formatPhase(match != null ? match.getCurrentElixirPhase() : ElixirPhase.NORMAL));
@@ -164,26 +165,32 @@ public class StartGameView {
         playerCrownTarget = createCrownTarget();
         playerCrownPill = buildCrownPill("You", playerCrownLabel, playerCrownTarget, "#2a6fd2");
 
-        HBox metricsRow = new HBox(14,
+        HBox metricsRow = new HBox(12,
                 buildMetricPill("Phase", phaseLabel),
                 buildMetricPill("Time", timerLabel),
                 buildMetricPill("Combos", comboCountLabel));
         metricsRow.setAlignment(Pos.CENTER_RIGHT);
+        metricsRow.getStyleClass().add("match-metrics-row");
 
         Region crownSpacer = new Region();
         HBox.setHgrow(crownSpacer, Priority.ALWAYS);
-        HBox crownRow = new HBox(14, opponentCrownPill, crownSpacer, metricsRow, playerCrownPill);
+        HBox crownRow = new HBox(12, opponentCrownPill, crownSpacer, metricsRow, playerCrownPill);
         crownRow.setAlignment(Pos.CENTER_LEFT);
+        crownRow.getStyleClass().add("match-crown-row");
 
         VBox header = new VBox(6, title, subtitle, crownRow);
-        header.setPadding(new Insets(10, 10, 15, 10));
+        header.setPadding(new Insets(8, 10, 12, 10)); // UI-only change: spacing
+        header.getStyleClass().add("match-header");
         content.setTop(header);
 
         arenaBoard = new ArenaBoard(selectedLayout);
         arenaBoard.setOnTileSelected(this::handleTileSelection);
         overlayLayer.setVisible(false);
         overlayLayer.setMouseTransparent(true);
-        StackPane boardLayer = new StackPane(arenaBoard.getView(), overlayLayer);
+        StackPane boardFrame = new StackPane(arenaBoard.getView());
+        boardFrame.getStyleClass().add("match-arena-frame"); // UI-only change: arena framing
+        StackPane boardLayer = new StackPane(boardFrame, overlayLayer);
+        boardLayer.getStyleClass().add("match-arena-layer");
         content.setCenter(boardLayer);
         if (match != null) {
             Arena arena = match.getArena();
@@ -216,6 +223,7 @@ public class StartGameView {
         Label label = new Label(value);
         label.setFont(Font.font("Arial", FontWeight.BOLD, 18));
         label.setTextFill(Color.WHITE);
+        label.getStyleClass().add("match-metric-value"); // UI-only change: visual hierarchy
         return label;
     }
 
@@ -223,19 +231,23 @@ public class StartGameView {
         Label captionLabel = new Label(caption.toUpperCase());
         captionLabel.setFont(Font.font("Arial", FontWeight.BOLD, 10));
         captionLabel.setTextFill(Color.web("#8f94a3"));
+        captionLabel.getStyleClass().add("match-metric-caption");
         VBox pill = new VBox(2, captionLabel, valueLabel);
         pill.setAlignment(Pos.CENTER_LEFT);
         pill.setPadding(new Insets(8, 12, 8, 12));
         pill.setStyle("-fx-background-color: #1c1f2a; -fx-background-radius: 8;");
+        pill.getStyleClass().add("match-metric-pill"); // UI-only change: HUD alignment
         return pill;
     }
 
     private VBox buildHudSection() {
         VBox container = new VBox(14);
-        container.setPadding(new Insets(15));
+        container.setPadding(new Insets(14)); // UI-only change: spacing
         container.setStyle("-fx-background-color: #181b22; -fx-border-color: #2d2f36; -fx-border-width: 2 0 0 0;");
+        container.getStyleClass().add("match-hud");
 
         deckSectionContainer.setSpacing(6);
+        deckSectionContainer.getStyleClass().add("match-hand-tray");
         refreshDeckSection();
 
         VBox elixirPanel = buildElixirPanel();
@@ -243,18 +255,23 @@ public class StartGameView {
         statusLabel.setTextFill(Color.web("#d2d7e5"));
         statusLabel.setWrapText(true);
         statusLabel.setText("Select a card and click a tile on your side of the arena.");
+        statusLabel.getStyleClass().add("match-status");
 
         Button pauseButton = new Button("Pause");
         pauseButton.setOnAction(e -> togglePause());
+        pauseButton.getStyleClass().add("match-control-button");
 
         Button emoteButton = new Button("Emotes");
         emoteButton.setOnAction(e -> emotePanel.toggle());
+        emoteButton.getStyleClass().add("match-control-button");
 
         HBox controls = new HBox();
         controls.setAlignment(Pos.CENTER_RIGHT);
+        controls.setSpacing(10);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         controls.getChildren().addAll(spacer, emoteButton, pauseButton);
+        controls.getStyleClass().add("match-controls"); // UI-only change: controls alignment
 
         container.getChildren().addAll(deckSectionContainer, elixirPanel, statusLabel, controls);
         return container;
@@ -265,6 +282,7 @@ public class StartGameView {
 
         HBox handRow = new HBox(8);
         handRow.setAlignment(Pos.CENTER_LEFT);
+        handRow.getStyleClass().add("match-hand-row");
         for (int i = 0; i < 4; i++) {
             Card card = i < handCards.size() ? handCards.get(i) : null;
             StackPane slot = StartGameUiBits.createCardSlot(card, true, i == selectedHandIndex);
@@ -276,13 +294,16 @@ public class StartGameView {
         StackPane nextSlot = StartGameUiBits.createCardSlot(nextCard, false, false);
         VBox nextColumn = new VBox(4);
         nextColumn.setAlignment(Pos.CENTER);
+        nextColumn.getStyleClass().add("match-next-column");
         Label nextLabel = new Label("Next");
         nextLabel.setTextFill(Color.web("#8f94a3"));
         nextLabel.setFont(Font.font("Arial", FontWeight.BOLD, 11));
+        nextLabel.getStyleClass().add("match-next-label");
         nextColumn.getChildren().addAll(nextLabel, nextSlot);
 
         HBox deckRow = new HBox(12, nextColumn, handRow);
         deckRow.setAlignment(Pos.CENTER_LEFT);
+        deckRow.getStyleClass().add("match-deck-row"); // UI-only change: hand tray styling
 
         deckSectionContainer.getChildren().add(deckRow);
     }
@@ -298,11 +319,13 @@ public class StartGameView {
         track.setMaxWidth(ELIXIR_BAR_WIDTH); // Fix: Prevent track expansion
         track.setStyle(
                 "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
+        track.getStyleClass().add("match-elixir-track");
 
         HBox ticks = new HBox();
         ticks.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
         ticks.setMaxWidth(ELIXIR_BAR_WIDTH); // Fix: Prevent ticks expansion
         ticks.setAlignment(Pos.CENTER_LEFT);
+        ticks.getStyleClass().add("match-elixir-ticks");
         double segmentWidth = ELIXIR_BAR_WIDTH / 10.0;
 
         for (int i = 0; i < 9; i++) {
@@ -319,20 +342,24 @@ public class StartGameView {
         bar.setMaxWidth(ELIXIR_BAR_WIDTH); // Fix: Prevent container expansion
         StackPane.setAlignment(elixirFill, Pos.CENTER_LEFT);
         StackPane.setAlignment(ticks, Pos.CENTER_LEFT);
+        bar.getStyleClass().add("match-elixir-bar");
 
         elixirValueLabel = new Label("0");
         elixirValueLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         elixirValueLabel.setTextFill(Color.WHITE);
+        elixirValueLabel.getStyleClass().add("match-elixir-value");
 
         int maxElixir = player != null ? player.getMaxElixir() : 10;
         Label maxLabel = new Label("Max: " + maxElixir);
         maxLabel.setTextFill(Color.web("#8f94a3"));
+        maxLabel.getStyleClass().add("match-elixir-max");
 
         HBox values = new HBox(10, elixirValueLabel, maxLabel);
         values.setAlignment(Pos.CENTER_LEFT);
 
         VBox panel = new VBox(6, bar, values);
         panel.setAlignment(Pos.CENTER_LEFT);
+        panel.getStyleClass().add("match-elixir-panel"); // UI-only change: elixir panel styling
         return panel;
     }
 
@@ -787,20 +814,25 @@ public class StartGameView {
         Label cap = new Label(caption.toUpperCase());
         cap.setFont(Font.font("Arial", FontWeight.BOLD, 10));
         cap.setTextFill(Color.web("#8f94a3"));
+        cap.getStyleClass().add("match-crown-caption");
 
         Label icon = new Label("♛");
         icon.setFont(Font.font("Arial", FontWeight.BOLD, 16));
         icon.setTextFill(Color.web(accentColor));
         icon.setStyle("-fx-text-fill: " + accentColor + ";");
         valueLabel.setTextFill(Color.web(accentColor));
+        icon.getStyleClass().add("match-crown-icon");
         crownTarget.getChildren().add(icon);
+        valueLabel.getStyleClass().add("match-crown-value");
 
         HBox row = new HBox(6, crownTarget, valueLabel);
         row.setAlignment(Pos.CENTER_LEFT);
+        row.getStyleClass().add("match-crown-row-inner");
 
         StackPane pill = new StackPane(new VBox(2, cap, row));
         pill.setPadding(new Insets(8, 12, 8, 12));
         pill.setStyle("-fx-background-color: #1c1f2a; -fx-background-radius: 8;");
+        pill.getStyleClass().add("match-crown-pill"); // UI-only change: HUD alignment
         return pill;
     }
 
