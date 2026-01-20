@@ -59,6 +59,8 @@ public class WelcomeView {
         Button logBtn = new Button("LOG");
         logBtn.getStyleClass().add("secondary-button");
         logBtn.setStyle("-fx-padding: 4 10 4 10; -fx-font-size: 10;");
+        logBtn.setOpacity(0.0);
+        logBtn.setPickOnBounds(true);
         logBtn.setOnAction(e -> {
             GameEventLogger.ensureLogFile();
             GameEventLogger.openLogFile();
