@@ -381,6 +381,14 @@ public class ScreenNavigator {
         primaryStage.setScene(scene);
     }
 
+    public void setFullScreen(boolean enabled) {
+        primaryStage.setFullScreen(enabled);
+    }
+
+    public boolean isFullScreen() {
+        return primaryStage.isFullScreen();
+    }
+
     public application.QuestService getQuestService() {
         return questService;
     }

@@ -231,11 +231,33 @@ public class LocalPvPGameView {
 
         Region track = new Region();
         track.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
+        track.setMaxWidth(ELIXIR_BAR_WIDTH);
+        track.setMinWidth(ELIXIR_BAR_WIDTH);
         track.setStyle(
                 "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
 
-        StackPane bar = new StackPane(track, fill);
+        HBox ticks = new HBox();
+        ticks.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
+        ticks.setMaxWidth(ELIXIR_BAR_WIDTH);
+        ticks.setMinWidth(ELIXIR_BAR_WIDTH);
+        ticks.setAlignment(Pos.CENTER_LEFT);
+        double segmentWidth = ELIXIR_BAR_WIDTH / 10.0;
+        for (int i = 0; i < 9; i++) {
+            Region spacer = new Region();
+            spacer.setPrefWidth(segmentWidth - 1);
+            spacer.setMinWidth(segmentWidth - 1);
+            Region divider = new Region();
+            divider.setPrefSize(1, ELIXIR_BAR_HEIGHT);
+            divider.setStyle("-fx-background-color: rgba(255,255,255,0.2);");
+            ticks.getChildren().addAll(spacer, divider);
+        }
+        ticks.setMouseTransparent(true);
+
+        StackPane bar = new StackPane(track, fill, ticks);
+        bar.setPrefWidth(ELIXIR_BAR_WIDTH);
+        bar.setMaxWidth(ELIXIR_BAR_WIDTH);
         StackPane.setAlignment(fill, Pos.CENTER_LEFT);
+        StackPane.setAlignment(ticks, Pos.CENTER_LEFT);
 
         Label name = new Label(p != null ? p.getName() : (bottom ? "Player 1" : "Player 2"));
         name.setTextFill(Color.web("#cbd0d6"));
@@ -301,7 +323,7 @@ public class LocalPvPGameView {
             boolean highlighted = isActive && i == selectedIndex;
             StackPane slot = StartGameUiBits.createCardSlot(card, true, highlighted);
             final int index = i;
-            slot.setOnMouseClicked(event -> selectHandIndex(player, bottomSide, index));
+            slot.setOnMouseClicked(event -> selectHandIndex(player, bottomSide, index, slot));
             handRow.getChildren().add(slot);
         }
 
@@ -321,7 +343,7 @@ public class LocalPvPGameView {
         return panel;
     }
 
-    private void selectHandIndex(Player clickedPlayer, boolean bottomSide, int index) {
+    private void selectHandIndex(Player clickedPlayer, boolean bottomSide, int index, StackPane slot) {
         if (clickedPlayer == null || activePlayer == null) {
             showStatus("Match is not ready yet.", true);
             return;
@@ -340,6 +362,12 @@ public class LocalPvPGameView {
             refreshDeckSection();
             return;
         }
+        Card candidate = hand.handCards.get(index);
+        if (candidate != null && !canAfford(clickedPlayer, candidate)) {
+            showStatus("Not enough elixir.", true);
+            shakeNode(slot);
+            return;
+        }
         if (bottomSide) {
             selectedBottomIndex = index;
             selectedTopIndex = -1;
@@ -352,6 +380,37 @@ public class LocalPvPGameView {
         if (selected != null) {
             showStatus(activePlayer.getName() + " selected: " + selected.getName(), false);
         }
+    }
+
+    private boolean canAfford(Player player, Card card) {
+        if (player == null || card == null) {
+            return false;
+        }
+        double current = resolveCurrentElixir(player);
+        return current + 0.001 >= card.getElixirCost();
+    }
+
+    private double resolveCurrentElixir(Player player) {
+        double base = player.getCurrentElixir();
+        if (match == null) {
+            return base;
+        }
+        if (player == bottomPlayer) {
+            return base + match.getPlayerElixirFraction();
+        }
+        return base + match.getOpponentElixirFraction();
+    }
+
+    private void shakeNode(StackPane node) {
+        if (node == null) {
+            return;
+        }
+        TranslateTransition shake = new TranslateTransition(Duration.millis(40), node);
+        shake.setFromX(-3);
+        shake.setToX(3);
+        shake.setCycleCount(6);
+        shake.setAutoReverse(true);
+        shake.playFromStart();
     }
 
     private void handleTileSelection(Position tile) {
@@ -391,6 +450,8 @@ public class LocalPvPGameView {
         // Record spell cast for visual effects
         if (card.getType() == CardType.SPELL) {
             arenaBoard.recordSpellCast(card.getId(), tile);
+        } else {
+            arenaBoard.recordDeployEffect(resolveOwner(activePlayer), tile);
         }
 
         hand.cycle(selectedIndex);
@@ -524,7 +585,7 @@ public class LocalPvPGameView {
         if (bottomPlayer != null && bottomElixirLabel != null && bottomElixirFill != null) {
             bottomElixirLabel.setText("Elixir: " + (int) p1Elixir); // Show integer part
             double ratio = bottomPlayer.getMaxElixir() == 0 ? 0 : p1Elixir / bottomPlayer.getMaxElixir();
-            bottomElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * clamp01(ratio));
+            setElixirFillWidth(bottomElixirFill, ratio);
 
             // Update Card Loading Masks
             updateDeckLoadingState(true, p1Elixir);
@@ -534,10 +595,17 @@ public class LocalPvPGameView {
         if (topPlayer != null && topElixirLabel != null && topElixirFill != null) {
             topElixirLabel.setText("Elixir: " + (int) p2Elixir);
             double ratio = topPlayer.getMaxElixir() == 0 ? 0 : p2Elixir / topPlayer.getMaxElixir();
-            topElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * clamp01(ratio));
+            setElixirFillWidth(topElixirFill, ratio);
 
             updateDeckLoadingState(false, p2Elixir);
         }
+    }
+
+    private void setElixirFillWidth(Region fill, double ratio) {
+        double width = ELIXIR_BAR_WIDTH * clamp01(ratio);
+        fill.setPrefWidth(width);
+        fill.setMinWidth(width);
+        fill.setMaxWidth(width);
     }
 
     private void updateDeckLoadingState(boolean isBottom, double currentElixir) {
@@ -646,6 +714,13 @@ public class LocalPvPGameView {
 
     private double clamp01(double v) {
         return Math.max(0, Math.min(1, v));
+    }
+
+    private kuroyale.domain.TowerOwner resolveOwner(Player player) {
+        if (player == null) {
+            return kuroyale.domain.TowerOwner.PLAYER;
+        }
+        return player == bottomPlayer ? kuroyale.domain.TowerOwner.PLAYER : kuroyale.domain.TowerOwner.OPPONENT;
     }
 
     private List<Card> resolveDeckCards(Player p) {

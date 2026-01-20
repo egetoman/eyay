@@ -47,6 +47,9 @@ import kuroyale.emote.EmoteType;
  */
 public class NetworkMatchView {
 
+    private static final double ELIXIR_BAR_WIDTH = 320;
+    private static final double ELIXIR_BAR_HEIGHT = 16;
+
     private final BorderPane root;
     private final ScreenNavigator navigator;
     private final NetworkMatchController controller;
@@ -58,6 +61,8 @@ public class NetworkMatchView {
     private final Label phaseLabel = new Label("—");
     private final Label p1ElixirLabel = new Label("P1: —");
     private final Label p2ElixirLabel = new Label("P2: —");
+    private Label localElixirValue;
+    private Region localElixirFill;
 
     private final List<Card> localDeckCards;
     private final List<Card> handCards = new ArrayList<>();
@@ -169,10 +174,12 @@ public class NetworkMatchView {
         Button emoteButton = new Button("Emotes");
         emoteButton.setOnAction(e -> emotePanel.toggle());
 
-        HBox elixirRow = new HBox(12, p1ElixirLabel, p2ElixirLabel, spacer, emoteButton, back);
-        elixirRow.setAlignment(Pos.CENTER_LEFT);
         p1ElixirLabel.setTextFill(Color.web("#cbd0d6"));
         p2ElixirLabel.setTextFill(Color.web("#cbd0d6"));
+
+        VBox elixirPanel = buildElixirPanel();
+        HBox elixirRow = new HBox(16, elixirPanel, spacer, emoteButton, back);
+        elixirRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox bottom = new VBox(10, deckBox, elixirRow, statusLabel);
         bottom.setPadding(new Insets(12));
@@ -233,6 +240,31 @@ public class NetworkMatchView {
         return v;
     }
 
+    private VBox buildElixirPanel() {
+        Region track = new Region();
+        track.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
+        track.setStyle(
+                "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
+
+        localElixirFill = new Region();
+        localElixirFill.setPrefSize(0, ELIXIR_BAR_HEIGHT);
+        localElixirFill.setStyle("-fx-background-color: linear-gradient(to right, #b259ff, #7a4dff); -fx-background-radius: 10;");
+
+        StackPane bar = new StackPane(track, localElixirFill);
+        StackPane.setAlignment(localElixirFill, Pos.CENTER_LEFT);
+
+        localElixirValue = new Label("Elixir: 0");
+        localElixirValue.setTextFill(Color.WHITE);
+        localElixirValue.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+
+        HBox labels = new HBox(12, localElixirValue, p1ElixirLabel, p2ElixirLabel);
+        labels.setAlignment(Pos.CENTER_LEFT);
+
+        VBox panel = new VBox(6, bar, labels);
+        panel.setAlignment(Pos.CENTER_LEFT);
+        return panel;
+    }
+
     private void initializeHand() {
         handCards.clear();
         // Simplified: just take first 8 from catalog
@@ -291,6 +323,12 @@ public class NetworkMatchView {
             statusLabel.setText(result.getMessage() != null ? result.getMessage() : "Deploy failed.");
             return;
         }
+        if (card.getType() != null && card.getType() != kuroyale.domain.CardType.SPELL) {
+            kuroyale.domain.TowerOwner owner = controller.getLocalPlayerId() == 1
+                    ? kuroyale.domain.TowerOwner.PLAYER
+                    : kuroyale.domain.TowerOwner.OPPONENT;
+            arenaBoard.recordDeployEffect(owner, pos);
+        }
         statusLabel.setTextFill(Color.web("#9be564"));
         statusLabel.setText("Requested deploy: " + card.getName() + " at (" + pos.getX() + "," + pos.getY() + ")");
         selectedIndex = -1;
@@ -321,6 +359,12 @@ public class NetworkMatchView {
         timeLabel.setText(formatTime(snap.remainingSeconds));
         p1ElixirLabel.setText("P1 Elixir: " + snap.player1Elixir);
         p2ElixirLabel.setText("P2 Elixir: " + snap.player2Elixir);
+
+        double localElixir = controller != null && controller.getLocalPlayerId() == 2
+                ? snap.player2Elixir
+                : snap.player1Elixir;
+        updateLocalElixirHud(localElixir);
+        updateDeckLoadingState(localElixir);
 
         // Update tower HP on the layout's tower objects (mutable objects, list is
         // unmodifiable)
@@ -354,6 +398,48 @@ public class NetworkMatchView {
         if (snap.finished && !finishedOverlayShown) {
             finishedOverlayShown = true;
             showFinishedOverlay(snap);
+        }
+    }
+
+    private void updateLocalElixirHud(double currentElixir) {
+        if (localElixirValue == null || localElixirFill == null) {
+            return;
+        }
+        localElixirValue.setText("Elixir: " + (int) currentElixir);
+        double ratio = clamp01(currentElixir / 10.0);
+        localElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * ratio);
+    }
+
+    private void updateDeckLoadingState(double currentElixir) {
+        if (deckBox.getChildren().isEmpty()) {
+            return;
+        }
+        var rowNode = deckBox.getChildren().get(0);
+        if (!(rowNode instanceof HBox)) {
+            return;
+        }
+        HBox deckRow = (HBox) rowNode;
+        if (deckRow.getChildren().size() < 2) {
+            return;
+        }
+        var handRowNode = deckRow.getChildren().get(1);
+        if (!(handRowNode instanceof HBox)) {
+            return;
+        }
+        HBox handRow = (HBox) handRowNode;
+
+        for (int i = 0; i < handRow.getChildren().size(); i++) {
+            var child = handRow.getChildren().get(i);
+            if (child instanceof StackPane && i < handCards.size()) {
+                Card card = handCards.get(i);
+                if (card != null) {
+                    double cost = card.getElixirCost();
+                    double progress = (cost <= 0) ? 1.0 : (currentElixir / cost);
+                    StartGameUiBits.updateCardLoading((StackPane) child, progress);
+                } else {
+                    StartGameUiBits.updateCardLoading((StackPane) child, 0.0);
+                }
+            }
         }
     }
 
@@ -472,5 +558,9 @@ public class NetworkMatchView {
 
     public Parent getRoot() {
         return root;
+    }
+
+    private double clamp01(double value) {
+        return Math.max(0, Math.min(1, value));
     }
 }

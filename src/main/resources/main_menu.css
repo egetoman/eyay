@@ -6,25 +6,30 @@
 
 /* Helper for background image if needed, for now just a dark gradient */
 .main-background {
-    -fx-background-color: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d); 
+    -fx-background-color:
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 50% 12%, radius 45%, rgba(255,255,255,0.18), transparent 70%),
+        radial-gradient(focus-angle 180deg, focus-distance 0%, center 50% 90%, radius 60%, rgba(15, 23, 42, 0.6), transparent 75%),
+        linear-gradient(to bottom, #0b1020, #1b2340 55%, #0b0f16 100%);
 }
 
 /* Top Resource Bar */
 .resource-bar {
-    -fx-background-color: rgba(0, 0, 0, 0.5);
-    -fx-padding: 10;
+    -fx-background-color: rgba(15, 18, 26, 0.8);
+    -fx-padding: 12 16 12 16;
     -fx-spacing: 20;
     -fx-alignment: center;
+    -fx-border-color: rgba(255,255,255,0.08);
+    -fx-border-width: 0 0 1 0;
 }
 
 .resource-item {
-    -fx-background-color: rgba(0, 0, 0, 0.6);
-    -fx-background-radius: 15;
-    -fx-padding: 5 15 5 15;
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-background-radius: 18;
+    -fx-padding: 6 16 6 16;
     -fx-text-fill: white;
     -fx-font-weight: bold;
     -fx-font-size: 14px;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 2, 0, 0, 1);
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.6), 4, 0, 0, 2);
 }
 
 .gold-text { -fx-text-fill: #ffd700; }
@@ -86,12 +91,12 @@
 
 /* Bottom Navigation Bar */
 .nav-bar {
-    -fx-background-color: #2c3e50;
-    -fx-padding: 10;
+    -fx-background-color: rgba(15, 18, 26, 0.9);
+    -fx-padding: 12;
     -fx-spacing: 10;
     -fx-alignment: center;
-    -fx-border-color: #34495e;
-    -fx-border-width: 2 0 0 0;
+    -fx-border-color: rgba(255,255,255,0.08);
+    -fx-border-width: 1 0 0 0;
 }
 
 .nav-button {
