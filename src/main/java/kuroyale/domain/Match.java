@@ -630,20 +630,6 @@ public class Match {
             if (resolveOvertimeTowerDestroyed()) {
                 return;
             }
-        } else {
-            // Scenario 2: if one side has destroyed more crown towers than the other (max
-            // 2), end match.
-            // We treat "2 crowns" (both crown towers destroyed) as an early victory
-            // condition.
-            if (opponentCrownTowersDestroyed == 2 && playerCrownTowersDestroyed < 2) {
-                outcome = new MatchOutcome(TowerOwner.PLAYER, 2, playerCrownTowersDestroyed, "CROWN_TOWERS_DESTROYED");
-                return;
-            }
-            if (playerCrownTowersDestroyed == 2 && opponentCrownTowersDestroyed < 2) {
-                outcome = new MatchOutcome(TowerOwner.OPPONENT, opponentCrownTowersDestroyed, 2,
-                        "CROWN_TOWERS_DESTROYED");
-                return;
-            }
         }
 
         if (considerTimeOut && elapsedSeconds >= NORMAL_DURATION_SECONDS && !overtimeActive) {
