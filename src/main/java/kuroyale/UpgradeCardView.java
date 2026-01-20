@@ -13,10 +13,9 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import kuroyale.domain.Card;
 import kuroyale.domain.CardProgression;
 import kuroyale.domain.PlayerProfile;
@@ -34,48 +33,65 @@ public class UpgradeCardView {
         this.upgradeService = upgradeService;
         
         root = new BorderPane();
-        root.setPadding(new Insets(20));
+        root.setPadding(new Insets(16));
+        root.getStyleClass().add("upgrade-root"); // UI-only change: visual hierarchy
 
         Label title = new Label("Upgrade Card / Collection");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        root.setTop(title);
-        BorderPane.setAlignment(title, Pos.CENTER);
-        BorderPane.setMargin(title, new Insets(0, 0, 20, 0));
+        title.getStyleClass().add("upgrade-title");
+        Label subtitle = new Label("Manage your collection and upgrade cards");
+        subtitle.getStyleClass().add("upgrade-subtitle");
 
         // Top bar with gold balance
-        HBox topBar = new HBox(10);
-        goldLabel.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-        goldLabel.setTextFill(Color.GOLD);
-        topBar.getChildren().addAll(new Label("Gold:"), goldLabel);
-        topBar.setAlignment(Pos.CENTER_LEFT);
-        topBar.setPadding(new Insets(10));
+        HBox goldBadge = new HBox(6);
+        goldBadge.getStyleClass().add("upgrade-gold-badge");
+        Label goldIcon = new Label("G");
+        goldIcon.getStyleClass().add("upgrade-gold-icon");
+        goldLabel.getStyleClass().add("upgrade-gold-value");
+        goldBadge.getChildren().addAll(goldIcon, goldLabel);
+
+        VBox titleBox = new VBox(4, title, subtitle);
+        HBox header = new HBox(12, titleBox, goldBadge);
+        header.getStyleClass().add("upgrade-header"); // UI-only change: spacing
+        header.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(titleBox, javafx.scene.layout.Priority.ALWAYS);
+        root.setTop(header);
+        BorderPane.setMargin(header, new Insets(0, 0, 12, 0));
 
         cardsPane.setHgap(12);
         cardsPane.setVgap(12);
         cardsPane.setPrefWrapLength(600);
+        cardsPane.getStyleClass().add("upgrade-cards-pane");
 
         detailsPane.setPadding(new Insets(20));
         detailsPane.setPrefWidth(400);
-        detailsPane.setStyle("-fx-border-color: #2d2f36; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
+        detailsPane.getStyleClass().add("upgrade-details-panel");
 
-        VBox cardsBox = new VBox(10, new Label("Your Collection"), cardsPane);
-        cardsBox.setPadding(new Insets(10));
+        Label collectionTitle = new Label("Your Collection");
+        collectionTitle.getStyleClass().add("upgrade-section-title");
+        VBox cardsBox = new VBox(12, collectionTitle, cardsPane);
+        cardsBox.setPadding(new Insets(12));
         cardsBox.setPrefWidth(620);
+        cardsBox.getStyleClass().add("upgrade-collection-panel");
 
         HBox content = new HBox(20, cardsBox, detailsPane);
+        content.getStyleClass().add("upgrade-content");
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        scrollPane.getStyleClass().add("upgrade-scroll");
 
-        VBox centerContent = new VBox(10, topBar, scrollPane);
+        VBox centerContent = new VBox(12, scrollPane);
+        centerContent.getStyleClass().add("upgrade-center");
         root.setCenter(centerContent);
 
         Button backButton = new Button("Back");
+        backButton.getStyleClass().add("upgrade-back-button");
         backButton.setOnAction(e -> navigator.showWelcomeScreen());
         HBox bottomBar = new HBox(backButton);
         bottomBar.setAlignment(Pos.CENTER_LEFT);
-        bottomBar.setPadding(new Insets(10));
+        bottomBar.setPadding(new Insets(8, 0, 4, 0));
+        bottomBar.getStyleClass().add("upgrade-bottom");
         root.setBottom(bottomBar);
 
         refreshCollection();
@@ -99,26 +115,29 @@ public class UpgradeCardView {
     private VBox createCardTile(Card card, CardProgression progression) {
         javafx.scene.image.ImageView portrait = CardArt.buildCardPortrait(card, 40);
         Label name = new Label(card.getName());
-        name.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        name.getStyleClass().add("upgrade-card-name");
         
         String levelStars = starsForLevel(progression.getLevel());
         Label level = new Label("Level: " + progression.getLevel() + "/3 " + levelStars);
-        level.setTextFill(Color.LIGHTBLUE);
+        level.getStyleClass().add("upgrade-card-meta");
+        level.setTextFill(Color.web("#9fb7ff"));
         
         String rarityName = progression.getRarity() != null ? progression.getRarity().name() : "COMMON";
         Label rarity = new Label("Rarity: " + rarityName);
+        rarity.getStyleClass().add("upgrade-card-meta");
         rarity.setTextFill(colorForRarity(progression.getRarity()));
 
         Button selectButton = new Button("Select");
+        selectButton.getStyleClass().add("upgrade-select-button");
         selectButton.setMaxWidth(Double.MAX_VALUE);
         selectButton.setOnAction(e -> selectCard(card));
 
         VBox tile = portrait != null
                 ? new VBox(5, portrait, name, level, rarity, selectButton)
                 : new VBox(5, name, level, rarity, selectButton);
-        tile.setPadding(new Insets(10));
-        tile.setStyle("-fx-border-color: " + toHex(colorForRarity(progression.getRarity()))
-                + "; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
+        tile.setPadding(new Insets(12));
+        tile.getStyleClass().add("upgrade-card-tile");
+        tile.setStyle("-fx-border-color: " + toHex(colorForRarity(progression.getRarity())) + ";");
         tile.setPrefWidth(160);
         return tile;
     }
@@ -133,7 +152,9 @@ public class UpgradeCardView {
         detailsPane.getChildren().clear();
         
         if (preview == null) {
-            detailsPane.getChildren().add(new Label("No card selected"));
+            Label emptyState = new Label("No card selected");
+            emptyState.getStyleClass().add("upgrade-empty-state");
+            detailsPane.getChildren().add(emptyState);
             return;
         }
 
@@ -142,27 +163,31 @@ public class UpgradeCardView {
         javafx.scene.image.ImageView portrait = CardArt.buildCardPortrait(card, 64);
 
         Label title = new Label(card.getName());
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        title.getStyleClass().add("upgrade-details-title");
         
         String rarityName = progression.getRarity() != null ? progression.getRarity().name() : "COMMON";
         Label levelLabel = new Label("Current Level: " + progression.getLevel() + "/3 " + starsForLevel(progression.getLevel()));
         Label rarityLabel = new Label("Rarity: " + rarityName);
+        levelLabel.getStyleClass().add("upgrade-details-meta");
+        rarityLabel.getStyleClass().add("upgrade-details-meta");
         rarityLabel.setTextFill(colorForRarity(progression.getRarity()));
         
         Label currentStatsTitle = new Label("Current Stats:");
-        currentStatsTitle.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        currentStatsTitle.getStyleClass().add("upgrade-section-title");
         Label currentStats = new Label(formatStats(preview.getCurrentStats()));
+        currentStats.getStyleClass().add("upgrade-stats-text");
         
         Label nextStatsTitle = new Label("Next Level Stats:");
-        nextStatsTitle.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        nextStatsTitle.getStyleClass().add("upgrade-section-title");
         Label nextStats = new Label(formatStats(preview.getNextStats()));
-        nextStats.setTextFill(Color.LIGHTGREEN);
+        nextStats.getStyleClass().add("upgrade-stats-text");
+        nextStats.setTextFill(Color.web("#86efac"));
         
         Label costLabel = new Label("Upgrade Cost: " + preview.getUpgradeCost() + " gold");
-        costLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
-        costLabel.setTextFill(Color.GOLD);
+        costLabel.getStyleClass().add("upgrade-cost");
         
         Button upgradeButton = new Button("Upgrade");
+        upgradeButton.getStyleClass().add("upgrade-primary-button");
         upgradeButton.setDisable(!preview.canUpgrade());
         upgradeButton.setPrefWidth(Double.MAX_VALUE);
         upgradeButton.setOnAction(e -> performUpgrade(card.getId()));
@@ -170,27 +195,40 @@ public class UpgradeCardView {
         if (!preview.canUpgrade()) {
             if (progression.isMaxLevel()) {
                 Label maxLevelLabel = new Label("Max level reached");
-                maxLevelLabel.setTextFill(Color.RED);
+                maxLevelLabel.getStyleClass().add("upgrade-warning");
                 detailsPane.getChildren().add(maxLevelLabel);
             } else {
                 Label insufficientGoldLabel = new Label("Insufficient gold");
-                insufficientGoldLabel.setTextFill(Color.RED);
+                insufficientGoldLabel.getStyleClass().add("upgrade-warning");
                 detailsPane.getChildren().add(insufficientGoldLabel);
             }
         }
 
+        StackPane portraitFrame = new StackPane(portrait != null ? portrait : new Label(""));
+        portraitFrame.getStyleClass().add("upgrade-portrait-frame");
+
+        VBox infoSection = new VBox(6, title, levelLabel, rarityLabel);
+        infoSection.getStyleClass().add("upgrade-info-section");
+
+        VBox currentStatsBox = new VBox(6, currentStatsTitle, currentStats);
+        currentStatsBox.getStyleClass().add("upgrade-stats-box");
+
+        VBox nextStatsBox = new VBox(6, nextStatsTitle, nextStats);
+        nextStatsBox.getStyleClass().add("upgrade-stats-box");
+
+        HBox statsRow = new HBox(12, currentStatsBox, nextStatsBox);
+        statsRow.getStyleClass().add("upgrade-stats-row");
+
+        VBox costSection = new VBox(8, costLabel, upgradeButton);
+        costSection.getStyleClass().add("upgrade-cost-section");
+
         detailsPane.getChildren().addAll(
-            portrait != null ? portrait : new Label(""),
-            title, levelLabel, rarityLabel,
-            new Label(""), // Spacer
-            currentStatsTitle, currentStats,
-            new Label(""), // Spacer
-            nextStatsTitle, nextStats,
-            new Label(""), // Spacer
-            costLabel, upgradeButton
+            portraitFrame,
+            infoSection,
+            statsRow,
+            costSection
         );
-        detailsPane.setStyle("-fx-border-color: " + toHex(colorForRarity(progression.getRarity()))
-                + "; -fx-border-radius: 6; -fx-background-color: #1c1f26;");
+        detailsPane.setStyle("-fx-border-color: " + toHex(colorForRarity(progression.getRarity())) + ";");
     }
 
     private String formatStats(kuroyale.domain.CardStats stats) {

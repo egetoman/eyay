@@ -15,8 +15,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import kuroyale.domain.ArenaLayout;
 import kuroyale.domain.Deck;
 
@@ -27,35 +25,43 @@ public class NetworkMenuView {
     private final VBox root;
 
     public NetworkMenuView(ScreenNavigator navigator, DeckController deckController, NetworkService networkService, ArenaLayout activeLayout) {
-        root = new VBox(14);
-        root.setPadding(new Insets(20));
+        root = new VBox(18);
+        root.setPadding(new Insets(24));
         root.setAlignment(Pos.CENTER);
+        root.getStyleClass().add("network-root");
 
         Label title = new Label("Network Multiplayer (Phase 2)");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 28));
+        title.getStyleClass().add("screen-title");
 
         NetworkConfig config = networkService != null ? networkService.loadConfig() : application.network.NetworkConfig.defaults();
         Gson gson = new GsonBuilder().create();
 
         Label subtitle = new Label("Host a match or join by IP. Lobby shows names, deck preview, and ready status.");
+        subtitle.getStyleClass().add("network-subtitle");
 
         TextField nameField = new TextField("Player");
         nameField.setPrefWidth(260);
+        nameField.getStyleClass().add("network-field");
 
         TextField ipField = new TextField("127.0.0.1");
         ipField.setPrefWidth(260);
+        ipField.getStyleClass().add("network-field");
 
         TextField portField = new TextField(String.valueOf(config.getDefaultPort()));
         portField.setPrefWidth(120);
+        portField.getStyleClass().add("network-field");
 
         ComboBox<String> deckChoice = new ComboBox<>();
         deckChoice.getItems().addAll("Saved Deck", "Default Deck");
         deckChoice.setValue("Saved Deck");
+        deckChoice.getStyleClass().add("network-field");
 
         Label status = new Label();
         status.setWrapText(true);
+        status.getStyleClass().add("network-status");
 
         Button hostButton = new Button("Host");
+        hostButton.getStyleClass().add("game-button");
         hostButton.setOnAction(e -> {
             Deck deck = resolveDeck(deckController, deckChoice.getValue());
             NetworkLobbyController lobby = networkService.createHostLobby(nameField.getText(), deck);
@@ -66,6 +72,7 @@ public class NetworkMenuView {
         });
 
         Button joinButton = new Button("Join");
+        joinButton.getStyleClass().add("secondary-button");
         joinButton.setOnAction(e -> {
             Deck deck = resolveDeck(deckController, deckChoice.getValue());
             NetworkLobbyController lobby = networkService.createClientLobby(nameField.getText(), deck);
@@ -79,22 +86,37 @@ public class NetworkMenuView {
         });
 
         Button back = new Button("Back");
+        back.getStyleClass().add("secondary-button");
         back.setOnAction(e -> navigator.showWelcomeScreen());
 
-        VBox nameBox = new VBox(6, new Label("Your Name"), nameField);
-        VBox deckBox = new VBox(6, new Label("Your Deck"), deckChoice);
+        Label nameLabel = new Label("Your Name");
+        nameLabel.getStyleClass().add("network-label");
+        VBox nameBox = new VBox(6, nameLabel, nameField);
+
+        Label deckLabel = new Label("Your Deck");
+        deckLabel.getStyleClass().add("network-label");
+        VBox deckBox = new VBox(6, deckLabel, deckChoice);
         HBox row1 = new HBox(20, nameBox, deckBox);
         row1.setAlignment(Pos.CENTER);
 
-        VBox ipBox = new VBox(6, new Label("Host IP"), ipField);
-        VBox portBox = new VBox(6, new Label("Port"), portField);
+        Label ipLabel = new Label("Host IP");
+        ipLabel.getStyleClass().add("network-label");
+        VBox ipBox = new VBox(6, ipLabel, ipField);
+
+        Label portLabel = new Label("Port");
+        portLabel.getStyleClass().add("network-label");
+        VBox portBox = new VBox(6, portLabel, portField);
         HBox row2 = new HBox(20, ipBox, portBox);
         row2.setAlignment(Pos.CENTER);
 
         HBox actions = new HBox(12, back, hostButton, joinButton);
         actions.setAlignment(Pos.CENTER);
+        actions.getStyleClass().add("network-actions");
 
-        root.getChildren().addAll(title, subtitle, row1, row2, status, actions);
+        VBox formCard = new VBox(16, row1, row2, status, actions);
+        formCard.getStyleClass().addAll("sub-panel", "network-card");
+
+        root.getChildren().addAll(title, subtitle, formCard);
     }
 
     private Deck resolveDeck(DeckController deckController, String choice) {

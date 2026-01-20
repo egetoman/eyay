@@ -269,7 +269,7 @@ public class StartGameView {
             Card card = i < handCards.size() ? handCards.get(i) : null;
             StackPane slot = StartGameUiBits.createCardSlot(card, true, i == selectedHandIndex);
             final int index = i;
-            slot.setOnMouseClicked(event -> selectHandIndex(index));
+            slot.setOnMouseClicked(event -> selectHandIndex(index, slot));
             handRow.getChildren().add(slot);
         }
 
@@ -336,10 +336,16 @@ public class StartGameView {
         return panel;
     }
 
-    private void selectHandIndex(int index) {
+    private void selectHandIndex(int index, StackPane slot) {
         if (index < 0 || index >= handCards.size() || handCards.get(index) == null) {
             selectedHandIndex = -1;
             refreshDeckSection();
+            return;
+        }
+        Card candidate = handCards.get(index);
+        if (candidate != null && !canAfford(candidate)) {
+            showStatus("Not enough elixir.", true);
+            shakeNode(slot);
             return;
         }
         selectedHandIndex = index;
@@ -348,6 +354,34 @@ public class StartGameView {
         if (selected != null) {
             showStatus(selected.getName() + " selected.", false);
         }
+    }
+
+    private boolean canAfford(Card card) {
+        if (card == null || player == null) {
+            return false;
+        }
+        double current = resolveCurrentElixir();
+        return current + 0.001 >= card.getElixirCost();
+    }
+
+    private double resolveCurrentElixir() {
+        double preciseElixir = player != null ? player.getCurrentElixir() : 0;
+        if (match != null) {
+            preciseElixir += match.getPlayerElixirFraction();
+        }
+        return preciseElixir;
+    }
+
+    private void shakeNode(StackPane node) {
+        if (node == null) {
+            return;
+        }
+        TranslateTransition shake = new TranslateTransition(Duration.millis(40), node);
+        shake.setFromX(-3);
+        shake.setToX(3);
+        shake.setCycleCount(6);
+        shake.setAutoReverse(true);
+        shake.playFromStart();
     }
 
     private void handleTileSelection(Position tile) {
@@ -377,6 +411,8 @@ public class StartGameView {
         // Record spell cast for visual effects
         if (card.getType() == CardType.SPELL) {
             arenaBoard.recordSpellCast(card.getId(), tile);
+        } else {
+            arenaBoard.recordDeployEffect(kuroyale.domain.TowerOwner.PLAYER, tile);
         }
 
         // Record card play for combo detection

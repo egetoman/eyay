@@ -13,6 +13,8 @@ public class Tower {
     private TowerType type;
     private TowerOwner owner;
     private double attackCooldownSeconds;
+    private long lastFiredAtMs;
+    private Position lastTargetPosition;
 
     public Tower() {
     }
@@ -26,6 +28,8 @@ public class Tower {
         this.type = type;
         this.owner = owner;
         this.attackCooldownSeconds = 0;
+        this.lastFiredAtMs = 0;
+        this.lastTargetPosition = null;
     }
 
     public Tower(Tower other) {
@@ -38,6 +42,10 @@ public class Tower {
                 other.owner);
         this.maxHp = other.maxHp;
         this.attackCooldownSeconds = other.attackCooldownSeconds;
+        this.lastFiredAtMs = other.lastFiredAtMs;
+        this.lastTargetPosition = other.lastTargetPosition != null
+                ? new Position(other.lastTargetPosition.getX(), other.lastTargetPosition.getY())
+                : null;
     }
 
     public int getHp() {
@@ -78,6 +86,14 @@ public class Tower {
 
     public void setAttackSpeed(double attackSpeed) {
         this.attackSpeed = attackSpeed;
+    }
+
+    public long getLastFiredAtMs() {
+        return lastFiredAtMs;
+    }
+
+    public Position getLastTargetPosition() {
+        return lastTargetPosition;
     }
 
     public TowerType getType() {
@@ -131,6 +147,11 @@ public class Tower {
         if (target != null) {
             target.takeDamage(damage);
             attackCooldownSeconds = interval;
+            lastFiredAtMs = System.currentTimeMillis();
+            Position targetPos = target.getPosition();
+            lastTargetPosition = targetPos != null
+                    ? new Position(targetPos.getX(), targetPos.getY())
+                    : null;
         }
     }
 

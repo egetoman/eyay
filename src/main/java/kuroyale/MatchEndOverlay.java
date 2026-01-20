@@ -5,6 +5,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -59,7 +60,11 @@ public final class MatchEndOverlay {
 
         Label head = new Label(headline != null ? headline : "Match Ended");
         head.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 28));
-        head.setTextFill(Color.WHITE);
+        head.setTextFill(resolveHeadlineColor(headline));
+
+        Label sub = new Label("Match Summary");
+        sub.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+        sub.setTextFill(Color.web("#cbd0d6"));
 
         VBox topBanner = banner(topName, clampCrowns(topCrowns), "#b63a4c");
         VBox bottomBanner = banner(bottomName, clampCrowns(bottomCrowns), "#2a6fd2");
@@ -88,14 +93,24 @@ public final class MatchEndOverlay {
         buttons.setAlignment(Pos.CENTER);
         buttons.setPadding(new Insets(8, 0, 0, 0));
 
-        VBox card = new VBox(14, head, topBanner, vs, bottomBanner);
+        Region divider = new Region();
+        divider.setPrefHeight(1);
+        divider.setStyle("-fx-background-color: rgba(255,255,255,0.08);");
+
+        VBox card = new VBox(12, head, sub, divider, topBanner, vs, bottomBanner);
         if (comboCount > 0) {
             Label comboLine = new Label("Combos Triggered: " + comboCount + " (+" + comboGold + " gold)");
             comboLine.setFont(Font.font("Arial", FontWeight.BOLD, 16));
             comboLine.setTextFill(Color.web("#ffd54f"));
             card.getChildren().add(comboLine);
         }
+
+        Label tip = new Label("OK returns to menu. Play Again starts a new match.");
+        tip.setFont(Font.font("Arial", 11));
+        tip.setTextFill(Color.web("#9aa3ad"));
+
         card.getChildren().add(buttons);
+        card.getChildren().add(tip);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(18));
         card.setMaxWidth(440);
@@ -134,6 +149,20 @@ public final class MatchEndOverlay {
 
     private static int clampCrowns(int crowns) {
         return Math.max(0, Math.min(3, crowns));
+    }
+
+    private static Color resolveHeadlineColor(String headline) {
+        if (headline == null) {
+            return Color.WHITE;
+        }
+        String normalized = headline.toLowerCase();
+        if (normalized.contains("victory") || normalized.contains("win")) {
+            return Color.web("#9be564");
+        }
+        if (normalized.contains("defeat") || normalized.contains("loss")) {
+            return Color.web("#f05a5b");
+        }
+        return Color.WHITE;
     }
 }
 

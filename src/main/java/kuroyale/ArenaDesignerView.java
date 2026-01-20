@@ -20,6 +20,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -71,55 +72,78 @@ public class ArenaDesignerView {
         resetToBase();
 
         StackPane canvasWrapper = new StackPane(canvas);
-        canvasWrapper.setPadding(new Insets(10));
+        canvasWrapper.setPadding(new Insets(16));
+        canvasWrapper.getStyleClass().add("arena-canvas-wrapper");
         ScrollPane scrollPane = new ScrollPane(canvasWrapper);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
+        scrollPane.getStyleClass().add("arena-canvas-scroll");
+        scrollPane.setPannable(true);
 
         nameField = new TextField();
         nameField.setPromptText("Arena name");
         nameField.setText("Custom Arena " + DateTimeFormatter.ofPattern("HHmmss").format(LocalDateTime.now()));
+        nameField.getStyleClass().add("arena-field");
+        nameField.setTooltip(new Tooltip("Give this layout a recognizable name."));
 
         ownerCombo = new ComboBox<>();
         ownerCombo.getItems().addAll(TowerOwner.PLAYER, TowerOwner.OPPONENT);
         ownerCombo.setValue(TowerOwner.PLAYER);
         ownerCombo.setDisable(true);
+        ownerCombo.getStyleClass().add("arena-combo");
 
         typeCombo = new ComboBox<>();
         typeCombo.getItems().addAll(TowerType.KING, TowerType.CROWN);
         typeCombo.setValue(TowerType.CROWN);
+        typeCombo.getStyleClass().add("arena-combo");
 
         modeCombo = new ComboBox<>();
         modeCombo.getItems().addAll(PlacementMode.TOWER, PlacementMode.BRIDGE);
         modeCombo.setValue(PlacementMode.TOWER);
+        modeCombo.getStyleClass().add("arena-combo");
 
-        VBox controls = new VBox(10,
-            labelledBox("Layout name", nameField),
-            labelledBox("Placement mode", modeCombo),
-            labelledBox("Tower owner", ownerCombo),
-            labelledBox("Tower type", typeCombo),
-            buildButtons()
-        );
-        controls.setPadding(new Insets(15));
-        controls.setPrefWidth(260);
-        controls.setStyle("-fx-background-color: #1c1f26;");
+        Label layoutTitle = new Label("Layout");
+        layoutTitle.getStyleClass().add("arena-section-title");
+        VBox layoutSection = new VBox(8, layoutTitle, labelledBox("Layout name", nameField));
+        layoutSection.getStyleClass().add("arena-section");
+
+        Label placementTitle = new Label("Placement");
+        placementTitle.getStyleClass().add("arena-section-title");
+        VBox placementSection = new VBox(8, placementTitle, labelledBox("Placement mode", modeCombo));
+        placementSection.getStyleClass().add("arena-section");
+
+        Label towerTitle = new Label("Tower Settings");
+        towerTitle.getStyleClass().add("arena-section-title");
+        VBox towerSection = new VBox(8, towerTitle, labelledBox("Tower owner", ownerCombo), labelledBox("Tower type", typeCombo));
+        towerSection.getStyleClass().add("arena-section");
+
+        Label actionsTitle = new Label("Actions");
+        actionsTitle.getStyleClass().add("arena-section-title");
+        VBox actionsSection = new VBox(10, actionsTitle, buildButtons());
+        actionsSection.getStyleClass().add("arena-section");
+
+        VBox controls = new VBox(14, layoutSection, placementSection, towerSection, actionsSection);
+        controls.setPadding(new Insets(18));
+        controls.setMinWidth(240);
+        controls.setPrefWidth(300);
+        controls.setMaxWidth(360);
+        controls.getStyleClass().add("arena-controls");
 
         Label title = new Label("Arena Designer");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
-        title.setTextFill(Color.WHITE);
-        VBox header = new VBox(title, new Label("Left click to add, right click to remove. Bridges snap across the river."));
-        header.setSpacing(5);
-        header.setPadding(new Insets(10));
+        title.getStyleClass().add("arena-title");
+        Label hint = new Label("Left click to add, right click to remove. Bridges snap across the river.");
+        hint.getStyleClass().add("arena-hint");
+        VBox header = new VBox(title, hint);
+        header.setSpacing(6);
+        header.setPadding(new Insets(14, 18, 14, 18));
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setStyle("-fx-background-color: #0f1216; -fx-text-fill: #d7d7d7;");
-        header.getChildren().filtered(node -> node instanceof Label && node != title)
-            .forEach(node -> ((Label) node).setTextFill(Color.web("#c9d1d9")));
+        header.getStyleClass().add("arena-header");
 
         root = new BorderPane();
         root.setTop(header);
         root.setLeft(controls);
         root.setCenter(scrollPane);
-        root.setStyle("-fx-background-color: #0b0e12;");
+        root.getStyleClass().add("arena-designer-root");
 
         canvas.setOnMouseClicked(event -> {
             Position grid = screenToGrid(event.getX(), event.getY());
@@ -144,9 +168,10 @@ public class ArenaDesignerView {
 
     private HBox labelledBox(String labelText, Parent control) {
         Label label = new Label(labelText);
-        label.setTextFill(Color.web("#c9d1d9"));
+        label.getStyleClass().add("arena-label");
         VBox box = new VBox(label, control);
-        box.setSpacing(4);
+        box.setSpacing(6);
+        box.getStyleClass().add("arena-field-group");
         return new HBox(box);
     }
 
@@ -154,6 +179,9 @@ public class ArenaDesignerView {
         Button saveButton = new Button("Save Layout");
         Button resetButton = new Button("Reset to Active Layout");
         Button backButton = new Button("Back");
+        saveButton.getStyleClass().add("arena-primary-button");
+        resetButton.getStyleClass().add("arena-secondary-button");
+        backButton.getStyleClass().add("arena-tertiary-button");
 
         saveButton.setOnAction(e -> saveLayout());
         resetButton.setOnAction(e -> {
@@ -162,7 +190,9 @@ public class ArenaDesignerView {
         });
         backButton.setOnAction(e -> handleBackNavigation());
 
-        return new HBox(10, saveButton, resetButton, backButton);
+        HBox actions = new HBox(10, saveButton, resetButton, backButton);
+        actions.getStyleClass().add("arena-actions");
+        return actions;
     }
 
     private void resetToBase() {
@@ -317,11 +347,11 @@ public class ArenaDesignerView {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         double widthPx = baseLayout.getWidth() * TILE_SIZE;
         double heightPx = baseLayout.getHeight() * TILE_SIZE;
-        gc.setFill(Color.web("#14222b"));
+        gc.setFill(Color.web("#111a22"));
         gc.fillRect(0, 0, widthPx, heightPx);
 
-        gc.setStroke(Color.web("#1f4d5f"));
-        gc.setLineWidth(0.5);
+        gc.setStroke(Color.web("#20303c"));
+        gc.setLineWidth(0.4);
         for (int x = 0; x <= baseLayout.getWidth(); x++) {
             double px = x * TILE_SIZE;
             gc.strokeLine(px, 0, px, heightPx);
@@ -332,7 +362,7 @@ public class ArenaDesignerView {
         }
 
         double riverTop = (baseLayout.getHeight() / 2.0 - 1) * TILE_SIZE;
-        gc.setFill(Color.web("#205e7a"));
+        gc.setFill(Color.web("#1f5a73"));
         gc.fillRect(0, riverTop, widthPx, TILE_SIZE * 2);
 
         for (Bridge bridge : bridges) {
@@ -357,10 +387,10 @@ public class ArenaDesignerView {
         double width = (maxX - minX + 1) * TILE_SIZE;
         double height = (maxY - minY + 1) * TILE_SIZE;
 
-        gc.setFill(Color.web("#a36a32"));
+        gc.setFill(Color.web("#b07a3e"));
         gc.fillRect(x, y, width, height);
-        gc.setStroke(Color.web("#6b3e18"));
-        gc.setLineWidth(1.5);
+        gc.setStroke(Color.web("#6e401d"));
+        gc.setLineWidth(1.4);
         gc.strokeRect(x, y, width, height);
     }
 
@@ -371,13 +401,13 @@ public class ArenaDesignerView {
         }
         double x = pos.getX() * TILE_SIZE;
         double y = (baseLayout.getHeight() - pos.getY() - 1) * TILE_SIZE;
-        Color color = tower.getOwner() == TowerOwner.PLAYER ? Color.web("#3cb371") : Color.web("#f05a5b");
+        Color color = tower.getOwner() == TowerOwner.PLAYER ? Color.web("#4cc98a") : Color.web("#f06464");
         double size = TILE_SIZE * (tower.getType() == TowerType.KING ? 1.2 : 0.9);
         double offset = (TILE_SIZE - size) / 2;
 
         gc.setFill(color);
         gc.fillOval(x + offset, y + offset, size, size);
-        gc.setStroke(Color.BLACK);
+        gc.setStroke(Color.web("#0b0e12"));
         gc.setLineWidth(1);
         gc.strokeOval(x + offset, y + offset, size, size);
         gc.setFont(Font.font("Arial", FontWeight.BOLD, TILE_SIZE * 0.45));

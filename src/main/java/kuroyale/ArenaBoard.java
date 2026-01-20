@@ -55,6 +55,7 @@ public class ArenaBoard {
     private List<Tower> currentTowers = Collections.emptyList();
     private final Map<Unit, UnitAnimState> animByUnit = new WeakHashMap<>();
     private final List<SpellEffect> activeSpellEffects = new ArrayList<>();
+    private final List<DeployEffect> activeDeployEffects = new ArrayList<>();
 
     public ArenaBoard(ArenaLayout layout) {
         this(layout, false);
@@ -114,6 +115,7 @@ public class ArenaBoard {
         drawArena(gc, layout);
         drawUnits(gc, layout, units);
         drawSpellEffects(gc);
+        drawDeployEffects(gc);
     }
 
     /**
@@ -128,6 +130,13 @@ public class ArenaBoard {
         activeSpellEffects.add(new SpellEffect(spellId, position, System.currentTimeMillis()));
     }
 
+    public void recordDeployEffect(TowerOwner owner, Position position) {
+        if (position == null) {
+            return;
+        }
+        activeDeployEffects.add(new DeployEffect(position, owner, System.currentTimeMillis()));
+    }
+
     public void render(Arena arena) {
         if (arena == null) {
             renderUnits(Collections.emptyList());
@@ -139,6 +148,7 @@ public class ArenaBoard {
         drawLiveTowers(gc, layout, currentTowers);
         drawUnits(gc, layout, arena.getUnits());
         drawSpellEffects(gc);
+        drawDeployEffects(gc);
     }
 
     private void handleCanvasClick(MouseEvent event) {
@@ -224,6 +234,7 @@ public class ArenaBoard {
         }
         for (Tower tower : towers) {
             drawTower(gc, layout, tower);
+            drawTowerShot(gc, layout, tower);
         }
     }
 
@@ -272,8 +283,9 @@ public class ArenaBoard {
         if (position == null) {
             return;
         }
-        // Don't draw towers with zero or negative health
+        // Draw destroyed visuals when tower is down (visual only, no gameplay effect)
         if (tower.getHp() <= 0) {
+            drawDestroyedTower(gc, layout, tower);
             return;
         }
         double x = position.getX() * TILE_SIZE;
@@ -413,6 +425,81 @@ public class ArenaBoard {
         gc.setTextAlign(TextAlignment.CENTER);
         String healthText = tower.getHp() + "/" + tower.getMaxHp();
         gc.fillText(healthText, centerX, barY + barHeight + 13);
+    }
+
+    private void drawTowerShot(GraphicsContext gc, ArenaLayout layout, Tower tower) {
+        if (gc == null || tower == null || tower.getPosition() == null) {
+            return;
+        }
+        Position target = tower.getLastTargetPosition();
+        if (target == null) {
+            return;
+        }
+        long age = System.currentTimeMillis() - tower.getLastFiredAtMs();
+        if (age < 0 || age > 180) {
+            return;
+        }
+
+        double alpha = 0.9 * (1.0 - (age / 180.0));
+        double startX = tower.getPosition().getX() * TILE_SIZE + TILE_SIZE / 2.0;
+        double startY = convertY(layout, tower.getPosition().getY()) + TILE_SIZE / 2.0;
+        double endX = target.getX() * TILE_SIZE + TILE_SIZE / 2.0;
+        double endY = convertY(layout, target.getY()) + TILE_SIZE / 2.0;
+
+        Color beam = tower.getOwner() == TowerOwner.PLAYER
+                ? Color.web("#6aa7ff", alpha)
+                : Color.web("#ff7a7a", alpha);
+
+        gc.setStroke(beam);
+        gc.setLineWidth(2.5);
+        gc.strokeLine(startX, startY, endX, endY);
+
+        gc.setFill(beam.deriveColor(0, 1, 1, alpha * 0.8));
+        gc.fillOval(endX - 3, endY - 3, 6, 6);
+    }
+
+    private void drawDestroyedTower(GraphicsContext gc, ArenaLayout layout, Tower tower) {
+        if (gc == null || tower == null || tower.getPosition() == null) {
+            return;
+        }
+        Position position = tower.getPosition();
+        double x = position.getX() * TILE_SIZE;
+        double y = convertY(layout, position.getY());
+
+        boolean friendly = (!flipVertical && tower.getOwner() == TowerOwner.PLAYER)
+                || (flipVertical && tower.getOwner() == TowerOwner.OPPONENT);
+
+        double rubbleWidth = TILE_SIZE * 1.4;
+        double rubbleHeight = TILE_SIZE * 0.7;
+        double centerX = x + TILE_SIZE / 2;
+        double rubbleX = centerX - rubbleWidth / 2;
+        double rubbleY = y + TILE_SIZE - rubbleHeight;
+
+        // Shadow
+        gc.setFill(Color.web("#000000", 0.35));
+        gc.fillOval(rubbleX - 2, rubbleY + rubbleHeight - 4, rubbleWidth + 4, 8);
+
+        // Rubble base
+        gc.setFill(Color.web("#2f333d"));
+        gc.fillRoundRect(rubbleX, rubbleY, rubbleWidth, rubbleHeight, 6, 6);
+
+        // Cracked blocks
+        gc.setStroke(Color.web("#1b1f26"));
+        gc.setLineWidth(1);
+        gc.strokeRoundRect(rubbleX, rubbleY, rubbleWidth, rubbleHeight, 6, 6);
+        gc.strokeLine(rubbleX + 6, rubbleY + rubbleHeight * 0.4, rubbleX + rubbleWidth - 6, rubbleY + rubbleHeight * 0.35);
+        gc.strokeLine(rubbleX + 10, rubbleY + rubbleHeight * 0.7, rubbleX + rubbleWidth - 12, rubbleY + rubbleHeight * 0.55);
+
+        // Banner scrap
+        Color scrap = friendly ? Color.web("#2a6fd2") : Color.web("#b63a4c");
+        gc.setFill(scrap.deriveColor(0, 1, 1, 0.65));
+        gc.fillRect(rubbleX + rubbleWidth * 0.15, rubbleY + 4, rubbleWidth * 0.2, 6);
+
+        // Broken crown icon
+        gc.setFill(Color.web("#9aa3ad"));
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText("♛", centerX, rubbleY - 2);
     }
 
     private void drawUnits(GraphicsContext gc, ArenaLayout layout, List<Unit> units) {
@@ -620,17 +707,35 @@ public class ArenaBoard {
         double projX = srcX + (targetDrawX - srcX) * progress;
         double projY = srcY + (targetDrawY - srcY) * progress;
 
+        double angle = Math.atan2(targetDrawY - srcY, targetDrawX - srcX);
+        double trailLength = 10;
+        double trailX = projX - Math.cos(angle) * trailLength;
+        double trailY = projY - Math.sin(angle) * trailLength;
+        Color baseColor = friendly ? Color.web("#4a90e2") : Color.web("#e74c3c");
+
         // Draw projectile based on unit type
         String cardId = unit.getCard() != null ? unit.getCard().getId() : "";
         
         if ("card_bomber".equals(cardId) || "card_bomb_tower".equals(cardId)) {
             // Draw bomb projectile
+            gc.setStroke(Color.web("#000000", 0.35));
+            gc.setLineWidth(3);
+            gc.strokeLine(trailX, trailY, projX, projY);
+            gc.setFill(Color.web("#444444", 0.4));
+            gc.fillOval(trailX - 3, trailY - 3, 6, 6);
+
             gc.setFill(Color.web("#333333"));
             gc.fillOval(projX - 5, projY - 5, 10, 10);
             gc.setFill(Color.web("#ff6600"));
             gc.fillOval(projX - 2, projY - 6, 4, 4); // Fuse spark
         } else if ("card_wizard".equals(cardId)) {
             // Draw fireball
+            gc.setStroke(Color.web("#ff6600", 0.45));
+            gc.setLineWidth(4);
+            gc.strokeLine(trailX, trailY, projX, projY);
+            gc.setFill(Color.web("#ffbb33", 0.35));
+            gc.fillOval(projX - 8, projY - 8, 16, 16);
+
             gc.setFill(Color.web("#ff4400", 0.8));
             gc.fillOval(projX - 6, projY - 6, 12, 12);
             gc.setFill(Color.web("#ffaa00", 0.6));
@@ -638,18 +743,26 @@ public class ArenaBoard {
         } else if ("card_musketeer".equals(cardId) || "card_archers".equals(cardId) 
                 || "card_spear_goblins".equals(cardId)) {
             // Draw arrow/bullet
-            double angle = Math.atan2(targetDrawY - srcY, targetDrawX - srcX);
+            gc.setStroke(Color.web("#ffffff", 0.35));
+            gc.setLineWidth(3);
+            gc.strokeLine(trailX, trailY, projX, projY);
+
             gc.save();
             gc.translate(projX, projY);
             gc.rotate(Math.toDegrees(angle));
-            gc.setFill(friendly ? Color.web("#4a90e2") : Color.web("#e74c3c"));
+            gc.setFill(baseColor);
             gc.fillRect(-8, -2, 16, 4);
             gc.setFill(Color.web("#ffd700"));
             gc.fillPolygon(new double[]{8, 8, 14}, new double[]{-3, 3, 0}, 3);
             gc.restore();
         } else {
             // Default projectile (small circle)
-            gc.setFill(friendly ? Color.web("#4a90e2") : Color.web("#e74c3c"));
+            gc.setStroke(Color.web("#ffffff", 0.3));
+            gc.setLineWidth(2.5);
+            gc.strokeLine(trailX, trailY, projX, projY);
+            gc.setFill(Color.web("#ffffff", 0.2));
+            gc.fillOval(projX - 6, projY - 6, 12, 12);
+            gc.setFill(baseColor);
             gc.fillOval(projX - 4, projY - 4, 8, 8);
         }
     }
@@ -742,6 +855,38 @@ public class ArenaBoard {
         }
     }
 
+    private void drawDeployEffects(GraphicsContext gc) {
+        if (gc == null || activeDeployEffects.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Iterator<DeployEffect> it = activeDeployEffects.iterator();
+        while (it.hasNext()) {
+            DeployEffect effect = it.next();
+            long age = now - effect.castTime;
+            if (age > 650) {
+                it.remove();
+                continue;
+            }
+            double progress = Math.min(1.0, age / 650.0);
+            double centerX = effect.position.getX() * TILE_SIZE + TILE_SIZE / 2.0;
+            double centerY = convertY(layout, effect.position.getY()) + TILE_SIZE / 2.0;
+
+            boolean friendly = (!flipVertical && effect.owner == TowerOwner.PLAYER)
+                    || (flipVertical && effect.owner == TowerOwner.OPPONENT);
+            Color ring = friendly ? Color.web("#5aa2ff") : Color.web("#ff6f6f");
+            double radius = 6 + (progress * 18);
+            double alpha = 0.7 * (1.0 - progress);
+
+            gc.setStroke(ring.deriveColor(0, 1, 1, alpha));
+            gc.setLineWidth(2.5);
+            gc.strokeOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
+
+            gc.setFill(ring.deriveColor(0, 1, 1, alpha * 0.35));
+            gc.fillOval(centerX - radius * 0.6, centerY - radius * 0.6, radius * 1.2, radius * 1.2);
+        }
+    }
+
     private void drawSpellEffect(GraphicsContext gc, String spellId, double centerX, double centerY, long ageMs) {
         if (gc == null || spellId == null) {
             return;
@@ -764,6 +909,17 @@ public class ArenaBoard {
 
     private void drawFireballEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
         // Advanced multi-layered fireball explosion with particles, shockwaves, and animated effects
+        // UI-only change: add distinct ground sigil for fireball
+        if (ageMs < 900) {
+            double sigilRadius = 18 + (ageMs * 0.02);
+            double sigilAlpha = Math.max(0, 0.35 * (1.0 - ageMs / 900.0) * fadeOut);
+            gc.setStroke(Color.web("#ffb347", sigilAlpha));
+            gc.setLineWidth(2);
+            gc.strokeOval(centerX - sigilRadius, centerY - sigilRadius, sigilRadius * 2, sigilRadius * 2);
+            gc.setStroke(Color.web("#ff5f2e", sigilAlpha * 0.7));
+            gc.setLineWidth(1.2);
+            gc.strokeOval(centerX - sigilRadius * 0.6, centerY - sigilRadius * 0.6, sigilRadius * 1.2, sigilRadius * 1.2);
+        }
         
         // Phase 1: Initial flash (0-100ms)
         if (ageMs < 100) {
@@ -853,6 +1009,17 @@ public class ArenaBoard {
 
     private void drawArrowsEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
         // Advanced arrows rain effect with multiple impact points, trails, and debris
+        // UI-only change: add distinct target marker for arrows
+        if (ageMs < 800) {
+            double markerRadius = 14 + (ageMs * 0.015);
+            double markerAlpha = Math.max(0, 0.3 * (1.0 - ageMs / 800.0) * fadeOut);
+            gc.setStroke(Color.web("#ffd166", markerAlpha));
+            gc.setLineWidth(1.8);
+            gc.strokeOval(centerX - markerRadius, centerY - markerRadius, markerRadius * 2, markerRadius * 2);
+            gc.setStroke(Color.web("#ef476f", markerAlpha * 0.7));
+            gc.strokeLine(centerX - markerRadius, centerY, centerX + markerRadius, centerY);
+            gc.strokeLine(centerX, centerY - markerRadius, centerX, centerY + markerRadius);
+        }
         
         // Expanding impact radius
         double easeOut = 1.0 - Math.pow(1.0 - Math.min(ageMs / 600.0, 1.0), 2);
@@ -945,6 +1112,17 @@ public class ArenaBoard {
 
     private void drawZapEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
         // Advanced lightning zap effect with multiple bolts, electric arcs, and pulsing energy
+        // UI-only change: add electric burst rings for distinct zap identity
+        if (ageMs < 450) {
+            double burstRadius = 10 + (ageMs * 0.05);
+            double burstAlpha = Math.max(0, 0.35 * (1.0 - ageMs / 450.0) * fadeOut);
+            gc.setStroke(Color.web("#22d3ee", burstAlpha));
+            gc.setLineWidth(2);
+            gc.strokeOval(centerX - burstRadius, centerY - burstRadius, burstRadius * 2, burstRadius * 2);
+            gc.setStroke(Color.web("#e0f2fe", burstAlpha * 0.7));
+            gc.setLineWidth(1.2);
+            gc.strokeOval(centerX - burstRadius * 0.65, centerY - burstRadius * 0.65, burstRadius * 1.3, burstRadius * 1.3);
+        }
         
         // Phase 1: Initial bright flash (0-50ms)
         if (ageMs < 50) {
@@ -1079,6 +1257,17 @@ public class ArenaBoard {
 
     private void drawRocketEffect(GraphicsContext gc, double centerX, double centerY, long ageMs, double fadeOut) {
         // Advanced rocket explosion - massive, multi-stage explosion with debris, shockwaves, and smoke
+        // UI-only change: add crater ring to distinguish rocket impact
+        if (ageMs < 1200) {
+            double craterRadius = 22 + (ageMs * 0.03);
+            double craterAlpha = Math.max(0, 0.28 * (1.0 - ageMs / 1200.0) * fadeOut);
+            gc.setStroke(Color.web("#6b4f3f", craterAlpha));
+            gc.setLineWidth(2.4);
+            gc.strokeOval(centerX - craterRadius, centerY - craterRadius, craterRadius * 2, craterRadius * 2);
+            gc.setStroke(Color.web("#c08457", craterAlpha * 0.6));
+            gc.setLineWidth(1.4);
+            gc.strokeOval(centerX - craterRadius * 0.6, centerY - craterRadius * 0.6, craterRadius * 1.2, craterRadius * 1.2);
+        }
         
         // Phase 1: Massive initial flash (0-80ms)
         if (ageMs < 80) {
@@ -1220,6 +1409,18 @@ public class ArenaBoard {
         SpellEffect(String spellId, Position position, long castTime) {
             this.spellId = spellId;
             this.position = position;
+            this.castTime = castTime;
+        }
+    }
+
+    private static final class DeployEffect {
+        final Position position;
+        final TowerOwner owner;
+        final long castTime;
+
+        DeployEffect(Position position, TowerOwner owner, long castTime) {
+            this.position = position;
+            this.owner = owner != null ? owner : TowerOwner.PLAYER;
             this.castTime = castTime;
         }
     }
