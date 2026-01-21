@@ -149,7 +149,7 @@ public class Match {
             playerElixirSpent += cost;
             playerCardsPlayed++;
         }
-
+        
         // Handle spells differently - they deal area damage immediately
         if (card.getType() == CardType.SPELL) {
             if (isHumanPlayer) {
@@ -159,7 +159,7 @@ public class Match {
             // Return a dummy unit for compatibility, but spells don't create units
             return Result.ok(null);
         }
-
+        
         // Track troop/building deployment for quests
         if (isHumanPlayer) {
             if (card.getType() == CardType.TROOP) {
@@ -182,8 +182,8 @@ public class Match {
             Position spawnPos = spawnPositions.get(i);
             Unit unit = new Unit(card, spawnPos, hp, unitOwner);
             Tower initialTarget = arena.findNearestEnemyTower(unitOwner, spawnPos);
-            unit.setTargetTower(initialTarget);
-            arena.addUnit(unit);
+        unit.setTargetTower(initialTarget);
+        arena.addUnit(unit);
             if (firstUnit == null) {
                 firstUnit = unit;
             }
@@ -345,17 +345,17 @@ public class Match {
                     break;
                 }
             } else {
-                updateOutcomeIfNeeded(false);
-                if (isOver()) {
-                    break;
-                }
+            updateOutcomeIfNeeded(false);
+            if (isOver()) {
+                break;
             }
+        }
         }
         elapsedSeconds = cursor;
         if (suddenDeathActive) {
             resolveSuddenDeathOutcomeIfNeeded();
         } else {
-            updateOutcomeIfNeeded(true);
+        updateOutcomeIfNeeded(true);
         }
     }
 
@@ -795,8 +795,8 @@ public class Match {
 
         if (overtimeActive) {
             if (resolveOvertimeTowerDestroyed()) {
-                return;
-            }
+            return;
+        }
         }
 
         if (considerTimeOut && elapsedSeconds >= NORMAL_DURATION_SECONDS && !overtimeActive) {
@@ -817,7 +817,7 @@ public class Match {
                 return;
             }
             activateOvertime();
-            return;
+                return;
         }
 
         if (considerTimeOut && overtimeActive && elapsedSeconds >= OVERTIME_END_SECONDS) {

@@ -40,6 +40,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 import application.MatchController;
+import application.QuestUpdateHelper;
 import application.replay.ReplayRecorder;
 import kuroyale.domain.Arena;
 import kuroyale.domain.ArenaLayout;
@@ -97,12 +98,14 @@ public class StartGameView {
     private final ArenaLayout selectedLayout;
     private final ReplayRecorder replayRecorder;
     private boolean matchRecorded = false;
+    private boolean questUpdated = false;
     private final ComboDetector comboDetector;
     private Label comboCountLabel;
     private Timeline comboMessageTimer;
     private final Set<String> destroyedTowerKeys = new HashSet<>();
     private int playerCrowns = 0;
     private int opponentCrowns = 0;
+    private int lastSpellDamageReported = 0;
     private final EmoteBubbleManager emoteBubbles;
     private final EmoteLimiter playerEmoteLimiter = EmoteLimiter.defaultLimiter();
     private final EmotePanel emotePanel;
@@ -518,6 +521,7 @@ public class StartGameView {
                 }
                 replayRecorder.capture(match);
                 comboDetector.updateTime(match != null ? match.getElapsedSeconds() : 0.0);
+                updateSpellDamageQuestProgress();
                 updateElixirHud();
                 updateClockHud();
                 Arena arena = match.getArena();
@@ -560,14 +564,27 @@ public class StartGameView {
         int opponentCrowns = outcome != null ? outcome.getOpponentCrowns() : 0;
 
         String headline = "Draw";
+        boolean playerWon = false;
         if (outcome != null && outcome.getWinner() != null) {
-            headline = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER ? "Victory" : "Defeat";
+            playerWon = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER;
+            headline = playerWon ? "Victory" : "Defeat";
         }
 
         String topName = (match.getOpponent() != null && match.getOpponent().getName() != null)
                 ? match.getOpponent().getName()
                 : "Opponent";
         String bottomName = (player != null && player.getName() != null) ? player.getName() : "You";
+
+        if (!questUpdated && navigator != null) {
+            questUpdated = true;
+            QuestUpdateHelper.updateAfterMatch(
+                    navigator.getQuestService(),
+                    navigator.getAchievementService(),
+                    match,
+                    playerWon,
+                    playerCrowns,
+                    true);
+        }
 
         int comboCount = comboDetector.getTriggeredComboCount(); // unique combos triggered in match
         int comboGold = comboCount * 10;
@@ -807,6 +824,22 @@ public class StartGameView {
         if (comboCountLabel != null) {
             int count = comboDetector.getTriggeredComboCount();
             comboCountLabel.setText("Combos: " + count);
+        }
+    }
+
+    private void updateSpellDamageQuestProgress() {
+        if (navigator == null || match == null) {
+            return;
+        }
+        var questService = navigator.getQuestService();
+        if (questService == null) {
+            return;
+        }
+        int current = match.getPlayerSpellDamageDealt();
+        int delta = current - lastSpellDamageReported;
+        if (delta > 0) {
+            questService.updateProgress(kuroyale.domain.QuestType.DEAL_SPELL_DAMAGE, delta);
+            lastSpellDamageReported = current;
         }
     }
 
