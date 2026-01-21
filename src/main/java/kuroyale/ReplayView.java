@@ -51,6 +51,7 @@ public class ReplayView {
     private double speed = 1.0;
 
     private final Map<String, Card> cardById = new HashMap<>();
+    private final Map<String, Integer> originalTowerHp = new HashMap<>(); // Store original HP to restore on exit
 
     public ReplayView(ScreenNavigator navigator, ArenaLayoutService arenaLayoutService, MatchRecord record) {
         root = new BorderPane();
@@ -81,6 +82,14 @@ public class ReplayView {
         for (Card c : new CardCatalogRepository().findAll()) {
             if (c != null && c.getId() != null) {
                 cardById.put(c.getId(), c);
+            }
+        }
+        
+        // Save original tower HP values to restore when exiting replay
+        for (Tower t : this.layout.getTowers()) {
+            if (t != null && t.getPosition() != null && t.getOwner() != null && t.getType() != null) {
+                String key = buildTowerKey(t);
+                originalTowerHp.put(key, t.getHp());
             }
         }
 
@@ -117,6 +126,9 @@ public class ReplayView {
         start();
     }
 
+    private static final double[] SPEED_OPTIONS = {1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0};
+    private int speedIndex = 0;
+
     private Parent buildControls() {
         Button playPause = new Button("Pause");
         Button speedBtn = new Button("Speed: 1x");
@@ -132,8 +144,10 @@ public class ReplayView {
         });
 
         speedBtn.setOnAction(e -> {
-            speed = speed == 1.0 ? 2.0 : 1.0;
-            speedBtn.setText("Speed: " + (speed == 2.0 ? "2x" : "1x"));
+            // Cycle through speed options: 1x -> 2x -> 4x -> 8x -> 16x -> 1x
+            speedIndex = (speedIndex + 1) % SPEED_OPTIONS.length;
+            speed = SPEED_OPTIONS[speedIndex];
+            speedBtn.setText("Speed: " + formatSpeed(speed));
             if (ticker != null) {
                 stop();
                 start();
@@ -151,9 +165,19 @@ public class ReplayView {
         return row;
     }
 
+    private String formatSpeed(double spd) {
+        if (spd == (int) spd) {
+            return (int) spd + "x";
+        }
+        return spd + "x";
+    }
+
     private Parent buildBottomButtons(ScreenNavigator navigator) {
         Button back = new Button("Back");
-        back.setOnAction(e -> navigator.showMatchHistoryScreen());
+        back.setOnAction(e -> {
+            cleanup(); // Restore tower HP before leaving
+            navigator.showMatchHistoryScreen();
+        });
         HBox bar = new HBox(back);
         bar.setAlignment(Pos.CENTER_LEFT);
         return bar;
@@ -261,6 +285,30 @@ public class ReplayView {
 
     public Parent getRoot() {
         return root;
+    }
+    
+    /**
+     * Restores tower HP to original values. Call this when exiting the replay.
+     */
+    public void cleanup() {
+        stop();
+        // Restore original tower HP values
+        if (layout != null) {
+            for (Tower t : layout.getTowers()) {
+                if (t != null && t.getPosition() != null && t.getOwner() != null && t.getType() != null) {
+                    String key = buildTowerKey(t);
+                    Integer originalHp = originalTowerHp.get(key);
+                    if (originalHp != null) {
+                        t.setHp(originalHp);
+                    }
+                }
+            }
+        }
+    }
+    
+    private String buildTowerKey(Tower tower) {
+        return tower.getOwner() + "|" + tower.getType() + "|" + 
+               tower.getPosition().getX() + "|" + tower.getPosition().getY();
     }
 }
 
