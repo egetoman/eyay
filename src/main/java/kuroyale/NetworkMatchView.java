@@ -47,8 +47,8 @@ import kuroyale.emote.EmoteType;
  */
 public class NetworkMatchView {
 
-    private static final double ELIXIR_BAR_WIDTH = 320;
-    private static final double ELIXIR_BAR_HEIGHT = 16;
+    private static final double ELIXIR_BAR_WIDTH = 600;
+    private static final double ELIXIR_BAR_HEIGHT = 20;
 
     private final BorderPane root;
     private final ScreenNavigator navigator;
@@ -243,26 +243,54 @@ public class NetworkMatchView {
     }
 
     private VBox buildElixirPanel() {
+        // Clash Royale style: long bar with tick marks (same as LocalPvP)
         Region track = new Region();
-        track.setPrefSize(ELIXIR_BAR_WIDTH, ELIXIR_BAR_HEIGHT);
+        track.setPrefHeight(ELIXIR_BAR_HEIGHT);
+        track.setMaxWidth(ELIXIR_BAR_WIDTH);
+        track.setMinWidth(ELIXIR_BAR_WIDTH);
         track.setStyle(
-                "-fx-background-color: #141724; -fx-border-color: #3b3f55; -fx-border-radius: 10; -fx-background-radius: 10;");
+                "-fx-background-color: #0d1016; -fx-background-radius: 10; -fx-border-color: #3b3f55; -fx-border-radius: 10;");
 
         localElixirFill = new Region();
-        localElixirFill.setPrefSize(0, ELIXIR_BAR_HEIGHT);
+        localElixirFill.setPrefHeight(ELIXIR_BAR_HEIGHT);
         localElixirFill.setStyle("-fx-background-color: linear-gradient(to right, #b259ff, #7a4dff); -fx-background-radius: 10;");
 
-        StackPane bar = new StackPane(track, localElixirFill);
+        // Create tick marks for 10 segments
+        HBox ticks = new HBox();
+        ticks.setAlignment(Pos.CENTER_LEFT);
+        double segmentWidth = ELIXIR_BAR_WIDTH / 10.0;
+        for (int i = 0; i < 9; i++) {
+            Region spacer = new Region();
+            spacer.setPrefWidth(segmentWidth - 1);
+            spacer.setMinWidth(segmentWidth - 1);
+            Region divider = new Region();
+            divider.setPrefSize(1, ELIXIR_BAR_HEIGHT);
+            divider.setStyle("-fx-background-color: rgba(255,255,255,0.15);");
+            ticks.getChildren().addAll(spacer, divider);
+        }
+        ticks.setMouseTransparent(true);
+        ticks.setMaxWidth(ELIXIR_BAR_WIDTH);
+
+        StackPane bar = new StackPane(track, localElixirFill, ticks);
+        bar.setMaxWidth(ELIXIR_BAR_WIDTH);
         StackPane.setAlignment(localElixirFill, Pos.CENTER_LEFT);
+        StackPane.setAlignment(ticks, Pos.CENTER_LEFT);
 
-        localElixirValue = new Label("Elixir: 0");
-        localElixirValue.setTextFill(Color.WHITE);
-        localElixirValue.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        localElixirValue = new Label("0");
+        localElixirValue.setTextFill(Color.web("#d18bff"));
+        localElixirValue.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        localElixirValue.setEffect(new javafx.scene.effect.DropShadow(5, Color.BLACK));
 
-        HBox labels = new HBox(12, localElixirValue, p1ElixirLabel, p2ElixirLabel);
-        labels.setAlignment(Pos.CENTER_LEFT);
+        HBox barWithLabel = new HBox(12, bar, localElixirValue);
+        barWithLabel.setAlignment(Pos.CENTER_LEFT);
 
-        VBox panel = new VBox(6, bar, labels);
+        // P1/P2 elixir labels below
+        p1ElixirLabel.setTextFill(Color.web("#8f94a3"));
+        p2ElixirLabel.setTextFill(Color.web("#8f94a3"));
+        HBox playerLabels = new HBox(20, p1ElixirLabel, p2ElixirLabel);
+        playerLabels.setAlignment(Pos.CENTER_LEFT);
+
+        VBox panel = new VBox(8, barWithLabel, playerLabels);
         panel.setAlignment(Pos.CENTER_LEFT);
         return panel;
     }
@@ -427,9 +455,12 @@ public class NetworkMatchView {
         if (localElixirValue == null || localElixirFill == null) {
             return;
         }
-        localElixirValue.setText("Elixir: " + (int) currentElixir);
+        localElixirValue.setText(String.valueOf((int) currentElixir));
         double ratio = clamp01(currentElixir / 10.0);
-        localElixirFill.setPrefWidth(ELIXIR_BAR_WIDTH * ratio);
+        double width = ELIXIR_BAR_WIDTH * ratio;
+        localElixirFill.setPrefWidth(width);
+        localElixirFill.setMinWidth(width);
+        localElixirFill.setMaxWidth(width);
     }
 
     private void updateDeckLoadingState(double currentElixir) {
