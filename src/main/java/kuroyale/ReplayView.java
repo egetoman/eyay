@@ -126,7 +126,7 @@ public class ReplayView {
         start();
     }
 
-    private static final double[] SPEED_OPTIONS = {1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0};
+    private static final double[] SPEED_OPTIONS = {1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0};
     private int speedIndex = 0;
 
     private Parent buildControls() {
