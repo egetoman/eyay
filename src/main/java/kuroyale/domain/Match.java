@@ -15,6 +15,7 @@ public class Match {
     private static final double NORMAL_DURATION_SECONDS = 3 * 60; // 3 minutes as per document
     private static final double OVERTIME_DURATION_SECONDS = 3 * 60; // 3 minutes overtime
     private static final double DOUBLE_ELIXIR_START_SECONDS = 2 * 60; // Double elixir starts at 2 minutes
+    private static final double TRIPLE_ELIXIR_START_SECONDS = 5 * 60; // Triple elixir starts at 5 minutes
     private static final double OVERTIME_START_SECONDS = NORMAL_DURATION_SECONDS;
     private static final double OVERTIME_END_SECONDS = NORMAL_DURATION_SECONDS + OVERTIME_DURATION_SECONDS;
     private static final double SINGLE_ELIXIR_PER_SECOND = 1.0 / 2.8;
@@ -297,12 +298,13 @@ public class Match {
     }
 
     public ElixirPhase getCurrentElixirPhase() {
-        if (elapsedSeconds >= OVERTIME_START_SECONDS) {
-            return ElixirPhase.TRIPLE;
+        if (elapsedSeconds >= TRIPLE_ELIXIR_START_SECONDS) {
+            return ElixirPhase.TRIPLE; // 5-6 min
         }
-        return elapsedSeconds >= DOUBLE_ELIXIR_START_SECONDS
-                ? ElixirPhase.DOUBLE
-                : ElixirPhase.NORMAL;
+        if (elapsedSeconds >= DOUBLE_ELIXIR_START_SECONDS) {
+            return ElixirPhase.DOUBLE; // 2-5 min (includes overtime)
+        }
+        return ElixirPhase.NORMAL; // 0-2 min
     }
 
     private boolean isParticipant(Player potential) {
@@ -346,10 +348,13 @@ public class Match {
     }
 
     private double multiplierFor(double currentSeconds) {
-        if (currentSeconds >= OVERTIME_START_SECONDS) {
-            return 3.0;
+        if (currentSeconds >= TRIPLE_ELIXIR_START_SECONDS) {
+            return 3.0; // Triple elixir in last minute of overtime (5-6 min)
         }
-        return currentSeconds >= DOUBLE_ELIXIR_START_SECONDS ? 2.0 : 1.0;
+        if (currentSeconds >= DOUBLE_ELIXIR_START_SECONDS) {
+            return 2.0; // Double elixir from 2-5 min (includes overtime)
+        }
+        return 1.0; // Normal elixir 0-2 min
     }
 
     private void activateOvertime() {

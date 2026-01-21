@@ -86,9 +86,42 @@ public class Arena {
         if (position == null) {
             return false;
         }
-        return findUnitAt(position) == null && towers.stream()
-                .map(Tower::getPosition)
-                .noneMatch(pos -> pos != null && pos.sameTile(position));
+        return findUnitAt(position) == null && !isBlockedByTower(position);
+    }
+    
+    /**
+     * Checks if a position is blocked by a tower.
+     * Towers occupy a larger area than just their center tile.
+     * King towers have a radius of ~1.5 tiles, Crown towers ~1.0 tiles.
+     */
+    public boolean isBlockedByTower(Position position) {
+        if (position == null) {
+            return false;
+        }
+        return isBlockedByTower(position.getX(), position.getY());
+    }
+    
+    /**
+     * Checks if precise coordinates are blocked by a tower.
+     */
+    public boolean isBlockedByTower(double x, double y) {
+        for (Tower tower : towers) {
+            if (tower == null || tower.getPosition() == null || tower.isDestroyed()) {
+                continue;
+            }
+            double towerX = tower.getPosition().getX();
+            double towerY = tower.getPosition().getY();
+            // Tower collision radius: King ~1.5 tiles, Crown ~1.0 tiles
+            double radius = tower.getType() == TowerType.KING ? 1.5 : 1.0;
+            
+            double dx = x - towerX;
+            double dy = y - towerY;
+            double distSq = dx * dx + dy * dy;
+            if (distSq < radius * radius) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Unit findUnitAt(Position position) {
