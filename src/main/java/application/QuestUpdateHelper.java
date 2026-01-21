@@ -4,7 +4,6 @@ import kuroyale.domain.AchievementType;
 import kuroyale.domain.Match;
 import kuroyale.domain.MatchOutcome;
 import kuroyale.domain.QuestType;
-import kuroyale.domain.TowerOwner;
 
 /**
  * Centralized helper for updating quests and achievements after a match.
@@ -14,15 +13,21 @@ public class QuestUpdateHelper {
 
     public static void updateAfterMatch(QuestService questService, AchievementService achievementService, Match match,
             boolean isWin, int playerCrowns) {
+        updateAfterMatch(questService, achievementService, match, isWin, playerCrowns, true);
+    }
+
+    public static void updateAfterMatch(QuestService questService, AchievementService achievementService, Match match,
+            boolean isWin, int playerCrowns, boolean includeSpellDamage) {
         if (questService != null) {
-            updateQuests(questService, match, isWin, playerCrowns);
+            updateQuests(questService, match, isWin, playerCrowns, includeSpellDamage);
         }
         if (achievementService != null) {
             updateAchievements(achievementService, isWin, playerCrowns);
         }
     }
 
-    private static void updateQuests(QuestService questService, Match match, boolean isWin, int playerCrowns) {
+    private static void updateQuests(QuestService questService, Match match, boolean isWin, int playerCrowns,
+            boolean includeSpellDamage) {
         // Track win/loss for streak (Logic depends on implementation in QuestService,
         // assuming it handles boolean correctly)
         questService.recordMatchResult(isWin);
@@ -86,7 +91,7 @@ public class QuestUpdateHelper {
             if (totalCardsPlayed >= 20) {
                 questService.updateProgress(QuestType.PLAY_20_CARDS_SINGLE_MATCH, 1);
             }
-            if (spellDamage > 0) {
+            if (includeSpellDamage && spellDamage > 0) {
                 questService.updateProgress(QuestType.DEAL_SPELL_DAMAGE, spellDamage);
             }
         }
