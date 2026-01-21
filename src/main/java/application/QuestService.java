@@ -6,6 +6,7 @@ import kuroyale.domain.DailyQuestSet;
 import kuroyale.domain.Quest;
 import kuroyale.domain.QuestProgress;
 import kuroyale.domain.QuestStatus;
+import kuroyale.domain.QuestType;
 import kuroyale.infrastructure.PlayerProfileRepository;
 import kuroyale.infrastructure.QuestRepository;
 import kuroyale.support.Result;
@@ -115,6 +116,79 @@ public class QuestService {
             }
         }
         return count;
+    }
+
+    /**
+     * Records a match result for win streak tracking.
+     * Call this with isWin=true on victory, isWin=false on loss/draw.
+     * Updates WIN_STREAK quest progress when appropriate.
+     * 
+     * @param isWin true if the player won the match
+     */
+    public void recordMatchResult(boolean isWin) {
+        var profile = profileRepository.load();
+        
+        if (isWin) {
+            profile.incrementWinStreak();
+            profileRepository.save(profile);
+            
+            // Update WIN_STREAK quest with the current streak value
+            // This allows tracking consecutive wins
+            updateProgress(QuestType.WIN_STREAK, 1);
+        } else {
+            profile.resetWinStreak();
+            profileRepository.save(profile);
+        }
+    }
+
+    /**
+     * Updates progress for all quests of the given type.
+     * If any quest reaches its target, it is marked as COMPLETED.
+     * 
+     * @param type   The type of quest to update (e.g., WIN_MATCHES, DESTROY_CROWN_TOWERS)
+     * @param amount The amount of progress to add
+     */
+    public void updateProgress(QuestType type, int amount) {
+        if (type == null || amount <= 0) {
+            return;
+        }
+        
+        DailyQuestSet questSet = getTodayQuests();
+        if (questSet == null) {
+            return;
+        }
+        
+        boolean anyUpdated = false;
+        
+        for (Quest quest : questSet.getQuests()) {
+            if (quest == null || quest.getType() != type) {
+                continue;
+            }
+            
+            QuestProgress progress = questSet.getProgressForQuest(quest.getId());
+            if (progress == null) {
+                continue;
+            }
+            
+            // Skip if already completed or claimed
+            if (progress.isCompleted()) {
+                continue;
+            }
+            
+            // Add progress
+            progress.addProgress(amount);
+            anyUpdated = true;
+            
+            // Check if quest is now completed
+            if (progress.getCurrentProgress() >= quest.getTargetValue()) {
+                progress.markCompleted();
+            }
+        }
+        
+        // Save if any progress was updated
+        if (anyUpdated) {
+            questRepository.save(questSet);
+        }
     }
 }
 

@@ -39,6 +39,14 @@ public class Match {
     private boolean overtimeActive;
     private final Set<String> overtimeAliveTowerKeys = new HashSet<>();
 
+    // Card play tracking for quests
+    private int playerSpellsPlayed;
+    private int playerTroopsDeployed;
+    private int playerBuildingsPlayed;
+    private int playerElixirSpent;
+    private int playerCardsPlayed;
+    private int playerSpellDamageDealt;
+
     public Match() {
         this.arena = new Arena();
     }
@@ -135,21 +143,106 @@ public class Match {
 
         actingPlayer.spendElixir(cost);
 
+        // Track card plays for quests (only for human player, not bot/opponent)
+        boolean isHumanPlayer = (actingPlayer == player);
+        if (isHumanPlayer) {
+            playerElixirSpent += cost;
+            playerCardsPlayed++;
+        }
+
         // Handle spells differently - they deal area damage immediately
         if (card.getType() == CardType.SPELL) {
+            if (isHumanPlayer) {
+                playerSpellsPlayed++;
+            }
             castSpell(card, position, actingPlayer);
             // Return a dummy unit for compatibility, but spells don't create units
             return Result.ok(null);
         }
 
-        // Handle troops and buildings normally
+        // Track troop/building deployment for quests
+        if (isHumanPlayer) {
+            if (card.getType() == CardType.TROOP) {
+                playerTroopsDeployed++;
+            } else if (card.getType() == CardType.BUILDING) {
+                playerBuildingsPlayed++;
+            }
+        }
+
+        // Handle troops and buildings
         int hp = card.getStats() != null ? card.getStats().getHp() : 0;
+        int spawnCount = card.getStats() != null ? card.getStats().getSpawnCount() : 1;
         TowerOwner unitOwner = resolveOwner(actingPlayer);
-        Unit unit = new Unit(card, new Position(position.getX(), position.getY()), hp, unitOwner);
-        Tower initialTarget = arena.findNearestEnemyTower(unitOwner, position);
-        unit.setTargetTower(initialTarget);
-        arena.addUnit(unit);
-        return Result.ok(unit);
+        
+        // Spawn multiple units for swarm troops
+        Unit firstUnit = null;
+        List<Position> spawnPositions = calculateSpawnPositions(position, spawnCount);
+        
+        for (int i = 0; i < spawnCount && i < spawnPositions.size(); i++) {
+            Position spawnPos = spawnPositions.get(i);
+            Unit unit = new Unit(card, spawnPos, hp, unitOwner);
+            Tower initialTarget = arena.findNearestEnemyTower(unitOwner, spawnPos);
+            unit.setTargetTower(initialTarget);
+            arena.addUnit(unit);
+            if (firstUnit == null) {
+                firstUnit = unit;
+            }
+        }
+        
+        return Result.ok(firstUnit);
+    }
+
+    /**
+     * Calculates spawn positions for multiple units in a formation pattern.
+     * Units are spread out around the center position to avoid overlapping.
+     */
+    private List<Position> calculateSpawnPositions(Position center, int count) {
+        List<Position> positions = new ArrayList<>();
+        if (center == null || count <= 0) {
+            return positions;
+        }
+        
+        int cx = center.getX();
+        int cy = center.getY();
+        
+        if (count == 1) {
+            positions.add(new Position(cx, cy));
+        } else if (count == 2) {
+            // Side by side
+            positions.add(new Position(cx - 1, cy));
+            positions.add(new Position(cx + 1, cy));
+        } else if (count == 3) {
+            // Triangle formation
+            positions.add(new Position(cx, cy));
+            positions.add(new Position(cx - 1, cy + 1));
+            positions.add(new Position(cx + 1, cy + 1));
+        } else if (count == 4) {
+            // Square formation
+            positions.add(new Position(cx - 1, cy));
+            positions.add(new Position(cx + 1, cy));
+            positions.add(new Position(cx - 1, cy + 1));
+            positions.add(new Position(cx + 1, cy + 1));
+        } else if (count == 5) {
+            // Pentagon-like: center + 4 corners
+            positions.add(new Position(cx, cy));
+            positions.add(new Position(cx - 1, cy - 1));
+            positions.add(new Position(cx + 1, cy - 1));
+            positions.add(new Position(cx - 1, cy + 1));
+            positions.add(new Position(cx + 1, cy + 1));
+        } else {
+            // For 6+: two rows
+            int perRow = (count + 1) / 2;
+            int startX = cx - (perRow - 1) / 2;
+            for (int i = 0; i < perRow && positions.size() < count; i++) {
+                positions.add(new Position(startX + i, cy));
+            }
+            startX = cx - (count - perRow - 1) / 2;
+            for (int i = 0; i < count - perRow && positions.size() < count; i++) {
+                positions.add(new Position(startX + i, cy + 1));
+            }
+        }
+        
+        return positions;
     }
 
     /**
@@ -163,17 +256,26 @@ public class Match {
         }
 
         int areaDamage = spell.getStats().getDamage();
-        double radiusTiles = spell.getStats().getRange() / 10.0; // Convert from internal units to tiles
+        // Spell ranges are already in tiles (e.g., Rocket=2.0, Zap=2.5, Arrows=4.0)
+        // Unlike unit ranges which are in internal units and need /10 conversion
+        double radiusTiles = spell.getStats().getRange();
         String spellId = spell.getId();
         boolean isZap = "card_zap".equals(spellId);
         double stunDuration = isZap ? 0.5 : 0.0;
         TowerOwner casterOwner = resolveOwner(caster);
+        boolean isHumanPlayer = (caster == player);
+        int totalDamageDealt = 0;
 
         // Damage units
         List<Unit> unitsInRadius = arena.findUnitsInRadius(targetPosition, radiusTiles);
         for (Unit unit : unitsInRadius) {
             if (unit != null && !unit.isDefeated() && unit.getOwner() != casterOwner) {
+                // Track actual damage dealt (capped by remaining HP)
+                int damageDealt = Math.min(areaDamage, unit.getCurrentHP());
                 unit.takeDamage(areaDamage);
+                if (isHumanPlayer) {
+                    totalDamageDealt += damageDealt;
+                }
                 if (isZap && stunDuration > 0) {
                     unit.applyStun(stunDuration);
                 }
@@ -185,8 +287,18 @@ public class Match {
         List<Tower> towersInRadius = arena.findTowersInRadius(targetPosition, radiusTiles);
         for (Tower tower : towersInRadius) {
             if (tower != null && !tower.isDestroyed() && tower.getOwner() != casterOwner) {
+                // Track actual damage dealt (capped by remaining HP)
+                int damageDealt = Math.min(towerDamage, tower.getHp());
                 tower.takeDamage(towerDamage);
+                if (isHumanPlayer) {
+                    totalDamageDealt += damageDealt;
+                }
             }
+        }
+
+        // Track spell damage for quests
+        if (isHumanPlayer) {
+            playerSpellDamageDealt += totalDamageDealt;
         }
     }
 
@@ -288,6 +400,56 @@ public class Match {
 
     public void setBotEnabled(boolean botEnabled) {
         this.botEnabled = botEnabled;
+    }
+
+    // Quest tracking getters
+    public int getPlayerSpellsPlayed() {
+        return playerSpellsPlayed;
+    }
+
+    public int getPlayerTroopsDeployed() {
+        return playerTroopsDeployed;
+    }
+
+    public int getPlayerBuildingsPlayed() {
+        return playerBuildingsPlayed;
+    }
+
+    public int getPlayerElixirSpent() {
+        return playerElixirSpent;
+    }
+
+    public int getPlayerCardsPlayed() {
+        return playerCardsPlayed;
+    }
+
+    public int getPlayerSpellDamageDealt() {
+        return playerSpellDamageDealt;
+    }
+
+    /**
+     * Checks if the player's deck contains only common rarity cards.
+     * 
+     * @return true if all cards in the player's deck are common rarity
+     */
+    public boolean isPlayerDeckAllCommon() {
+        if (player == null || player.getDeck() == null) {
+            return false;
+        }
+        List<Card> cards = player.getDeck().getCards();
+        if (cards == null || cards.isEmpty()) {
+            return false;
+        }
+        for (Card card : cards) {
+            if (card == null) {
+                continue;
+            }
+            Rarity rarity = CardRarityCatalog.rarityForCardId(card.getId());
+            if (rarity != Rarity.COMMON) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

@@ -94,6 +94,13 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
         return isHost;
     }
 
+    /**
+     * Returns the host's Match object (only available for host, null for client).
+     */
+    public Match getHostMatch() {
+        return hostMatch;
+    }
+
     public void attachHostMatch(Match match, ArenaLayout layout) {
         this.hostMatch = match;
         this.layout = layout;
@@ -148,6 +155,10 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
     public Result<?> requestDeploy(Card card, Position position) {
         if (card == null || position == null) {
             return Result.fail("Invalid deployment.");
+        }
+        // Block card deployment when opponent is disconnected
+        if (opponentDisconnectedAt != null) {
+            return Result.fail("Cannot deploy cards while opponent is disconnected.");
         }
         if (!isAllowedForPlayer(localPlayerId, card.getId())) {
             return Result.fail("Card is not in your deck.");
@@ -218,10 +229,10 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
             return;
         }
 
-        // If opponent disconnected, allow 5s for reconnection; then award win to remaining player.
+        // If opponent disconnected, allow 10s for reconnection; then award win to remaining player.
         if (opponentDisconnectedAt != null) {
             long elapsed = Duration.between(opponentDisconnectedAt, Instant.now()).toMillis();
-            if (elapsed >= 5000) {
+            if (elapsed >= 10000) {
                 forcedFinished = true;
                 forcedWinnerPlayerId = localPlayerId;
                 if (onConnectionInfo != null) {
@@ -340,10 +351,10 @@ public class NetworkMatchController implements NetworkAdapter.Listener {
     }
 
     private void attemptReconnectAsync() {
-        // Try reconnect for up to 5 seconds, limited by config reconnect attempts.
+        // Try reconnect for up to 10 seconds, limited by config reconnect attempts.
         new Thread(() -> {
             int attempts = Math.max(1, config.getReconnectAttempts());
-            long deadline = Instant.now().toEpochMilli() + 5000;
+            long deadline = Instant.now().toEpochMilli() + 10000;
             for (int i = 0; i < attempts && Instant.now().toEpochMilli() < deadline; i++) {
                 try {
                     if (onConnectionInfo != null) {

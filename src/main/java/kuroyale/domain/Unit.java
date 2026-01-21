@@ -440,47 +440,6 @@ public class Unit {
                 }
             }
             
-            // Check for tower collision - units should not walk through towers
-            if (arena.isBlockedByTower(newX, newY)) {
-                // Try to path around the tower
-                // First, try moving only horizontally
-                if (!arena.isBlockedByTower(newX, preciseY)) {
-                    newY = preciseY;
-                }
-                // If that's blocked too, try moving only vertically
-                else if (!arena.isBlockedByTower(preciseX, newY)) {
-                    newX = preciseX;
-                }
-                // If both are blocked, try to slide around by moving perpendicular
-                else {
-                    // Calculate perpendicular direction to slide around tower
-                    double perpX = -dy / distanceToWaypoint; // Perpendicular to movement direction
-                    double perpY = dx / distanceToWaypoint;
-                    
-                    // Try sliding in one perpendicular direction
-                    double slideX = preciseX + perpX * step;
-                    double slideY = preciseY + perpY * step;
-                    if (!arena.isBlockedByTower(slideX, slideY) && 
-                        !(moveType == UnitMovementType.GROUND && arena.isRiverTile(slideY) && !arena.isOnBridge(slideX, slideY))) {
-                        newX = slideX;
-                        newY = slideY;
-                    } else {
-                        // Try the other perpendicular direction
-                        slideX = preciseX - perpX * step;
-                        slideY = preciseY - perpY * step;
-                        if (!arena.isBlockedByTower(slideX, slideY) &&
-                            !(moveType == UnitMovementType.GROUND && arena.isRiverTile(slideY) && !arena.isOnBridge(slideX, slideY))) {
-                            newX = slideX;
-                            newY = slideY;
-                        } else {
-                            // Can't move at all - stay in place
-                            newX = preciseX;
-                            newY = preciseY;
-                        }
-                    }
-                }
-            }
-            
             preciseX = newX;
             preciseY = newY;
         }

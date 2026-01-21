@@ -290,7 +290,11 @@ public class ArenaBoard {
         int maxY = Math.max(bridge.getStart().getY(), bridge.getEnd().getY());
 
         double x = minX * tileSize;
-        double y = convertY(layout, maxY);
+        // Use the same coordinate system as the river (which doesn't use convertY)
+        // River is at (layout.getHeight() / 2.0 - 1) * tileSize
+        // Bridge should extend from one tile above river to one tile below
+        double riverTop = (layout.getHeight() / 2.0 - 1) * tileSize;
+        double y = riverTop - tileSize; // Start one tile above river
         double width = (maxX - minX + 1) * tileSize;
         double height = (maxY - minY + 1) * tileSize;
 

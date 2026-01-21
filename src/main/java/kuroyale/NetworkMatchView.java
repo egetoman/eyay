@@ -65,6 +65,7 @@ public class NetworkMatchView {
     private Region localElixirFill;
 
     private final List<Card> localDeckCards;
+    private final java.util.Deque<Card> drawPile = new java.util.ArrayDeque<>();
     private final List<Card> handCards = new ArrayList<>();
     private Card nextCard;
     private int selectedIndex = -1;
@@ -201,9 +202,10 @@ public class NetworkMatchView {
         // request happens before socket is ready).
         startBootstrapSnapshotRequests();
 
-        // Host ticks simulation
+        // Host ticks simulation at ~30 FPS for smooth gameplay (same as single-player)
         if (controller.isHost()) {
-            hostTicker = new Timeline(new KeyFrame(Duration.seconds(0.2), e -> controller.hostTick(0.2)));
+            double tickDuration = 0.033;
+            hostTicker = new Timeline(new KeyFrame(Duration.seconds(tickDuration), e -> controller.hostTick(tickDuration)));
             hostTicker.setCycleCount(Timeline.INDEFINITE);
             hostTicker.play();
         }
@@ -266,18 +268,18 @@ public class NetworkMatchView {
     }
 
     private void initializeHand() {
+        drawPile.clear();
         handCards.clear();
-        // Simplified: just take first 8 from catalog
-        List<Card> picked = new ArrayList<>();
-        for (Card c : localDeckCards) {
-            if (picked.size() >= 8)
-                break;
-            picked.add(c);
+        // Add all deck cards to the draw pile
+        if (localDeckCards != null) {
+            drawPile.addAll(localDeckCards);
         }
+        // Draw initial hand of 4 cards
         for (int i = 0; i < 4; i++) {
-            handCards.add(i < picked.size() ? picked.get(i) : null);
+            handCards.add(drawPile.pollFirst());
         }
-        nextCard = picked.size() > 4 ? picked.get(4) : null;
+        // Next card is the top of the draw pile
+        nextCard = drawPile.peekFirst();
     }
 
     private void refreshDeckUI() {
@@ -312,9 +314,11 @@ public class NetworkMatchView {
             statusLabel.setText("Selected slot is empty.");
             return;
         }
-        if (!isValidSide(pos)) {
+        // Spells can target anywhere, troops/buildings must be on your side
+        boolean isSpell = card.getType() == kuroyale.domain.CardType.SPELL;
+        if (!isSpell && !isValidSide(pos)) {
             statusLabel.setTextFill(Color.web("#f05a5b"));
-            statusLabel.setText("Invalid side for your player.");
+            statusLabel.setText("You can only deploy troops/buildings on your side.");
             return;
         }
         var result = controller.requestDeploy(card, pos);
@@ -331,8 +335,26 @@ public class NetworkMatchView {
         }
         statusLabel.setTextFill(Color.web("#9be564"));
         statusLabel.setText("Requested deploy: " + card.getName() + " at (" + pos.getX() + "," + pos.getY() + ")");
+        cycleCard(selectedIndex);
         selectedIndex = -1;
         refreshDeckUI();
+    }
+
+    private void cycleCard(int index) {
+        if (index < 0 || index >= handCards.size()) {
+            return;
+        }
+        Card played = handCards.get(index);
+        if (played == null) {
+            return;
+        }
+        // Add played card back to the draw pile
+        drawPile.addLast(played);
+        // Draw replacement card
+        Card replacement = drawPile.pollFirst();
+        handCards.set(index, replacement);
+        // Update next card preview
+        nextCard = drawPile.peekFirst();
     }
 
     private boolean isValidSide(Position tile) {
@@ -419,19 +441,14 @@ public class NetworkMatchView {
             return;
         }
         HBox deckRow = (HBox) rowNode;
-        if (deckRow.getChildren().size() < 2) {
-            return;
-        }
-        var handRowNode = deckRow.getChildren().get(1);
-        if (!(handRowNode instanceof HBox)) {
-            return;
-        }
-        HBox handRow = (HBox) handRowNode;
-
-        for (int i = 0; i < handRow.getChildren().size(); i++) {
-            var child = handRow.getChildren().get(i);
-            if (child instanceof StackPane && i < handCards.size()) {
-                Card card = handCards.get(i);
+        
+        // Structure: [VBox nextCol, StackPane slot0, StackPane slot1, StackPane slot2, StackPane slot3]
+        // Skip first child (next column), iterate over hand card slots
+        int handIndex = 0;
+        for (int i = 1; i < deckRow.getChildren().size() && handIndex < handCards.size(); i++) {
+            var child = deckRow.getChildren().get(i);
+            if (child instanceof StackPane) {
+                Card card = handCards.get(handIndex);
                 if (card != null) {
                     double cost = card.getElixirCost();
                     double progress = (cost <= 0) ? 1.0 : (currentElixir / cost);
@@ -439,6 +456,7 @@ public class NetworkMatchView {
                 } else {
                     StartGameUiBits.updateCardLoading((StackPane) child, 0.0);
                 }
+                handIndex++;
             }
         }
     }
@@ -502,8 +520,98 @@ public class NetworkMatchView {
         int opponentCrowns = localId == 1 ? p2Crowns : p1Crowns;
 
         String headline = "Draw";
+        boolean localWins = false;
         if (snap.winnerPlayerId != null) {
-            headline = snap.winnerPlayerId == localId ? "Victory" : "Defeat";
+            localWins = snap.winnerPlayerId == localId;
+            headline = localWins ? "Victory" : "Defeat";
+        }
+
+        // Update quest and achievement progress for Network match
+        if (navigator != null) {
+            var questService = navigator.getQuestService();
+            var achievementService = navigator.getAchievementService();
+            
+            if (questService != null) {
+                // Track win/loss for streak
+                questService.recordMatchResult(localWins);
+                
+                if (localWins) {
+                    questService.updateProgress(kuroyale.domain.QuestType.WIN_MATCHES, 1);
+                    questService.updateProgress(kuroyale.domain.QuestType.WIN_PVP_MATCH, 1);
+                    questService.updateProgress(kuroyale.domain.QuestType.WIN_NETWORK_MATCH, 1);
+                    
+                    // Win without losing crown tower
+                    if (opponentCrowns == 0) {
+                        questService.updateProgress(kuroyale.domain.QuestType.WIN_WITHOUT_LOSING_CROWN, 1);
+                    }
+                    
+                    // Check for win using only common rarity cards
+                    boolean allCommon = true;
+                    if (localDeckCards != null && !localDeckCards.isEmpty()) {
+                        for (Card card : localDeckCards) {
+                            if (card != null) {
+                                kuroyale.domain.Rarity rarity = kuroyale.domain.CardRarityCatalog.rarityForCardId(card.getId());
+                                if (rarity != kuroyale.domain.Rarity.COMMON) {
+                                    allCommon = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (allCommon) {
+                            questService.updateProgress(kuroyale.domain.QuestType.WIN_ONLY_COMMON, 1);
+                        }
+                    }
+                }
+                
+                if (localCrowns > 0) {
+                    questService.updateProgress(kuroyale.domain.QuestType.DESTROY_CROWN_TOWERS, localCrowns);
+                }
+                
+                if (localCrowns >= 3) {
+                    questService.updateProgress(kuroyale.domain.QuestType.DESTROY_ENEMY_KING, 1);
+                }
+                
+                // Track card plays from match statistics (host only - has access to Match object)
+                if (controller != null && controller.isHost()) {
+                    var hostMatch = controller.getHostMatch();
+                    if (hostMatch != null) {
+                        int spellsPlayed = hostMatch.getPlayerSpellsPlayed();
+                        int troopsDeployed = hostMatch.getPlayerTroopsDeployed();
+                        int buildingsPlayed = hostMatch.getPlayerBuildingsPlayed();
+                        int elixirSpent = hostMatch.getPlayerElixirSpent();
+                        int totalCardsPlayed = hostMatch.getPlayerCardsPlayed();
+                        int spellDamage = hostMatch.getPlayerSpellDamageDealt();
+                        
+                        if (spellsPlayed > 0) {
+                            questService.updateProgress(kuroyale.domain.QuestType.PLAY_SPELL_CARDS, spellsPlayed);
+                        }
+                        if (troopsDeployed > 0) {
+                            questService.updateProgress(kuroyale.domain.QuestType.DEPLOY_TROOP_CARDS, troopsDeployed);
+                        }
+                        if (buildingsPlayed > 0) {
+                            questService.updateProgress(kuroyale.domain.QuestType.PLAY_BUILDING_CARDS, buildingsPlayed);
+                        }
+                        if (elixirSpent > 0) {
+                            questService.updateProgress(kuroyale.domain.QuestType.SPEND_ELIXIR, elixirSpent);
+                        }
+                        if (totalCardsPlayed >= 20) {
+                            questService.updateProgress(kuroyale.domain.QuestType.PLAY_20_CARDS_SINGLE_MATCH, 1);
+                        }
+                        if (spellDamage > 0) {
+                            questService.updateProgress(kuroyale.domain.QuestType.DEAL_SPELL_DAMAGE, spellDamage);
+                        }
+                    }
+                }
+            }
+            
+            if (achievementService != null) {
+                if (localWins) {
+                    achievementService.updateProgress(kuroyale.domain.AchievementType.WIN_TOTAL_MATCHES, 1);
+                }
+                if (localCrowns > 0) {
+                    achievementService.updateProgress(kuroyale.domain.AchievementType.TOTAL_CROWNS, localCrowns);
+                }
+            }
         }
 
         MatchEndOverlay.show(

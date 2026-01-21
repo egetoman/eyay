@@ -33,21 +33,21 @@ public class CardCatalogRepository {
                 cards.add(troop("card_wizard", "Wizard", 5, 340, 130, 5.0, "Medium", 1.7, CardTarget.AIR_AND_GROUND,
                                 "Shoots explosive fireballs."));
 
-                // Swarm troops
+                // Swarm troops (with spawn counts)
                 cards.add(troop("card_skeletons", "Skeletons", 1, 30, 30, 1.0, "Very Fast", 1.0, CardTarget.GROUND,
-                                "Spawns 4 fragile but fast units."));
+                                3, "Spawns 3 fragile but fast units."));
                 cards.add(troop("card_goblins", "Goblins", 2, 80, 50, 1.0, "Fast", 1.1, CardTarget.GROUND,
-                                "Spawns 3 fast melee fighters."));
+                                3, "Spawns 3 fast melee fighters."));
                 cards.add(troop("card_spear_goblins", "Spear Goblins", 2, 52, 24, 5.5, "Fast", 1.1,
-                                CardTarget.AIR_AND_GROUND, "Spawns 3 ranged goblins."));
+                                CardTarget.AIR_AND_GROUND, 3, "Spawns 3 ranged goblins."));
                 cards.add(troop("card_archers", "Archers", 3, 125, 40, 5.5, "Medium", 1.1, CardTarget.AIR_AND_GROUND,
-                                "Spawns 2 ranged soldiers."));
+                                2, "Spawns 2 ranged soldiers."));
                 cards.add(troop("card_minions", "Minions", 3, 90, 40, 2.5, "Very Fast", 1.0, CardTarget.AIR_AND_GROUND,
-                                UnitMovementType.FLYING, "Spawns 3 flying attackers."));
+                                UnitMovementType.FLYING, 3, "Spawns 3 flying attackers."));
                 cards.add(troop("card_minion_horde", "Minion Horde", 5, 90, 40, 2.5, "Very Fast", 1.0,
-                                CardTarget.AIR_AND_GROUND, UnitMovementType.FLYING, "Spawns 6 flying attackers."));
+                                CardTarget.AIR_AND_GROUND, UnitMovementType.FLYING, 5, "Spawns 5 flying attackers."));
                 cards.add(troop("card_barbarians", "Barbarians", 5, 300, 75, 1.0, "Fast", 1.5, CardTarget.GROUND,
-                                "Spawns 4 tough melee fighters."));
+                                5, "Spawns 5 tough melee fighters."));
 
                 // Defensive buildings
                 cards.add(building("card_cannon", "Cannon", 3, 400, 60, 5.5, 0, CardTarget.GROUND,
@@ -83,13 +83,25 @@ public class CardCatalogRepository {
         private Card troop(String id, String name, int cost, int hp, int damage, double rangeTiles, String moveSpeed,
                         double hitSpeedSeconds, CardTarget target, String description) {
                 return troop(id, name, cost, hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds, target,
-                                UnitMovementType.GROUND, description);
+                                UnitMovementType.GROUND, 1, description);
         }
 
         private Card troop(String id, String name, int cost, int hp, int damage, double rangeTiles, String moveSpeed,
                         double hitSpeedSeconds, CardTarget target, UnitMovementType movementType, String description) {
+                return troop(id, name, cost, hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds, target,
+                                movementType, 1, description);
+        }
+
+        private Card troop(String id, String name, int cost, int hp, int damage, double rangeTiles, String moveSpeed,
+                        double hitSpeedSeconds, CardTarget target, int spawnCount, String description) {
+                return troop(id, name, cost, hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds, target,
+                                UnitMovementType.GROUND, spawnCount, description);
+        }
+
+        private Card troop(String id, String name, int cost, int hp, int damage, double rangeTiles, String moveSpeed,
+                        double hitSpeedSeconds, CardTarget target, UnitMovementType movementType, int spawnCount, String description) {
                 return new Card(id, name, cost, CardType.TROOP,
-                                stats(hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds), target, movementType,
+                                statsWithSpawn(hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds, spawnCount), target, movementType,
                                 description);
         }
 
@@ -105,12 +117,17 @@ public class CardCatalogRepository {
         }
 
         private CardStats stats(int hp, int damage, double rangeTiles, String moveSpeed, double hitSpeedSeconds) {
+                return statsWithSpawn(hp, damage, rangeTiles, moveSpeed, hitSpeedSeconds, 1);
+        }
+
+        private CardStats statsWithSpawn(int hp, int damage, double rangeTiles, String moveSpeed, double hitSpeedSeconds, int spawnCount) {
                 return new CardStats(
                                 hp,
                                 damage,
                                 rangeValue(rangeTiles),
                                 speedValue(moveSpeed),
-                                hitSpeedMillis(hitSpeedSeconds));
+                                hitSpeedMillis(hitSpeedSeconds),
+                                spawnCount);
         }
 
         private int rangeValue(double tiles) {

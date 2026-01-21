@@ -10,11 +10,13 @@ public class PlayerProfile {
     private int gold;
     private Map<String, CardProgression> cardProgressions;
     private Map<String, ChallengeProgress> challengeProgress;
+    private int currentWinStreak;
     
     public PlayerProfile() {
         this.gold = 0;
         this.cardProgressions = new HashMap<>();
         this.challengeProgress = new HashMap<>();
+        this.currentWinStreak = 0;
     }
     
     public PlayerProfile(String playerName, int gold) {
@@ -22,6 +24,7 @@ public class PlayerProfile {
         this.gold = gold;
         this.cardProgressions = new HashMap<>();
         this.challengeProgress = new HashMap<>();
+        this.currentWinStreak = 0;
     }
     
     public String getPlayerName() {
@@ -99,6 +102,29 @@ public class PlayerProfile {
         if (challengeId != null && progress != null) {
             challengeProgress.put(challengeId, progress);
         }
+    }
+
+    public int getCurrentWinStreak() {
+        return currentWinStreak;
+    }
+
+    public void setCurrentWinStreak(int streak) {
+        this.currentWinStreak = Math.max(0, streak);
+    }
+
+    /**
+     * Increments win streak on a win, returns the new streak value.
+     */
+    public int incrementWinStreak() {
+        currentWinStreak++;
+        return currentWinStreak;
+    }
+
+    /**
+     * Resets win streak to 0 on a loss or draw.
+     */
+    public void resetWinStreak() {
+        currentWinStreak = 0;
     }
 }
 

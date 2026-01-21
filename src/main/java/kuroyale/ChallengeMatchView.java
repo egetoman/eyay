@@ -225,13 +225,91 @@ public class ChallengeMatchView {
         String message;
         String starsText = "Stars: 0/3";
         String goldText = "Gold: +0";
+        boolean challengeWon = false;
+        int crownsEarned = 0;
+        
         if (completion.isSuccess() && completion.getData() != null) {
             var data = completion.getData();
-            message = data.isWin() ? "Challenge Completed!" : "Challenge Failed";
+            challengeWon = data.isWin();
+            message = challengeWon ? "Challenge Completed!" : "Challenge Failed";
             starsText = "Stars: " + data.getStars() + "/3";
             goldText = "Gold: +" + data.getGoldAwarded();
+            crownsEarned = data.getStars(); // Stars approximate crowns in challenges
         } else {
             message = "Challenge Ended";
+        }
+
+        // Update quest and achievement progress for Challenge mode
+        if (navigator != null) {
+            var questService = navigator.getQuestService();
+            var achievementService = navigator.getAchievementService();
+            
+            if (questService != null) {
+                // Track win/loss for streak
+                questService.recordMatchResult(challengeWon);
+                
+                if (challengeWon) {
+                    questService.updateProgress(kuroyale.domain.QuestType.WIN_MATCHES, 1);
+                    questService.updateProgress(kuroyale.domain.QuestType.COMPLETE_CHALLENGES, 1);
+                    
+                    // Win without losing crown tower
+                    var outcome = match != null ? match.getOutcome() : null;
+                    if (outcome != null && outcome.getOpponentCrowns() == 0) {
+                        questService.updateProgress(kuroyale.domain.QuestType.WIN_WITHOUT_LOSING_CROWN, 1);
+                    }
+                    
+                    // Check for win using only common rarity cards
+                    if (match != null && match.isPlayerDeckAllCommon()) {
+                        questService.updateProgress(kuroyale.domain.QuestType.WIN_ONLY_COMMON, 1);
+                    }
+                }
+                
+                if (crownsEarned > 0) {
+                    questService.updateProgress(kuroyale.domain.QuestType.DESTROY_CROWN_TOWERS, crownsEarned);
+                }
+                
+                if (crownsEarned >= 3) {
+                    questService.updateProgress(kuroyale.domain.QuestType.DESTROY_ENEMY_KING, 1);
+                }
+                
+                // Track card plays from match statistics
+                if (match != null) {
+                    int spellsPlayed = match.getPlayerSpellsPlayed();
+                    int troopsDeployed = match.getPlayerTroopsDeployed();
+                    int buildingsPlayed = match.getPlayerBuildingsPlayed();
+                    int elixirSpent = match.getPlayerElixirSpent();
+                    int totalCardsPlayed = match.getPlayerCardsPlayed();
+                    int spellDamage = match.getPlayerSpellDamageDealt();
+                    
+                    if (spellsPlayed > 0) {
+                        questService.updateProgress(kuroyale.domain.QuestType.PLAY_SPELL_CARDS, spellsPlayed);
+                    }
+                    if (troopsDeployed > 0) {
+                        questService.updateProgress(kuroyale.domain.QuestType.DEPLOY_TROOP_CARDS, troopsDeployed);
+                    }
+                    if (buildingsPlayed > 0) {
+                        questService.updateProgress(kuroyale.domain.QuestType.PLAY_BUILDING_CARDS, buildingsPlayed);
+                    }
+                    if (elixirSpent > 0) {
+                        questService.updateProgress(kuroyale.domain.QuestType.SPEND_ELIXIR, elixirSpent);
+                    }
+                    if (totalCardsPlayed >= 20) {
+                        questService.updateProgress(kuroyale.domain.QuestType.PLAY_20_CARDS_SINGLE_MATCH, 1);
+                    }
+                    if (spellDamage > 0) {
+                        questService.updateProgress(kuroyale.domain.QuestType.DEAL_SPELL_DAMAGE, spellDamage);
+                    }
+                }
+            }
+            
+            if (achievementService != null) {
+                if (challengeWon) {
+                    achievementService.updateProgress(kuroyale.domain.AchievementType.WIN_TOTAL_MATCHES, 1);
+                }
+                if (crownsEarned > 0) {
+                    achievementService.updateProgress(kuroyale.domain.AchievementType.TOTAL_CROWNS, crownsEarned);
+                }
+            }
         }
 
         overlayLayer.setVisible(true);

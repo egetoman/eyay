@@ -340,17 +340,19 @@ public class ScreenNavigator {
     }
 
     public void recordMatchWithReplay(Match match, String opponentType, ArenaLayout layout, MatchReplay replay) {
-        if (historyService == null || match == null) {
+        if (match == null) {
             return;
         }
         String result = "Unknown";
         int crowns = 0;
+        boolean isWin = false;
         var outcome = match.getOutcome();
         if (outcome != null) {
             if (outcome.getWinner() == null) {
                 result = "Draw";
             } else if (outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER) {
                 result = "Win";
+                isWin = true;
             } else {
                 result = "Loss";
             }
@@ -359,19 +361,26 @@ public class ScreenNavigator {
             result = "Draw";
         }
 
-        MatchRecord record = new MatchRecord(
-                java.util.UUID.randomUUID().toString(),
-                LocalDateTime.now(),
-                opponentType,
-                result,
-                crowns,
-                0,
-                layout != null ? layout.getName() : "Unknown");
-        if (layout != null) {
-            record.setArenaLayoutId(layout.getId());
+        // Update quest progress always, regardless of history service availability
+        if (questService != null) {
+            application.QuestUpdateHelper.updateAfterMatch(questService, achievementService, match, isWin, crowns);
         }
-        record.setReplay(replay);
-        historyService.recordMatch(record);
+
+        if (historyService != null) {
+            MatchRecord record = new MatchRecord(
+                    java.util.UUID.randomUUID().toString(),
+                    LocalDateTime.now(),
+                    opponentType,
+                    result,
+                    crowns,
+                    0,
+                    layout != null ? layout.getName() : "Unknown");
+            if (layout != null) {
+                record.setArenaLayoutId(layout.getId());
+            }
+            record.setReplay(replay);
+            historyService.recordMatch(record);
+        }
     }
 
     public void showAchievementScreen() {

@@ -7,16 +7,23 @@ public class CardStats {
     private int range;
     private int moveSpeed;
     private int hitSpeedMillis;
+    private int spawnCount;
 
     public CardStats() {
+        this.spawnCount = 1; // Default to 1 unit
     }
 
     public CardStats(int hp, int damage, int range, int moveSpeed, int hitSpeedMillis) {
+        this(hp, damage, range, moveSpeed, hitSpeedMillis, 1);
+    }
+
+    public CardStats(int hp, int damage, int range, int moveSpeed, int hitSpeedMillis, int spawnCount) {
         this.hp = hp;
         this.damage = damage;
         this.range = range;
         this.moveSpeed = moveSpeed;
         this.hitSpeedMillis = hitSpeedMillis;
+        this.spawnCount = spawnCount > 0 ? spawnCount : 1;
     }
 
     public int getHp() {
@@ -57,6 +64,14 @@ public class CardStats {
 
     public void setHitSpeedMillis(int hitSpeedMillis) {
         this.hitSpeedMillis = hitSpeedMillis;
+    }
+
+    public int getSpawnCount() {
+        return spawnCount > 0 ? spawnCount : 1;
+    }
+
+    public void setSpawnCount(int spawnCount) {
+        this.spawnCount = spawnCount > 0 ? spawnCount : 1;
     }
 }
 

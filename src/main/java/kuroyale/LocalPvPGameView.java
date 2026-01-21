@@ -951,10 +951,21 @@ public class LocalPvPGameView {
         int topCrowns = outcome != null ? outcome.getOpponentCrowns() : 0;
 
         String headline = "Draw";
+        boolean bottomWins = false;
         if (outcome != null && outcome.getWinner() != null) {
-            headline = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER ? "Victory" : "Defeat";
+            bottomWins = outcome.getWinner() == kuroyale.domain.TowerOwner.PLAYER;
+            headline = bottomWins ? "Victory" : "Defeat";
         } else if (match != null && match.isFinished()) {
             headline = "Draw";
+        }
+
+        // Update quest and achievement progress for Local PvP
+        // Bottom player (Player 1) is tracked as the main player for quests
+        if (navigator != null) {
+            var questService = navigator.getQuestService();
+            var achievementService = navigator.getAchievementService();
+            application.QuestUpdateHelper.updateAfterMatch(questService, achievementService, match, bottomWins,
+                    bottomCrowns);
         }
 
         String topName = topPlayer != null ? topPlayer.getName() : "Player 2";
